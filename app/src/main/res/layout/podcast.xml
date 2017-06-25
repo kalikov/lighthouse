@@ -14,7 +14,7 @@
     android:layout_width="match_parent"
     android:layout_gravity="top"
     android:layout_weight="1"
-    android:layout_height="match_parent"
+    android:layout_height="0dp"
     android:fitsSystemWindows="true"
     android:id="@android:id/content"
     tools:context="ru.radiomayak.podcasts.PodcastsActivity">
@@ -71,8 +71,7 @@
         android:id="@+id/refresh"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="ru.radiomayak.podcasts.AppBarScrollingBehaviour">
-<!--@string/appbar_scrolling_view_behavior"-->
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"

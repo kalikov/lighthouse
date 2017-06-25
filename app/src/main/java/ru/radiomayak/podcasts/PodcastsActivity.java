@@ -278,11 +278,16 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
         }
     }
 
-    private void onPodcastDisplay(Podcast podcast) {
-        requestPodcastIcon(podcast);
+    private void onPodcastDisplay(final Podcast podcast) {
+        getListView().post(new Runnable() {
+            @Override
+            public void run() {
+                requestPodcastIcon(podcast);
+            }
+        });
     }
 
-    private void requestPodcastIcon(Podcast podcast) {
+    private void requestPodcastIcon(final Podcast podcast) {
         Image image = podcast.getIcon();
         if (image == null) {
             return;
@@ -291,7 +296,21 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
             return;
         }
         images.remove(podcast.getId());
-        PodcastIconAsyncTask task = new PodcastIconAsyncTask(this, this);
+        PodcastIconAsyncTask task = new PodcastIconAsyncTask(this, this) {
+            @Override
+            protected LongSparseArray<BitmapInfo> doInBackground(Podcast... podcasts) {
+                publishProgress();
+                return super.doInBackground(podcasts);
+            }
+
+            @Override
+            protected void onProgressUpdate(Void... values) {
+                if (getPodcastRow(podcast.getId()) < 0) {
+                    images.put(podcast.getId(), null);
+                    cancel(true);
+                }
+            }
+        };
         task.executeOnExecutor(LighthouseApplication.NETWORK_POOL_EXECUTOR, podcast);
     }
 
@@ -311,6 +330,22 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
                 updatePodcastRow(podcast);
             }
         }
+    }
+
+    private int getPodcastRow(Podcast podcast) {
+        return getPodcastRow(podcast.getId());
+    }
+
+    private int getPodcastRow(long id) {
+        ListView list = getListView();
+        int first = list.getFirstVisiblePosition();
+        int last = list.getLastVisiblePosition();
+        for (int i = first; i <= last; i++) {
+            if (id == list.getItemIdAtPosition(i)) {
+                return i - first;
+            }
+        }
+        return -1;
     }
 
     private void updatePodcastRow(Podcast podcast) {

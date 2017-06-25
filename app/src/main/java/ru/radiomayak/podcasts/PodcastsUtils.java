@@ -56,7 +56,7 @@ public final class PodcastsUtils {
             RECORD_DATE, RECORD_DURATION, RECORD_PLAYED};
 
     private static final String RECORD_PLAYED_SELECT_SQL = "SELECT " + RECORD_PLAYED +
-            " FROM " + PodcastsOpenHelper.RECORDS + " WHERE " + PODCAST_ID + " = ? AND " + RECORD_ID + " = ?";
+            " FROM " + PodcastsOpenHelper.RECORDS + " WHERE " + RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " = ?";
 
     private static final ThreadLocal<String[]> IDENTITY_LEN_ARRAY = new ThreadLocal<>();
     private static final ThreadLocal<String[]> DOUBLE_LEN_ARRAY = new ThreadLocal<>();
@@ -199,7 +199,7 @@ public final class PodcastsUtils {
                 args = args(toString(podcast), toString(from));
             } else {
                 sql += " WHERE " + RECORD_PODCAST_ID + " = ?";
-                args = args(toString(from));
+                args = args(toString(podcast));
             }
             sql += " ORDER BY " + RECORD_ID + " DESC LIMIT " + count;
 
@@ -253,7 +253,7 @@ public final class PodcastsUtils {
             ContentValues values = new ContentValues();
             values.put(RECORD_PLAYED, record.isPlayed() ? 1 : 0);
             String[] args = args(toString(podcast), toString(record.getId()));
-            database.update(PodcastsOpenHelper.RECORDS, values, PODCAST_ID + " = ? AND " + RECORD_ID + " = ?", args);
+            database.update(PodcastsOpenHelper.RECORDS, values, RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " = ?", args);
         }
     }
 

@@ -3,16 +3,12 @@ package ru.radiomayak.podcasts;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
-import android.media.MediaPlayer;
-import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.CollapsingToolbarLayout;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.graphics.ColorUtils;
-import android.support.v4.media.MediaDescriptionCompat;
-import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBar;
 import android.support.v7.widget.LinearLayoutManager;
@@ -418,10 +414,16 @@ public class RecordsActivity extends LighthouseActivity
     }
 
     @Override
-    public void onPageLoaded(RecordsPaginator response) {
+    public void onPageLoaded(RecordsPaginator response, boolean isCancelled) {
         pageAsyncTask = null;
-        updatePageRecords(response);
-        showContentView();
+        if (!isCancelled) {
+            if (response == null) {
+                Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
+                adapter.setFooterMode(RecordsAdapter.FooterMode.BUTTON);
+            } else {
+                updatePageRecords(response);
+            }
+        }
     }
 
     private void updateLoadMoreView() {
@@ -489,8 +491,6 @@ public class RecordsActivity extends LighthouseActivity
         if (bitmapInfo == null || isCancelled) {
             return;
         }
-//        getToolbar().setTitle("");
-//        getToolbarLayout().setTitleEnabled(false);
         getToolbarImage().setImageBitmap(bitmapInfo.getBitmap());
         if (bitmapInfo.getPrimaryColor() != 0) {
             Image splash = Objects.requireNonNull(podcast.getSplash());
@@ -501,56 +501,29 @@ public class RecordsActivity extends LighthouseActivity
 
     @Override
     public void playRecord(Record record) {
-        /*MediaPlayer mediaPlayer = getMediaPlayer();
-
         LighthouseTrack track = getTrack();
         if (track != null && track.getRecord().getId() == record.getId()) {
-            if (mediaPlayer.isPlaying()) {
-                mediaPlayer.pause();
+            if (isPlaying()) {
+                pause();
             } else {
-                mediaPlayer.start();
+                play();
             }
             updatePlayerView();
             return;
         }
-*/
+
         try {
             setTrack(new LighthouseTrack(podcast, record));
         } catch (Exception e) {
-            e.printStackTrace();
+            Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();
         }
 
-        /*updatePlayerView();*/
+        updatePlayerView();
     }
 
     @Override
-    protected void updatePlayerView() {
-        super.updatePlayerView();
-
-//        if (getPlayerView().getVisibility() == View.GONE) {
-//            findViewById(android.R.id.content).layout(0, 0, findViewById(android.R.id.button1).getWidth(), findViewById(android.R.id.button1).getHeight());
-//        } else {
-//            findViewById(android.R.id.content).layout(0, 0, findViewById(android.R.id.button1).getWidth(), findViewById(android.R.id.button1).getHeight() - getPlayerView().getHeight());
-//        }
+    public void loadMore() {
+        adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
+        requestNextPage();
     }
-
-//    @Override
-//    public int getCacheSize(Record record) {
-//        return getLighthouseApplication().getMediaProxyServer().getCacheSize(String.valueOf(record.getId()));
-//    }
-
-    /*@Override
-    protected int setProgress() {
-
-        Record record = getRecord();
-        if (record != null) {
-            RecyclerView.ViewHolder viewHolder = getRecyclerView().findViewHolderForItemId(record.getId());
-            if (viewHolder != null) {
-                adapter.notifyItemChanged(viewHolder.getAdapterPosition());
-            }
-        }
-//        updateRecordRow(getRecord());
-
-        return super.setProgress();
-    }*/
 }

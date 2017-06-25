@@ -1,15 +1,8 @@
 package ru.radiomayak;
 
-import android.content.ComponentName;
-import android.net.Uri;
+import android.media.MediaPlayer;
 import android.os.Bundle;
-import android.os.RemoteException;
 import android.support.annotation.Nullable;
-import android.support.v4.media.MediaBrowserCompat;
-import android.support.v4.media.MediaMetadataCompat;
-import android.support.v4.media.session.MediaControllerCompat;
-import android.support.v4.media.session.MediaSessionCompat;
-import android.support.v4.media.session.PlaybackStateCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -19,148 +12,52 @@ import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.IOException;
 import java.util.Locale;
 
-import ru.radiomayak.media.MediaPlaybackService;
 import ru.radiomayak.media.MediaPlayerObserver;
-import ru.radiomayak.podcasts.Podcast;
+import ru.radiomayak.podcasts.PodcastsUtils;
 import ru.radiomayak.podcasts.Record;
 
 public class LighthouseActivity extends AppCompatActivity implements MediaPlayerObserver {
     private static final String ZERO_TIME_TEXT = "00:00";
 
-    private MediaBrowserCompat mMediaBrowser;
-
-    private final MediaBrowserCompat.ConnectionCallback mConnectionCallbacks =
-            new MediaBrowserCompat.ConnectionCallback() {
-                @Override
-                public void onConnected() {
-
-                    // Get the token for the MediaSession
-                    MediaSessionCompat.Token token = mMediaBrowser.getSessionToken();
-
-                    // Create a MediaControllerCompat
-                    MediaControllerCompat mediaController = null;
-                    try {
-                        mediaController = new MediaControllerCompat(LighthouseActivity.this, token);
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                        return;
-                    }
-
-                    // Save the controller
-                    MediaControllerCompat.setMediaController(LighthouseActivity.this, mediaController);
-
-                    mediaController.registerCallback(controllerCallback);
-                    // Finish building the UI
-//                    buildTransportControls();
-                    updatePlayerView();
-                }
-
-                @Override
-                public void onConnectionSuspended() {
-                    // The Service has crashed. Disable transport controls until it automatically reconnects
-                }
-
-                @Override
-                public void onConnectionFailed() {
-                    // The Service has refused our connection
-                }
-
-                void buildTransportControls()
-                {
-                    // Grab the view for the play/pause button
-//                    mPlayPause = (ImageView) findViewById(R.id.play_pause);
-
-                    // Attach a listener to the button
-                    /*getPlayPauseButton().setOnClickListener(new View.OnClickListener() {
-                        @Override
-                        public void onClick(View v) {
-                            // Since this is a play/pause button, you'll need to test the current state
-                            // and choose the action accordingly
-
-                            int pbState = MediaControllerCompat.getMediaController(LighthouseActivity.this).getPlaybackState().getState();
-                            if (pbState == PlaybackStateCompat.STATE_PLAYING) {
-                                MediaControllerCompat.getMediaController(LighthouseActivity.this).getTransportControls().pause();
-                            } else {
-                                MediaControllerCompat.getMediaController(LighthouseActivity.this).getTransportControls().play();
-                            }
-                        }
-                    });
-
-                    MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(LighthouseActivity.this);
-
-                    // Display the initial state
-                    MediaMetadataCompat metadata = mediaController.getMetadata();
-                    PlaybackStateCompat pbState = mediaController.getPlaybackState();*/
-
-                    // Register a Callback to stay in sync
-//                    mediaController.registerCallback(controllerCallback);
-                }
-
-            };
-
-    MediaControllerCompat.Callback controllerCallback =
-            new MediaControllerCompat.Callback() {
-                @Override
-                public void onMetadataChanged(MediaMetadataCompat metadata) {
-
-                }
-
-                @Override
-                public void onPlaybackStateChanged(PlaybackStateCompat state) {
-                    updatePlayerView();
-                }
-            };
-
     private boolean isTracking;
 
-//    private final Runnable showProgressRunnable = new Runnable() {
-//        @Override
-//        public void run() {
-//            long pos = setProgress();
-//            if (!isTracking && isPlaying()) {
-//                getPlayerView().postDelayed(showProgressRunnable, 1000 - (pos % 1000));
-//            } else if (!isTracking) {
-//                updatePlayPauseButton();
-//            }
-//        }
-//    };
+    private final Runnable showProgressRunnable = new Runnable() {
+        @Override
+        public void run() {
+            long pos = setProgress();
+            if (!isTracking && isPlaying()) {
+                getPlayerView().postDelayed(showProgressRunnable, 1000 - (pos % 1000));
+            } else if (!isTracking) {
+                updatePlayPauseButton();
+            }
+        }
+    };
 
     @Override
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
-
-        mMediaBrowser = new MediaBrowserCompat(this,
-                new ComponentName(this, MediaPlaybackService.class),
-                mConnectionCallbacks,
-                null); // optional Bundle
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        mMediaBrowser.connect();
     }
 
     @Override
     public void onStop() {
         super.onStop();
-        // (see "stay in sync with the MediaSession")
-        if (MediaControllerCompat.getMediaController(this) != null) {
-            MediaControllerCompat.getMediaController(this).unregisterCallback(controllerCallback);
-        }
-        mMediaBrowser.disconnect();
-
     }
 
     @Override
     protected void onDestroy() {
-//        if (getLighthouseApplication().containsObserver(this)) {
-//            getLighthouseApplication().unregisterObserver(this);
-//        }
+        if (getLighthouseApplication().containsObserver(this)) {
+            getLighthouseApplication().unregisterObserver(this);
+        }
         super.onDestroy();
     }
 
@@ -184,12 +81,10 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
                 if (!fromUser) {
                     return;
                 }
-                MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(LighthouseActivity.this);
-                long duration = mediaController.getMetadata().getLong(MediaMetadataCompat.METADATA_KEY_DURATION);
-                long position = progress * duration / 1000;
-//                getMediaPlayer().seekTo((int) position);
-                getSongPositionView().setText(formatTime((int) position));
-                mediaController.getTransportControls().seekTo(position);
+                int duration = getMediaPlayer().getDuration();
+                int position = progress * duration / 1000;
+                getSongPositionView().setText(formatTime(position));
+                getMediaPlayer().seekTo(position);
             }
 
             @Override
@@ -200,8 +95,8 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 isTracking = false;
-//                setProgress();
-//                getPlayerView().post(showProgressRunnable);
+                setProgress();
+                getPlayerView().post(showProgressRunnable);
             }
         });
 
@@ -228,17 +123,15 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
             return;
         }
         Record record = track.getRecord();
-//
-//        MediaPlayer player = getMediaPlayer();
-//
+
         updatePlayPauseButton();
-//
-//        if ((isPreparing() || getMediaPlayer().isPlaying()) && !getLighthouseApplication().containsObserver(this)) {
-//            getLighthouseApplication().registerObserver(this);
-//        }
-//
+
+        if ((isPreparing() || isPlaying()) && !getLighthouseApplication().containsObserver(this)) {
+            getLighthouseApplication().registerObserver(this);
+        }
+
         getSongNameView().setText(record.getName());
-        if (isPreparing()) {
+        if (isPreparing() || isError()) {
             getSeekBar().setEnabled(false);
             getSeekBar().setProgress(0);
             getSeekBar().setSecondaryProgress(0);
@@ -246,12 +139,11 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
             getSongDurationView().setText(ZERO_TIME_TEXT);
         } else {
             getSeekBar().setEnabled(true);
-            MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
-            getSongPositionView().setText(formatTime(mediaController.getPlaybackState().getPosition()));
-            getSongDurationView().setText(formatTime(mediaController.getMetadata().getLong(MediaMetadataCompat.METADATA_KEY_DURATION)));
+            getSongPositionView().setText(formatTime(getMediaPlayer().getCurrentPosition()));
+            getSongDurationView().setText(formatTime(getMediaPlayer().getDuration()));
             setProgress();
 
-//            playerView.post(showProgressRunnable);
+            playerView.post(showProgressRunnable);
         }
         playerView.setVisibility(View.VISIBLE);
     }
@@ -260,7 +152,7 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         if (isPreparing()) {
             Animation animation = AnimationUtils.loadAnimation(this, R.anim.rotation);
             animation.setInterpolator(new LinearInterpolator());
-            getPlayPauseButton().setImageResource(R.drawable.progress);
+            getPlayPauseButton().setImageResource(R.drawable.player_progress);
             getPlayPauseButton().setContentDescription(getString(R.string.loading));
             getPlayPauseButton().startAnimation(animation);
         } else {
@@ -274,66 +166,51 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         return ((LighthouseApplication) getApplication());
     }
 
-//    public MediaPlayer getMediaPlayer() {
-//        return getLighthouseApplication().getMediaPlayer();
-//    }
+    public MediaPlayer getMediaPlayer() {
+        return getLighthouseApplication().getMediaPlayer();
+    }
 
     public LighthouseTrack getTrack() {
-//        return getLighthouseApplication().getTrack();
-        if (!mMediaBrowser.isConnected()) {
-            return null;
-        }
-        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
-        if (mediaController == null) {
-            return null;
-        }
-        Bundle bundle = mediaController.getExtras();
-        if (bundle == null) {
-            return null;
-        }
-        Record record = bundle.getParcelable("record");
-        Podcast podcast = bundle.getParcelable("podcast");
-        if (record == null || podcast == null) {
-            return null;
-        }
-        return new LighthouseTrack(podcast, record);
+        return getLighthouseApplication().getTrack();
     }
 
     public void setTrack(LighthouseTrack track) throws IOException {
-        Record record = track.getRecord();
-        Bundle bundle = new Bundle();
-        bundle.putParcelable("record", record);
-        bundle.putParcelable("podcast", track.getPodcast());
-        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
-        mediaController.getTransportControls().playFromUri(Uri.parse(record.getUrl()), bundle);
-//        getLighthouseApplication().resetTrack();
-//        if (!getLighthouseApplication().containsObserver(this)) {
-//            getLighthouseApplication().registerObserver(this);
-//        }
-//        getLighthouseApplication().setTrack(track);
+        getLighthouseApplication().resetTrack();
+        if (!getLighthouseApplication().containsObserver(this)) {
+            getLighthouseApplication().registerObserver(this);
+        }
+        getLighthouseApplication().setTrack(track);
     }
 
     public void resetTrack() {
-//        getLighthouseApplication().resetTrack();
-//        if (getLighthouseApplication().containsObserver(this)) {
-//            getLighthouseApplication().unregisterObserver(this);
-//        }
+        getLighthouseApplication().resetTrack();
+        if (getLighthouseApplication().containsObserver(this)) {
+            getLighthouseApplication().unregisterObserver(this);
+        }
     }
 
-//    public int getBufferPercentage() {
-//        return getLighthouseApplication().getBufferPercentage();
-//    }
+    public int getBufferPercentage() {
+        return getLighthouseApplication().getBufferPercentage();
+    }
 
     public boolean isPreparing() {
-//        return getLighthouseApplication().isPreparing();
-        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
-        return mediaController != null && mediaController.getPlaybackState().getState() == PlaybackStateCompat.STATE_CONNECTING;
+        return getLighthouseApplication().isPreparing();
     }
 
     public boolean isPlaying() {
-//        return getLighthouseApplication().isPreparing();
-        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
-        return mediaController != null && mediaController.getPlaybackState().getState() == PlaybackStateCompat.STATE_PLAYING;
+        return getMediaPlayer().isPlaying();
+    }
+
+    public boolean isError() {
+        return getLighthouseApplication().isError();
+    }
+
+    public void pause() {
+        getMediaPlayer().pause();
+    }
+
+    public void play() {
+        getLighthouseApplication().play();
     }
 
     public View getPlayerView() {
@@ -364,14 +241,14 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         return (ImageView) getPlayerView().findViewById(android.R.id.closeButton);
     }
 
-    private static String formatTime(long time) {
+    private static String formatTime(int time) {
         if (time <= 0) {
             return ZERO_TIME_TEXT;
         }
-        long totalSecs = time / 1000;
-        long secs = totalSecs % 60;
-        long mins = (totalSecs / 60) % 60;
-        long hours = totalSecs / 3600;
+        int totalSecs = time / 1000;
+        int secs = totalSecs % 60;
+        int mins = (totalSecs / 60) % 60;
+        int hours = totalSecs / 3600;
         if (hours > 0) {
             return String.format(Locale.ROOT, "%d:%02d:%02d", hours, mins, secs);
         }
@@ -379,12 +256,17 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
     }
 
     private void togglePlayer() {
-//        MediaPlayer player = getMediaPlayer();
-//        if (player.isPlaying()) {
-//            player.pause();
-//        } else {
-//            player.start();
-//        }
+        if (isPlaying()) {
+            pause();
+        } else if (isError()) {
+            try {
+                setTrack(getTrack());
+            } catch (IOException e) {
+                Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            play();
+        }
         updatePlayerView();
     }
 
@@ -398,23 +280,17 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         if (isTracking || isPreparing()) {
             return 0;
         }
-        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
-//        MediaPlayer player = getMediaPlayer();
-        long position = mediaController.getPlaybackState().getPosition();// player.getCurrentPosition();
-        long duration = mediaController.getMetadata().getLong(MediaMetadataCompat.METADATA_KEY_DURATION);//player.getDuration();
+        MediaPlayer player = getMediaPlayer();
+        int position = player.getCurrentPosition();
+        int duration = player.getDuration();
         if (duration > 0) {
-            long progress = position * 1000 / duration;
+            long progress = (long) position * 1000 / duration;
             getSeekBar().setProgress((int) progress);
         } else {
             getSeekBar().setProgress(0);
         }
-        int percent = (int)mediaController.getPlaybackState().getBufferedPosition();//getBufferPercentage();
-//        Record record = getRecord();
-//        if (record != null && getLighthouseApplication().getMediaProxyServer().getCacheSize(String.valueOf(record.getId())) == 100) {
-//            getSeekBar().setSecondaryProgress(1000);
-//        } else {
+        int percent = getBufferPercentage();
         getSeekBar().setSecondaryProgress(percent * 10);
-//        }
 
         getSongDurationView().setText(formatTime(duration));
         getSongPositionView().setText(formatTime(position));
@@ -424,26 +300,26 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
 
     @Override
     public void onPrepared() {
-        /*getMediaPlayer().start();
+        getMediaPlayer().start();
         updatePlayerView();
 
         LighthouseTrack track = getTrack();
         if (track != null && !track.getRecord().isPlayed()) {
             track.getRecord().setPlayed(true);
             PodcastsUtils.storeRecordPlayedProperty(this, track.getPodcast().getId(), track.getRecord());
-        }*/
+        }
     }
 
     @Override
     public void onFailed() {
-        /*getLighthouseApplication().unregisterObserver(this);
+        getLighthouseApplication().unregisterObserver(this);
         updatePlayerView();
-        Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();*/
+        Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onCompleted() {
-       /* getLighthouseApplication().unregisterObserver(this);
-        updatePlayerView();*/
+        getLighthouseApplication().unregisterObserver(this);
+        updatePlayerView();
     }
 }

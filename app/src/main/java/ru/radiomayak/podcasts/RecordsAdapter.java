@@ -5,6 +5,7 @@ import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import org.jsoup.Jsoup;
@@ -30,7 +31,6 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
     private final List<Record> records;
     private FooterMode footerMode;
 
-    //    private final RecordCacheAdapter cacheAdapter;
     private final RecordsPlayer player;
 
     private final String[] months;
@@ -47,7 +47,6 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         this.records = records;
         this.player = player;
         footerMode = FooterMode.HIDDEN;
-//        this.cacheAdapter = cacheAdapter;
         setHasStableIds(true);
 
         months = application.getString(R.string.months).split(",");
@@ -58,7 +57,6 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         return records.size() + (footerMode != FooterMode.HIDDEN ? 1 : 0);
     }
 
-    //    @Override
     public boolean isEmpty() {
         return records.isEmpty() && footerMode == FooterMode.HIDDEN;
     }
@@ -82,13 +80,11 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         } else if (footerMode == FooterMode.HIDDEN) {
             this.footerMode = footerMode;
             notifyItemRemoved(records.size());
+        } else {
+            this.footerMode = footerMode;
+            notifyItemChanged(records.size());
         }
     }
-//
-//    @Override
-//    public Record getItem(int position) {
-//        return records.get(position);
-//    }
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
@@ -105,7 +101,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         if (holder instanceof ItemViewHolder) {
             ((ItemViewHolder) holder).bind(records.get(position));
         } else if (holder instanceof FooterViewHolder) {
-            holder.bind(footerMode);
+            ((FooterViewHolder) holder).bind(footerMode);
         }
     }
 
@@ -130,37 +126,21 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         return (TextView) view.findViewById(R.id.duration);
     }
 
-//    private static ProgressBar getCacheView(View view) {
-//        return (ProgressBar) view.findViewById(R.id.cache);
-//    }
-
     static abstract class ViewHolder extends RecyclerView.ViewHolder {
         ViewHolder(View itemView) {
             super(itemView);
         }
-
-        public void bind(FooterMode footerMode) {
-
-        }
     }
 
     class ItemViewHolder extends ViewHolder {
-//        private final RecordCacheAdapter cacheAdapter;
-
         ItemViewHolder(View itemView) {
             super(itemView);
-//            this.cacheAdapter = cacheAdapter;
         }
 
         void bind(final Record record) {
             TextView nameView = getNameView(itemView);
             nameView.setText(record.getName());
             nameView.setTypeface(application.getFontBold());
-
-//            ProgressBar cacheBar = getCacheView(itemView);
-//            int cacheSize = cacheAdapter.getCacheSize(record);
-//            cacheBar.setProgress(cacheSize);
-//            cacheBar.setIndeterminate(false);
 
             TextView descriptionView = getDescriptionView(itemView);
             if (record.getDescription() != null) {
@@ -212,9 +192,29 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         }
     }
 
-    static class FooterViewHolder extends ViewHolder {
+    class FooterViewHolder extends ViewHolder {
         FooterViewHolder(View itemView) {
             super(itemView);
+        }
+
+        void bind(FooterMode footerMode) {
+            getTextView(itemView).setVisibility(footerMode == FooterMode.BUTTON ? View.VISIBLE : View.INVISIBLE);
+            getProgressBar(itemView).setVisibility(footerMode == FooterMode.LOADING ? View.VISIBLE : View.INVISIBLE);
+
+            itemView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    player.loadMore();
+                }
+            });
+        }
+
+        private TextView getTextView(View view) {
+            return (TextView) view.findViewById(android.R.id.text1);
+        }
+
+        private ProgressBar getProgressBar(View view) {
+            return (ProgressBar) view.findViewById(android.R.id.progress);
         }
     }
 }

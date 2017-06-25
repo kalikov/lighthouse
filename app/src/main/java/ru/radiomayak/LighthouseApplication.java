@@ -1,9 +1,11 @@
 package ru.radiomayak;
 
 import android.app.Application;
+import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.media.MediaPlayer;
+import android.net.wifi.WifiManager;
 import android.support.annotation.NonNull;
 
 import java.io.IOException;
@@ -20,6 +22,8 @@ import ru.radiomayak.media.MediaPlayerObservable;
 import ru.radiomayak.media.MediaPlayerObserver;
 
 public class LighthouseApplication extends Application {
+    private static final String TAG = LighthouseApplication.class.getSimpleName();
+
     private static final int KEEP_ALIVE_SECONDS = 30;
 
     private static final ThreadFactory threadFactory = new ThreadFactory() {
@@ -46,15 +50,15 @@ public class LighthouseApplication extends Application {
     private Typeface fontNormal;
     private Typeface fontLight;
 
-//    private MediaPlayer mediaPlayer;
+    private MediaPlayer mediaPlayer;
+    private WifiManager.WifiLock wifiLock;
 
     private LighthouseTrack track;
 
     private int bufferPercentage;
 
     private boolean isPreparing;
-
-//    private MediaProxyServer proxyServer;
+    private boolean isError;
 
     @Override
     public void onCreate() {
@@ -64,61 +68,62 @@ public class LighthouseApplication extends Application {
         fontNormal = Typeface.createFromAsset(getAssets(), "fonts/russia-normal.ttf");
         fontLight = Typeface.createFromAsset(getAssets(), "fonts/russia-light.ttf");
 
-//        mediaPlayer = new MediaPlayer();
-//        mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-//            @Override
-//            public void onPrepared(MediaPlayer mp) {
-//                isPreparing = false;
-//                mediaPlayerObservable.notifyPrepared();
-//            }
-//        });
-//        mediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-//            @Override
-//            public boolean onError(MediaPlayer mp, int what, int extra) {
-//                isPreparing = false;
-//                mediaPlayerObservable.notifyFailed();
-//                return true;
-//            }
-//        });
-//        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-//            @Override
-//            public void onCompletion(MediaPlayer mp) {
-//                isPreparing = false;
-//                mediaPlayerObservable.notifyCompleted();
-//            }
-//        });
-//        mediaPlayer.setOnBufferingUpdateListener(new MediaPlayer.OnBufferingUpdateListener() {
-//            @Override
-//            public void onBufferingUpdate(MediaPlayer mp, int percent) {
-//                bufferPercentage = percent;
-//            }
-//        });
-//        mediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
-//            @Override
-//            public void onSeekComplete(MediaPlayer mp) {
-//            }
-//        });
+        mediaPlayer = new MediaPlayer();
+        mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mp) {
+                isPreparing = false;
+                acquireWifiLockIfNotHeld();
+                mediaPlayerObservable.notifyPrepared();
+            }
+        });
+        mediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+            @Override
+            public boolean onError(MediaPlayer mp, int what, int extra) {
+                isPreparing = false;
+                isError = true;
+                releaseWifiLockIfHeld();
+                mediaPlayerObservable.notifyFailed();
+                return true;
+            }
+        });
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                isPreparing = false;
+                releaseWifiLockIfHeld();
+                mediaPlayerObservable.notifyCompleted();
+            }
+        });
+        mediaPlayer.setOnBufferingUpdateListener(new MediaPlayer.OnBufferingUpdateListener() {
+            @Override
+            public void onBufferingUpdate(MediaPlayer mp, int percent) {
+                if (bufferPercentage == percent) {
+                    return;
+                }
+                bufferPercentage = percent;
+                if (bufferPercentage == 100) {
+                    releaseWifiLockIfHeld();
+                }
+            }
+        });
+        mediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
+            @Override
+            public void onSeekComplete(MediaPlayer mp) {
+            }
+        });
 
-//        proxyServer = new MediaProxyServer(getExternalFilesDir(Environment.DIRECTORY_PODCASTS));
-//        try {
-//            proxyServer.start();
-//        } catch (IOException ignored) {
-//        }
+        wifiLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).createWifiLock(WifiManager.WIFI_MODE_FULL, TAG);
     }
 
     @Override
     public void onTerminate() {
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+        releaseWifiLockIfHeld();
         super.onTerminate();
-
-//        if (proxyServer != null) {
-//            try {
-//                proxyServer.stop();
-//            } catch (InterruptedException e) {
-//                Thread.currentThread().interrupt();
-//            } finally {
-//                proxyServer = null;
-//            }
-//        }
     }
 
     @Override
@@ -131,24 +136,18 @@ public class LighthouseApplication extends Application {
         super.onLowMemory();
     }
 
-//    public MediaPlayer getMediaPlayer() {
-//        return mediaPlayer;
-//    }
+    public MediaPlayer getMediaPlayer() {
+        return mediaPlayer;
+    }
 
     public LighthouseTrack getTrack() {
         return track;
     }
 
-    /*public void setTrack(LighthouseTrack track) throws IOException {
+    public void setTrack(LighthouseTrack track) throws IOException {
         resetTrack();
 
         String url = track.getRecord().getUrl();
-
-//        InetAddress address = proxyServer.getInetAddress();
-//        int port = proxyServer.getPort();
-//
-//        String src = "http://" + address.getHostAddress() + ":" + port + "?url=" + URLEncoder.encode(url, "UTF-8") + "&name=" + record.getId();
-//        mediaPlayer.setDataSource(src);
 
         mediaPlayer.setDataSource(url);
         this.track = track;
@@ -158,26 +157,41 @@ public class LighthouseApplication extends Application {
     }
 
     public void resetTrack() {
+        releaseWifiLockIfHeld();
         mediaPlayer.reset();
         this.track = null;
         bufferPercentage = 0;
-    }*/
-//
-//    public int getBufferPercentage() {
-//        return bufferPercentage;
-//    }
-//
-//    public void registerObserver(MediaPlayerObserver observer) {
-//        mediaPlayerObservable.registerObserver(observer);
-//    }
-//
-//    public void unregisterObserver(MediaPlayerObserver observer) {
-//        mediaPlayerObservable.unregisterObserver(observer);
-//    }
-//
-//    public boolean containsObserver(MediaPlayerObserver observer) {
-//        return mediaPlayerObservable.containsObserver(observer);
-//    }
+        isPreparing = false;
+        isError = false;
+    }
+
+    private void releaseWifiLockIfHeld() {
+        if (wifiLock.isHeld()) {
+            wifiLock.release();
+        }
+    }
+
+    private void acquireWifiLockIfNotHeld() {
+        if (!wifiLock.isHeld()) {
+            wifiLock.acquire();
+        }
+    }
+
+    public int getBufferPercentage() {
+        return bufferPercentage;
+    }
+
+    public void registerObserver(MediaPlayerObserver observer) {
+        mediaPlayerObservable.registerObserver(observer);
+    }
+
+    public void unregisterObserver(MediaPlayerObserver observer) {
+        mediaPlayerObservable.unregisterObserver(observer);
+    }
+
+    public boolean containsObserver(MediaPlayerObserver observer) {
+        return mediaPlayerObservable.containsObserver(observer);
+    }
 
     public Typeface getFontBold() {
         return fontBold;
@@ -191,7 +205,16 @@ public class LighthouseApplication extends Application {
         return fontLight;
     }
 
-//    public boolean isPreparing() {
-//        return isPreparing;
-//    }
+    public boolean isPreparing() {
+        return isPreparing;
+    }
+
+    public boolean isError() {
+        return isError;
+    }
+
+    public void play() {
+        getMediaPlayer().start();
+        acquireWifiLockIfNotHeld();
+    }
 }

@@ -11,7 +11,7 @@ class PageAsyncTask extends AsyncTask<Object, Void, RecordsPaginator> {
     private final Listener listener;
 
     interface Listener {
-        void onPageLoaded(RecordsPaginator response);
+        void onPageLoaded(RecordsPaginator response, boolean isCancelled);
     }
 
     PageAsyncTask(Context context, Listener listener) {
@@ -32,6 +32,11 @@ class PageAsyncTask extends AsyncTask<Object, Void, RecordsPaginator> {
 
     @Override
     protected void onPostExecute(RecordsPaginator response) {
-        listener.onPageLoaded(response);
+        listener.onPageLoaded(response, false);
+    }
+
+    @Override
+    protected void onCancelled(RecordsPaginator response) {
+        listener.onPageLoaded(response, true);
     }
 }

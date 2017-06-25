@@ -9,6 +9,7 @@ import android.util.LongSparseArray;
 import android.util.Log;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.io.output.ByteArrayOutputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,8 +28,6 @@ import ru.radiomayak.http.HttpVersion;
 import ru.radiomayak.http.message.BasicHttpRequest;
 
 abstract class AbstractPodcastImageAsyncTask extends AsyncTask<Podcast, Void, LongSparseArray<BitmapInfo>> {
-    private static final int TIMEOUT = 10000;
-
     protected final String TAG = getClass().getSimpleName();
 
     protected final Context context;
@@ -42,6 +41,9 @@ abstract class AbstractPodcastImageAsyncTask extends AsyncTask<Podcast, Void, Lo
         LongSparseArray<BitmapInfo> array = new LongSparseArray<>(podcasts.length);
         try {
             for (Podcast podcast : podcasts) {
+                if (isCancelled()) {
+                    return array;
+                }
                 BitmapInfo image = getImage(podcast);
                 if (image != null) {
                     array.put(podcast.getId(), image);
@@ -65,8 +67,11 @@ abstract class AbstractPodcastImageAsyncTask extends AsyncTask<Podcast, Void, Lo
                 return null;
             }
         }
+        if (isCancelled()) {
+            return null;
+        }
         bitmap = postProcessBitmap(bitmap);
-        if (!extractColors) {
+        if (!extractColors || isCancelled()) {
             return new BitmapInfo(bitmap, 0, 0);
         }
         BitmapInfo info = new BitmapInfo(bitmap);
@@ -84,7 +89,7 @@ abstract class AbstractPodcastImageAsyncTask extends AsyncTask<Podcast, Void, Lo
 
     @Nullable
     private Bitmap getRemoteImage(Podcast podcast) {
-        if (NetworkUtils.isConnected(context)) {
+        if (NetworkUtils.isConnected(context) && !isCancelled()) {
             try {
                 byte[] bytes = requestImage(getUrl(podcast));
                 if (bytes != null) {
@@ -112,7 +117,7 @@ abstract class AbstractPodcastImageAsyncTask extends AsyncTask<Podcast, Void, Lo
     }
 
     @Nullable
-    private static byte[] requestImage(@Nullable String source) throws IOException, HttpException {
+    private byte[] requestImage(@Nullable String source) throws IOException, HttpException {
         if (source == null) {
             return null;
         }
@@ -136,7 +141,13 @@ abstract class AbstractPodcastImageAsyncTask extends AsyncTask<Podcast, Void, Lo
                 return null;
             }
             try (InputStream stream = HttpUtils.getContent(response.getEntity())) {
-                return IOUtils.toByteArray(stream);
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+                int n;
+                byte[] buffer = new byte[10 * 1024];
+                while (IOUtils.EOF != (n = stream.read(buffer)) && !isCancelled()) {
+                    output.write(buffer, 0, n);
+                }
+                return isCancelled() ? null : output.toByteArray();
             }
         }
     }
