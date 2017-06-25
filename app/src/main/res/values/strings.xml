@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">Радио Маяк</string>
+
+    <string name="lorem_ipsum">Lorem ipsum</string>
+    <string name="lorem_ipsum_large">
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+        Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+    </string>
+
+    <string name="zero">0</string>
+    <string name="months">января,февраля,марта,апреля,мая,июня,июля,августа,сентября,октября,ноября,декабря</string>
+
+    <string name="loading">Загрузка&#8230;</string>
+    <string name="play">Воиспроизвести</string>
+    <string name="pause">Пауза</string>
+    <string name="stop">Остановить</string>
+    <string name="player_failed">Ошибка воспроизведения</string>
+
+    <string name="toast_no_connection">Нет соединения</string>
+    <string name="toast_loading_error">При загрузке данных произошла ошибка</string>
+
+    <string name="podcasts">Подкасты</string>
+    <string name="podcasts_loading">Получение списка подкастов&#8230;</string>
+    <string name="podcasts_error">Не удалось получить список подкастов.\nПопробуйте повторить попытку.</string>
+
+    <string name="records_loading">Получение списка записей&#8230;</string>
+    <string name="records_error">Не удалось получить список записей.\nПопробуйте повторить попытку.</string>
+    <string name="record_date_format">dd MMMM yyyy</string>
+    <string name="record_duration">Продолжительность: %s</string>
+</resources>

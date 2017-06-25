@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/player"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/player_background"
+    android:clickable="true"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@android:id/toggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="true"
+            android:contentDescription="@string/play"
+            android:padding="@dimen/player_padding"
+            android:scaleType="center"
+            android:src="@drawable/play_selector"/>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_toStartOf="@android:id/closeButton"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:text="@string/lorem_ipsum_large"
+                android:textAppearance="@style/AppTheme.Title"/>
+
+            <ImageView
+                android:id="@android:id/closeButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:clickable="true"
+                android:contentDescription="@string/stop"
+                android:padding="@dimen/player_padding"
+                android:scaleType="center"
+                android:src="@drawable/close_selector"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
+
+        </RelativeLayout>
+
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingEnd="@dimen/player_text_padding"
+        android:paddingStart="@dimen/player_text_padding">
+
+        <TextView
+            android:id="@+id/offset"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/lorem_ipsum"
+            android:textAppearance="@style/AppTheme.Text.Small"/>
+
+        <TextView
+            android:id="@+id/duration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:text="@string/lorem_ipsum"
+            android:textAppearance="@style/AppTheme.Text.Small"/>
+
+    </FrameLayout>
+
+    <SeekBar
+        android:id="@+id/seekbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:filterTouchesWhenObscured="false"
+        android:keepScreenOn="false"
+        android:paddingBottom="@dimen/podcast_padding"
+        android:paddingEnd="@dimen/player_seekbar_padding"
+        android:paddingStart="@dimen/player_seekbar_padding"
+        android:paddingTop="2dp"
+        android:progressDrawable="@drawable/seekbar"
+        android:thumb="@drawable/seekbar_thumb_selector"/>
+
+</LinearLayout>

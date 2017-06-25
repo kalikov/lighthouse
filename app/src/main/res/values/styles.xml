@@ -1,0 +1,49 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:windowBackground">@color/colorForeground</item>
+    </style>
+
+    <!--<style name="AppTheme.PrimaryAccent">
+        <item name="colorAccent">@color/colorPrimary</item>
+    </style>-->
+
+    <style name="AppTheme.ProgressBar" parent="Widget.AppCompat.ProgressBar">
+        <item name="colorAccent">@color/colorPrimary</item>
+        <item name="colorControlNormal">@color/colorPrimary</item>
+    </style>
+
+    <style name="AppTheme.ToolBar.Title" parent="TextAppearance.AppCompat.Widget.ActionBar.Title">
+        <item name="android:textSize">@dimen/toolbar_title_size</item>
+        <item name="android:textColor">@color/titleTextColor</item>
+    </style>
+
+    <style name="AppTheme.Title" parent="TextAppearance.AppCompat.Small">
+        <item name="android:textSize">@dimen/text_small_size</item>
+        <item name="android:textColor">@color/textColor</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="AppTheme.Text.Small" parent="TextAppearance.AppCompat.Small">
+        <item name="android:textSize">@dimen/text_small_size</item>
+        <item name="android:textColor">@color/textColorTertiary</item>
+    </style>
+
+    <style name="AppTheme.Text.Medium" parent="TextAppearance.AppCompat.Medium">
+        <item name="android:textSize">@dimen/text_medium_size</item>
+        <item name="android:textColor">@color/textColorTertiary</item>
+    </style>
+
+    <style name="AppTheme.ActionBar" parent="ThemeOverlay.AppCompat.ActionBar">
+        <item name="android:textColorPrimary">@color/titleTextColor</item>
+        <item name="colorControlNormal">#FFFFFF</item>
+    </style>
+
+    <style name="PopupOverlay" parent="ThemeOverlay.AppCompat.Light"/>
+
+</resources>

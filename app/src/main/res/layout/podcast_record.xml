@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/colorForeground"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/record_bg_selector"
+        android:orientation="vertical"
+        android:padding="@dimen/podcast_padding">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:layout_toEndOf="@android:id/icon"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:paddingEnd="0dp"
+                android:paddingStart="@dimen/record_title_padding"
+                android:text="@string/lorem_ipsum_large"
+                android:textAppearance="@style/AppTheme.Title"/>
+
+            <ImageView
+                android:id="@android:id/icon"
+                android:layout_width="@dimen/record_icon_size"
+                android:layout_height="@dimen/record_icon_size"
+                android:layout_centerVertical="true"
+                android:contentDescription="@string/play"
+                android:src="@drawable/record_play"/>
+
+            <!--<ProgressBar
+                android:id="@+id/cache"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_centerVertical="true"
+                android:indeterminate="false"
+                android:max="100"
+                android:progress="0"
+                android:progressDrawable="@drawable/record_progress"
+                android:rotation="-90"/>-->
+
+        </RelativeLayout>
+
+        <TextView
+            android:id="@+id/date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/record_icon_size"
+            android:lines="1"
+            android:paddingEnd="0sp"
+            android:paddingStart="@dimen/record_title_padding"
+            android:text="@string/lorem_ipsum"
+            android:textAppearance="@style/AppTheme.Text.Small"/>
+
+        <TextView
+            android:id="@+id/description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:lineSpacingMultiplier="1.2"
+            android:paddingTop="@dimen/podcast_padding"
+            android:text="@string/lorem_ipsum_large"
+            android:textAppearance="@style/AppTheme.Text.Small"
+            android:textColor="@color/textColor"/>
+
+        <TextView
+            android:id="@+id/duration"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:lines="1"
+            android:paddingTop="@dimen/podcast_padding"
+            android:text="@string/lorem_ipsum"
+            android:textAlignment="textEnd"
+            android:textAppearance="@style/AppTheme.Text.Small"/>
+
+    </LinearLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorBackground"
+        android:src="@drawable/record_divider"
+        tools:ignore="contentDescription"/>
+
+</LinearLayout>
