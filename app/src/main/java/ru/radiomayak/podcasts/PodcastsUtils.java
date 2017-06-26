@@ -195,7 +195,7 @@ public final class PodcastsUtils {
             String sql = "SELECT " + StringUtils.join(RECORDS_SELECT_FIELDS, ", ") + " FROM " + PodcastsOpenHelper.RECORDS;
             String args[];
             if (from > 0) {
-                sql += " WHERE " + RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " > ?";
+                sql += " WHERE " + RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " < ?";
                 args = args(toString(podcast), toString(from));
             } else {
                 sql += " WHERE " + RECORD_PODCAST_ID + " = ?";

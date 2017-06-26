@@ -1,8 +1,9 @@
 package ru.radiomayak.podcasts;
 
-import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
+import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawable;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawableFactory;
 import android.util.LongSparseArray;
@@ -20,7 +21,6 @@ import ru.radiomayak.R;
 
 class PodcastsAdapter extends BaseAdapter {
     private final LighthouseApplication application;
-    private final Context context;
     private final List<Podcast> podcasts;
     private final LongSparseArray<Bitmap> images;
     private final Bitmap micBitmap;
@@ -31,12 +31,22 @@ class PodcastsAdapter extends BaseAdapter {
         void onDisplay(int position);
     }
 
-    PodcastsAdapter(LighthouseApplication application, Context context, List<Podcast> podcasts, LongSparseArray<Bitmap> images) {
+    PodcastsAdapter(LighthouseApplication application, List<Podcast> podcasts, LongSparseArray<Bitmap> images) {
         this.application = application;
-        this.context = context;
         this.podcasts = podcasts;
         this.images = images;
-        micBitmap = BitmapFactory.decodeResource(context.getResources(), R.drawable.mic);
+
+        int size = application.getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
+        Drawable micDrawable = ResourcesCompat.getDrawable(application.getResources(), R.drawable.mic, application.getTheme());
+        micBitmap = createBitmap(micDrawable, size);
+    }
+
+    private static Bitmap createBitmap(Drawable drawable, int size) {
+        Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
+        drawable.draw(canvas);
+        return bitmap;
     }
 
     void setOnDisplayListener(OnDisplayListener listener) {
@@ -66,7 +76,7 @@ class PodcastsAdapter extends BaseAdapter {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         if (convertView == null) {
-            convertView = LayoutInflater.from(context).inflate(R.layout.podcasts_item, parent, false);
+            convertView = LayoutInflater.from(application).inflate(R.layout.podcasts_item, parent, false);
         }
         Podcast podcast = getItem(position);
 
@@ -107,7 +117,7 @@ class PodcastsAdapter extends BaseAdapter {
     }
 
     private void setCircularImageBitmap(ImageView view, Bitmap bitmap) {
-        RoundedBitmapDrawable drawable = RoundedBitmapDrawableFactory.create(context.getResources(), bitmap);
+        RoundedBitmapDrawable drawable = RoundedBitmapDrawableFactory.create(application.getResources(), bitmap);
         drawable.setCircular(true);
         view.setImageDrawable(drawable);
     }

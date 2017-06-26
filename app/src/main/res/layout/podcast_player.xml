@@ -88,6 +88,7 @@
         android:paddingBottom="@dimen/podcast_padding"
         android:paddingEnd="@dimen/player_seekbar_padding"
         android:paddingStart="@dimen/player_seekbar_padding"
+        android:splitTrack="false"
         android:paddingTop="2dp"
         android:progressDrawable="@drawable/seekbar"
         android:thumb="@drawable/seekbar_thumb_selector"/>

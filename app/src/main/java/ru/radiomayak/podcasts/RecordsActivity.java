@@ -234,17 +234,6 @@ public class RecordsActivity extends LighthouseActivity
                 return viewHolder != null;
             }
         });
-
-//        getPlayerView().addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-//            @Override
-//            public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
-//                if (oldBottom - oldTop == bottom - top) {
-//                    return;
-//                }
-//                findViewById(android.R.id.content).layout(0, 0, findViewById(android.R.id.button1).getWidth(),
-//                        findViewById(android.R.id.button1).getHeight() - bottom + top);
-//            }
-//        });
     }
 
     private boolean isScrollOnTop() {
@@ -258,6 +247,7 @@ public class RecordsActivity extends LighthouseActivity
                 requestPodcast();
             }
         });
+        getRefreshView().setColorSchemeResources(R.color.colorPrimary);
         getRefreshView().setEnabled(true);
     }
 

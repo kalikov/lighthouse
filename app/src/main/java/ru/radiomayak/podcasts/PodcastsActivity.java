@@ -39,7 +39,7 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
 
         podcasts = new Podcasts();
 
-        adapter = new PodcastsAdapter(getLighthouseApplication(), this, podcasts.list(), images);
+        adapter = new PodcastsAdapter(getLighthouseApplication(), podcasts.list(), images);
         adapter.setOnDisplayListener(new PodcastsAdapter.OnDisplayListener() {
             @Override
             public void onDisplay(int position) {
@@ -138,6 +138,7 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
                 requestList();
             }
         });
+        getRefreshView().setColorSchemeResources(R.color.colorPrimary);
         getRefreshView().setEnabled(true);
     }
 
