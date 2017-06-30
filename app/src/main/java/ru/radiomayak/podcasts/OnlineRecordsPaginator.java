@@ -1,6 +1,8 @@
 package ru.radiomayak.podcasts;
 
 import android.content.Context;
+import android.os.Parcel;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -19,6 +21,18 @@ import ru.radiomayak.http.HttpVersion;
 import ru.radiomayak.http.message.BasicHttpRequest;
 
 class OnlineRecordsPaginator implements RecordsPaginator {
+    public static final Creator<OnlineRecordsPaginator> CREATOR = new Creator<OnlineRecordsPaginator>() {
+        @Override
+        public OnlineRecordsPaginator createFromParcel(Parcel in) {
+            return new OnlineRecordsPaginator(in);
+        }
+
+        @Override
+        public OnlineRecordsPaginator[] newArray(int size) {
+            return new OnlineRecordsPaginator[size];
+        }
+    };
+
     private static final String PAGE_URL = "http://radiomayak.ru/podcasts/loadepisodes/podcast/%s/page/%s/";
 
     private static final PodcastJsonParser parser = new PodcastJsonParser();
@@ -31,6 +45,24 @@ class OnlineRecordsPaginator implements RecordsPaginator {
         this.id = id;
         this.records = records;
         this.nextPage = nextPage;
+    }
+
+    protected OnlineRecordsPaginator(Parcel in) {
+        id = in.readLong();
+        nextPage = in.readLong();
+        records = Records.CREATOR.createFromParcel(in);
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel out, int flags) {
+        out.writeLong(id);
+        out.writeLong(nextPage);
+        records.writeToParcel(out, flags);
     }
 
     @Override

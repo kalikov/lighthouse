@@ -1,8 +1,12 @@
 package ru.radiomayak.widget;
 
 import android.content.Context;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.CoordinatorLayout;
+import android.support.v4.os.ParcelableCompat;
+import android.support.v4.os.ParcelableCompatCreatorCallbacks;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
@@ -16,6 +20,22 @@ public final class AppBarLayoutFlingBehavior extends AppBarLayout.Behavior {
 
     public AppBarLayoutFlingBehavior(Context context, AttributeSet attrs) {
         super(context, attrs);
+    }
+
+    @Override
+    public Parcelable onSaveInstanceState(CoordinatorLayout parent, AppBarLayout appBarLayout) {
+        Parcelable parcelable = super.onSaveInstanceState(parent, appBarLayout);
+        return new InstanceState(parcelable);
+    }
+
+    @Override
+    public void onRestoreInstanceState(CoordinatorLayout parent, AppBarLayout appBarLayout, Parcelable parcelable) {
+        if (parcelable instanceof InstanceState) {
+            InstanceState state = (InstanceState) parcelable;
+            super.onRestoreInstanceState(parent, appBarLayout, state.getSuperState());
+        } else {
+            super.onRestoreInstanceState(parent, appBarLayout, parcelable);
+        }
     }
 
     @Override
@@ -39,5 +59,33 @@ public final class AppBarLayoutFlingBehavior extends AppBarLayout.Behavior {
     public void onNestedPreScroll(CoordinatorLayout coordinatorLayout, AppBarLayout child, View target, int dx, int dy, int[] consumed) {
         super.onNestedPreScroll(coordinatorLayout, child, target, dx, dy, consumed);
         isPositive = dy > 0;
+    }
+
+    protected static class InstanceState extends AppBarLayout.Behavior.SavedState {
+        public InstanceState(Parcel source, ClassLoader loader) {
+            super(source, loader);
+        }
+
+        public InstanceState(Parcelable superState) {
+            super(superState);
+        }
+
+        @Override
+        public void writeToParcel(Parcel dest, int flags) {
+            super.writeToParcel(dest, flags);
+        }
+
+        public static final Parcelable.Creator<InstanceState> CREATOR =
+                ParcelableCompat.newCreator(new ParcelableCompatCreatorCallbacks<InstanceState>() {
+                    @Override
+                    public InstanceState createFromParcel(Parcel source, ClassLoader loader) {
+                        return new InstanceState(source, loader);
+                    }
+
+                    @Override
+                    public InstanceState[] newArray(int size) {
+                        return new InstanceState[size];
+                    }
+                });
     }
 }

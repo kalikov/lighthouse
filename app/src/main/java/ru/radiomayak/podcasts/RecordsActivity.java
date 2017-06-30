@@ -1,5 +1,6 @@
 package ru.radiomayak.podcasts;
 
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
@@ -37,12 +38,17 @@ public class RecordsActivity extends LighthouseActivity
 
     public static final String EXTRA_PODCAST = "ru.radiomayak.podcasts.PODCAST";
 
-    private static final double SPLASH_ASPECT_RATIO = 0.3;
+    private static final String STATE_LOADING = RecordsActivity.class.getName() + "$loading";
+    private static final String STATE_SPLASH = RecordsActivity.class.getName() + "$splash";
+    private static final String STATE_FOOTER = RecordsActivity.class.getName() + "$footer";
+    private static final String STATE_PAGINATOR = RecordsActivity.class.getName() + "$paginator";
 
     private RecordsAdapter adapter;
 
     private Podcast podcast;
     private Records records;
+
+    private Bitmap splash;
 
     private PodcastAsyncTask podcastAsyncTask;
     private PodcastSplashAsyncTask splashAsyncTask;
@@ -54,19 +60,62 @@ public class RecordsActivity extends LighthouseActivity
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
 
-        podcast = getPodcast();
+        boolean loading = true;
+        Bitmap splash = null;
+        RecordsAdapter.FooterMode footerMode = null;
+        if (state != null) {
+            loading = state.getBoolean(STATE_LOADING, true);
+            if (!loading) {
+                podcast = state.getParcelable(Podcast.class.getName());
+                records = state.getParcelable(Records.class.getName());
+                paginator = state.getParcelable(STATE_PAGINATOR);
+                footerMode = paginator != null && paginator.hasNext() ? RecordsAdapter.FooterMode.LOADING : RecordsAdapter.FooterMode.HIDDEN;
+                footerMode = RecordsAdapter.FooterMode.values()[state.getInt(STATE_FOOTER, footerMode.ordinal())];
+            }
+            splash = state.getParcelable(STATE_SPLASH);
+        }
+        if (podcast == null) {
+            podcast = getPodcast();
+        }
         if (podcast == null) {
             finish();
             return;
         }
-        records = new Records();
+        if (records == null) {
+            records = new Records();
+        }
 
         adapter = new RecordsAdapter(getLighthouseApplication(), this, records.list(), this);
+        if (footerMode != null) {
+            adapter.setFooterMode(footerMode);
+        }
 
         initializeView();
 
-        requestPodcast();
-        requestPodcastSplash();
+        if (loading) {
+            requestPodcast();
+        } else {
+            showContentView();
+        }
+        if (splash != null) {
+            setPodcastSplash(splash);
+        } else {
+            requestPodcastSplash();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (pageAsyncTask != null && !pageAsyncTask.isCancelled()) {
+            pageAsyncTask.cancel(true);
+        }
+        if (podcastAsyncTask != null && !podcastAsyncTask.isCancelled()) {
+            podcastAsyncTask.cancel(true);
+        }
+        if (splashAsyncTask != null && !splashAsyncTask.isCancelled()) {
+            splashAsyncTask.cancel(true);
+        }
+        super.onDestroy();
     }
 
     @Nullable
@@ -99,8 +148,6 @@ public class RecordsActivity extends LighthouseActivity
         actionBar.setDisplayShowHomeEnabled(true);
 
         AppBarLayout appBarLayout = getAppBarLayout();
-        int appBarHeight = (int) (appBarLayout.getWidth() * SPLASH_ASPECT_RATIO);
-        appBarLayout.layout(appBarLayout.getLeft(), appBarLayout.getTop(), appBarLayout.getRight(), appBarHeight);
         appBarLayout.setVisibility(View.GONE);
 
         final TextView toolbarTitle = getToolbarTitle();
@@ -129,7 +176,7 @@ public class RecordsActivity extends LighthouseActivity
                     toolbarTitle.setVisibility(View.VISIBLE);
                     int offset = toolbar.getTop();
                     toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-                } else if (toolbarImage.getDrawable() == null) {
+                } else if (splash == null) {
                     toolbarImage.setVisibility(View.GONE);
                     toolbarTitle.setVisibility(View.VISIBLE);
                     int offset = toolbar.getTop() + collapsingSize;
@@ -287,6 +334,27 @@ public class RecordsActivity extends LighthouseActivity
         return (SwipeRefreshLayout) findViewById(R.id.refresh);
     }
 
+    @Override
+    public void onSaveInstanceState(Bundle state) {
+        state.putParcelable(Podcast.class.getName(), podcast);
+        state.putParcelable(Records.class.getName(), records);
+        state.putBoolean(STATE_LOADING, getLoadingView().getVisibility() == View.VISIBLE);
+        state.putInt(STATE_FOOTER, adapter.getFooterMode().ordinal());
+        if (paginator != null) {
+            state.putParcelable(STATE_PAGINATOR, paginator);
+        }
+        if (splash != null) {
+            state.putParcelable(STATE_SPLASH, splash);
+        }
+        super.onSaveInstanceState(state);
+    }
+
+    @Override
+    public void onRestoreInstanceState(Bundle state) {
+        super.onRestoreInstanceState(state);
+        getAppBarLayout().setExpanded(false);
+    }
+
     private void requestPodcast() {
         if (podcastAsyncTask != null) {
             return;
@@ -301,7 +369,6 @@ public class RecordsActivity extends LighthouseActivity
             }
         } else {
             Toast.makeText(this, R.string.toast_no_connection, Toast.LENGTH_SHORT).show();
-            showContentView();
         }
     }
 
@@ -324,6 +391,7 @@ public class RecordsActivity extends LighthouseActivity
     private void showErrorView() {
         getLoadingView().setVisibility(View.GONE);
         getErrorView().setVisibility(View.VISIBLE);
+        getRecyclerView().setVisibility(View.GONE);
         getRefreshView().setEnabled(true);
         getRefreshView().setRefreshing(false);
     }
@@ -347,7 +415,7 @@ public class RecordsActivity extends LighthouseActivity
     @Override
     public void onPodcastLoaded(PodcastResponse response, boolean isCancelled) {
         podcastAsyncTask = null;
-        if (!isCancelled) {
+        if (!isCancelled && !isDestroyed()) {
             if (response.getPaginator() == null && !adapter.isEmpty()) {
                 Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
             } else {
@@ -400,13 +468,13 @@ public class RecordsActivity extends LighthouseActivity
             getRefreshView().setEnabled(isScrollOnTop());
         }
         this.paginator = paginator;
-        updateLoadMoreView();
+        updateFooterMode();
     }
 
     @Override
     public void onPageLoaded(RecordsPaginator response, boolean isCancelled) {
         pageAsyncTask = null;
-        if (!isCancelled) {
+        if (!isCancelled && !isDestroyed()) {
             if (response == null) {
                 Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
                 adapter.setFooterMode(RecordsAdapter.FooterMode.BUTTON);
@@ -416,7 +484,7 @@ public class RecordsActivity extends LighthouseActivity
         }
     }
 
-    private void updateLoadMoreView() {
+    private void updateFooterMode() {
         if (paginator != null && paginator.hasNext()) {
             adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
         } else {
@@ -426,7 +494,7 @@ public class RecordsActivity extends LighthouseActivity
 
     private void requestPodcastSplash() {
         Image splash = podcast.getSplash();
-        if (splash == null || splashAsyncTask != null || getToolbarImage().getDrawable() != null) {
+        if (splash == null || splashAsyncTask != null || this.splash != null) {
             return;
         }
         splashAsyncTask = new PodcastSplashAsyncTask(this, this);
@@ -460,7 +528,7 @@ public class RecordsActivity extends LighthouseActivity
             getRefreshView().setEnabled(isScrollOnTop());
         }
         this.paginator = paginator;
-        updateLoadMoreView();
+        updateFooterMode();
 
         if (recordsChanged) {
         }
@@ -478,15 +546,20 @@ public class RecordsActivity extends LighthouseActivity
     public void onPodcastSplashResponse(LongSparseArray<BitmapInfo> array, boolean isCancelled) {
         podcastAsyncTask = null;
         BitmapInfo bitmapInfo = array.get(podcast.getId());
-        if (bitmapInfo == null || isCancelled) {
+        if (bitmapInfo == null || isCancelled ||  isDestroyed()) {
             return;
         }
-        getToolbarImage().setImageBitmap(bitmapInfo.getBitmap());
+        setPodcastSplash(bitmapInfo.getBitmap());
         if (bitmapInfo.getPrimaryColor() != 0) {
             Image splash = Objects.requireNonNull(podcast.getSplash());
             splash.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
             updateToolbarColor();
         }
+    }
+
+    private void setPodcastSplash(Bitmap bitmap) {
+        splash = bitmap;
+        getToolbarImage().setImageBitmap(bitmap);
     }
 
     @Override
