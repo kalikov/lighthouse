@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.media.MediaPlayer;
 import android.net.wifi.WifiManager;
+import android.os.Handler;
 import android.support.annotation.NonNull;
 
 import java.io.IOException;
@@ -18,6 +19,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import ru.radiomayak.media.MediaNotificationManager;
 import ru.radiomayak.media.MediaPlayerObservable;
 import ru.radiomayak.media.MediaPlayerObserver;
 
@@ -46,12 +48,33 @@ public class LighthouseApplication extends Application {
 
     private final MediaPlayerObservable mediaPlayerObservable = new MediaPlayerObservable();
 
+    private final Handler progressHandler = new Handler();
+
+    private final Runnable progressRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (getMediaPlayer().isPlaying()) {
+                int pos = getMediaPlayer().getCurrentPosition();
+                int newProgress = (int) ((long) pos * 100 / getMediaPlayer().getDuration());
+                if (newProgress != notificationProgress) {
+                    notificationManager.updateNotification();
+                    notificationProgress = newProgress;
+                }
+                progressHandler.postDelayed(progressRunnable, 1000 - (pos % 1000));
+            }
+        }
+    };
+
+    private int notificationProgress = -1;
+
     private Typeface fontBold;
     private Typeface fontNormal;
     private Typeface fontLight;
 
     private MediaPlayer mediaPlayer;
     private WifiManager.WifiLock wifiLock;
+
+    private MediaNotificationManager notificationManager;
 
     private LighthouseTrack track;
 
@@ -74,6 +97,8 @@ public class LighthouseApplication extends Application {
             public void onPrepared(MediaPlayer mp) {
                 isPreparing = false;
                 acquireWifiLockIfNotHeld();
+                notificationProgress = -1;
+                notificationManager.startNotification();
                 mediaPlayerObservable.notifyPrepared();
             }
         });
@@ -83,6 +108,7 @@ public class LighthouseApplication extends Application {
                 isPreparing = false;
                 isError = true;
                 releaseWifiLockIfHeld();
+                notificationManager.stopNotification();
                 mediaPlayerObservable.notifyFailed();
                 return true;
             }
@@ -92,6 +118,7 @@ public class LighthouseApplication extends Application {
             public void onCompletion(MediaPlayer mp) {
                 isPreparing = false;
                 releaseWifiLockIfHeld();
+                notificationManager.stopNotification();
                 mediaPlayerObservable.notifyCompleted();
             }
         });
@@ -110,10 +137,13 @@ public class LighthouseApplication extends Application {
         mediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
             @Override
             public void onSeekComplete(MediaPlayer mp) {
+                notificationManager.updateNotification();
             }
         });
 
         wifiLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE)).createWifiLock(WifiManager.WIFI_MODE_FULL, TAG);
+
+        notificationManager = new MediaNotificationManager(this);
     }
 
     @Override
@@ -123,6 +153,7 @@ public class LighthouseApplication extends Application {
             mediaPlayer = null;
         }
         releaseWifiLockIfHeld();
+        notificationManager.stopNotification();
         super.onTerminate();
     }
 
@@ -158,6 +189,10 @@ public class LighthouseApplication extends Application {
 
     public void resetTrack() {
         releaseWifiLockIfHeld();
+        notificationManager.stopNotification();
+        if (mediaPlayer.isPlaying()) {
+            mediaPlayer.stop();
+        }
         mediaPlayer.reset();
         this.track = null;
         bufferPercentage = 0;
@@ -214,7 +249,19 @@ public class LighthouseApplication extends Application {
     }
 
     public void play() {
+        if (isPreparing) {
+            return;
+        }
         getMediaPlayer().start();
+        progressRunnable.run();
         acquireWifiLockIfNotHeld();
+        if (!notificationManager.startNotification()) {
+            notificationManager.updateNotification();
+        }
+    }
+
+    public void pause() {
+        getMediaPlayer().pause();
+        notificationManager.updateNotification();
     }
 }

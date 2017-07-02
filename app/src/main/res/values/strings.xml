@@ -13,9 +13,9 @@
     <string name="months">января,февраля,марта,апреля,мая,июня,июля,августа,сентября,октября,ноября,декабря</string>
 
     <string name="loading">Загрузка&#8230;</string>
-    <string name="play">Воиспроизвести</string>
+    <string name="play">Воиспроизведение</string>
     <string name="pause">Пауза</string>
-    <string name="stop">Остановить</string>
+    <string name="stop">Стоп</string>
     <string name="player_failed">Ошибка воспроизведения</string>
 
     <string name="toast_no_connection">Нет соединения</string>

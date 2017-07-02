@@ -1,5 +1,9 @@
 package ru.radiomayak;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -17,6 +21,7 @@ import android.widget.Toast;
 import java.io.IOException;
 import java.util.Locale;
 
+import ru.radiomayak.media.MediaNotificationManager;
 import ru.radiomayak.media.MediaPlayerObserver;
 import ru.radiomayak.podcasts.PodcastsUtils;
 import ru.radiomayak.podcasts.Record;
@@ -38,9 +43,22 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         }
     };
 
+    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            LighthouseActivity.this.onReceive(context, intent);
+        }
+    };
+
     @Override
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(MediaNotificationManager.ACTION_PAUSE);
+        filter.addAction(MediaNotificationManager.ACTION_PLAY);
+        filter.addAction(MediaNotificationManager.ACTION_STOP);
+        registerReceiver(broadcastReceiver, filter);
     }
 
     @Override
@@ -58,6 +76,7 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         if (getLighthouseApplication().containsObserver(this)) {
             getLighthouseApplication().unregisterObserver(this);
         }
+        unregisterReceiver(broadcastReceiver);
         super.onDestroy();
     }
 
@@ -82,7 +101,7 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
                     return;
                 }
                 int duration = getMediaPlayer().getDuration();
-                int position = progress * duration / 1000;
+                int position = (int) ((long) progress * duration / 1000);
                 getSongPositionView().setText(formatTime(position));
                 getMediaPlayer().seekTo(position);
             }
@@ -175,7 +194,7 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
     }
 
     public void setTrack(LighthouseTrack track) throws IOException {
-        getLighthouseApplication().resetTrack();
+        resetTrack();
         if (!getLighthouseApplication().containsObserver(this)) {
             getLighthouseApplication().registerObserver(this);
         }
@@ -183,11 +202,12 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
     }
 
     public void resetTrack() {
-        getLighthouseApplication().resetTrack();
         if (getLighthouseApplication().containsObserver(this)) {
             getLighthouseApplication().unregisterObserver(this);
         }
+        getLighthouseApplication().resetTrack();
     }
+
 
     public int getBufferPercentage() {
         return getLighthouseApplication().getBufferPercentage();
@@ -206,7 +226,7 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
     }
 
     public void pause() {
-        getMediaPlayer().pause();
+        getLighthouseApplication().pause();
     }
 
     public void play() {
@@ -300,7 +320,7 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
 
     @Override
     public void onPrepared() {
-        getMediaPlayer().start();
+        play();
         updatePlayerView();
 
         LighthouseTrack track = getTrack();
@@ -320,6 +340,18 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
     @Override
     public void onCompleted() {
         getLighthouseApplication().unregisterObserver(this);
+        updatePlayerView();
+    }
+
+    public void onReceive(Context context, Intent intent) {
+        String action = intent.getAction();
+        if (MediaNotificationManager.ACTION_PAUSE.equals(action)) {
+            getMediaPlayer().pause();
+        } else if (MediaNotificationManager.ACTION_PLAY.equals(action)) {
+            getMediaPlayer().start();
+        } else if (MediaNotificationManager.ACTION_STOP.equals(action)) {
+            resetTrack();
+        }
         updatePlayerView();
     }
 }

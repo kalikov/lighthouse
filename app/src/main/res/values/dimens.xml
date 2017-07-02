@@ -13,6 +13,8 @@
     <dimen name="player_padding">6dp</dimen>
     <dimen name="player_text_padding">13dp</dimen>
     <dimen name="player_seekbar_padding">19dp</dimen>
+    <dimen name="player_shadow_size">6dp</dimen>
+    <dimen name="player_shadow_margin">-6dp</dimen>
 
     <dimen name="podcast_icon_size">64dp</dimen>
     <dimen name="podcast_padding">10dp</dimen>

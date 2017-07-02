@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.annotation.Nullable;
+import android.support.annotation.VisibleForTesting;
 import android.util.LongSparseArray;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.Toolbar;
@@ -30,9 +31,10 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
     private static final String STATE_IMAGES_KEYS = PodcastsActivity.class.getName() + "$images.keys";
     private static final String STATE_IMAGES_VALUES = PodcastsActivity.class.getName() + "$images.values";
 
-    private Podcasts podcasts;
+    @VisibleForTesting
+    PodcastsAdapter adapter;
 
-    private PodcastsAdapter adapter;
+    private Podcasts podcasts;
 
     private PodcastsAsyncTask podcastsAsyncTask;
 
@@ -182,7 +184,8 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
         return findViewById(R.id.error);
     }
 
-    private SwipeRefreshLayout getRefreshView() {
+    @VisibleForTesting
+    SwipeRefreshLayout getRefreshView() {
         return (SwipeRefreshLayout) findViewById(R.id.refresh);
     }
 
@@ -227,7 +230,8 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
         }
     }
 
-    private void requestList() {
+    @VisibleForTesting
+    void requestList() {
         if (podcastsAsyncTask != null) {
             return;
         }
@@ -241,8 +245,14 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
                 podcastsAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR);
             }
         } else {
-            Toast.makeText(this, R.string.toast_no_connection, Toast.LENGTH_SHORT).show();
+            toast(R.string.toast_no_connection, Toast.LENGTH_SHORT);
+            getRefreshView().setRefreshing(false);
         }
+    }
+
+    @VisibleForTesting
+    void toast(int id, int duration) {
+        Toast.makeText(this, id, duration).show();
     }
 
     private void showLoadingView() {

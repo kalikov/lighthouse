@@ -369,6 +369,7 @@ public class RecordsActivity extends LighthouseActivity
             }
         } else {
             Toast.makeText(this, R.string.toast_no_connection, Toast.LENGTH_SHORT).show();
+            getRefreshView().setRefreshing(false);
         }
     }
 

@@ -39,18 +39,6 @@
                 android:contentDescription="@string/play"
                 android:src="@drawable/record_play"/>
 
-            <!--<ProgressBar
-                android:id="@+id/cache"
-                style="?android:attr/progressBarStyleHorizontal"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:layout_centerVertical="true"
-                android:indeterminate="false"
-                android:max="100"
-                android:progress="0"
-                android:progressDrawable="@drawable/record_progress"
-                android:rotation="-90"/>-->
-
         </RelativeLayout>
 
         <TextView
