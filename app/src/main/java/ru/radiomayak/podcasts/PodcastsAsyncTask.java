@@ -1,12 +1,11 @@
 package ru.radiomayak.podcasts;
 
 import android.content.Context;
-import android.os.AsyncTask;
 import android.util.Log;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
+import java.nio.ByteBuffer;
 
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.http.DefaultHttpClientConnectionFactory;
@@ -19,7 +18,7 @@ import ru.radiomayak.http.HttpUtils;
 import ru.radiomayak.http.HttpVersion;
 import ru.radiomayak.http.message.BasicHttpRequest;
 
-class PodcastsAsyncTask extends AsyncTask<Object, Void, Podcasts> {
+class PodcastsAsyncTask extends AbstractHttpAsyncTask<Object, Void, Podcasts> {
     static final Object LOOPBACK = new Object();
 
     private static final String LOG_TAG = PodcastsAsyncTask.class.getSimpleName();
@@ -84,21 +83,12 @@ class PodcastsAsyncTask extends AsyncTask<Object, Void, Podcasts> {
         request.setHeader(HttpHeaders.HOST, url.getAuthority());
         // If-Modified-Since: Thu, 24 Nov 2016 10:13:10 GMT
         try (HttpClientConnection connection = DefaultHttpClientConnectionFactory.INSTANCE.openConnection(url)) {
-            connection.setSocketTimeout(NetworkUtils.getRequestTimeout());
-            connection.sendRequestHeader(request);
-            connection.flush();
-            HttpResponse response = connection.receiveResponseHeader();
-            int status = response.getStatusLine().getStatusCode();
-            if (status < 200 || status >= 400) {
+            HttpResponse response = getEntityResponse(connection, request);
+            if (response == null) {
                 return null;
             }
-            connection.receiveResponseEntity(response);
-            if (response.getEntity() == null || response.getEntity().getContentLength() == 0) {
-                return null;
-            }
-            try (InputStream stream = HttpUtils.getContent(response.getEntity())) {
-                return parser.parse(stream, HttpUtils.getCharset(response), url.toString());
-            }
+            byte[] bytes = getResponseBytes(response);
+            return bytes == null ? null : parser.parse(ByteBuffer.wrap(bytes), HttpUtils.getCharset(response), url.toString());
         }
     }
 }

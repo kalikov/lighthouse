@@ -2,14 +2,13 @@ package ru.radiomayak.podcasts;
 
 import android.support.annotation.Nullable;
 
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,8 +25,8 @@ class PodcastsLayoutParser {
 
     private static final Pattern PODCAST_HREF_PATTERN = Pattern.compile("/podcasts/podcast/id/(\\d+)/");
 
-    Podcasts parse(InputStream stream, String charset, String baseUri) throws IOException {
-        Document document = Jsoup.parse(stream, charset, baseUri);
+    Podcasts parse(ByteBuffer buffer, @Nullable String charset, String baseUri) throws IOException {
+        Document document = LayoutUtils.parse(buffer, charset, baseUri);
         return parsePodcasts(document, NetworkUtils.toOptURI(baseUri));
     }
 

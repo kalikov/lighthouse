@@ -2,14 +2,13 @@ package ru.radiomayak.podcasts;
 
 import android.support.annotation.Nullable;
 
-import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,8 +35,8 @@ class PodcastLayoutParser {
     private static final Pattern JSON_DURATION_PATTERN = Pattern.compile("((\\d{2}\\:)?\\d{2}\\:\\d{2})");
     private static final Pattern HTML_DURATION_PATTERN = Pattern.compile("\\:[\\u00A0\\s]*((\\d{2}\\:)?\\d{2}\\:\\d{2})");
 
-    PodcastLayoutContent parse(InputStream stream, String charset, String baseUri) throws IOException {
-        Document document = Jsoup.parse(stream, charset, baseUri);
+    PodcastLayoutContent parse(ByteBuffer buffer, @Nullable String charset, String baseUri) throws IOException {
+        Document document = LayoutUtils.parse(buffer, charset, baseUri);
         URI uri = NetworkUtils.toOptURI(baseUri);
         Podcast podcast = parsePodcast(document, uri);
         Records records = parseRecords(document, uri);
