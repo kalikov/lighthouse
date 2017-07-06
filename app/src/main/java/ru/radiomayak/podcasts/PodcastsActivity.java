@@ -1,9 +1,7 @@
 package ru.radiomayak.podcasts;
 
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.os.Bundle;
-import android.os.Parcelable;
 import android.support.annotation.Nullable;
 import android.support.annotation.VisibleForTesting;
 import android.util.LongSparseArray;
@@ -19,26 +17,59 @@ import android.widget.Toast;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.concurrent.Future;
 
 import ru.radiomayak.LighthouseActivity;
-import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.R;
+import ru.radiomayak.content.Loader;
+import ru.radiomayak.content.LoaderManager;
+import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.widget.ToolbarCompat;
 
-public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyncTask.Listener, PodcastIconAsyncTask.Listener {
+public class PodcastsActivity extends LighthouseActivity {
     private static final String STATE_LOADING = PodcastsActivity.class.getName() + "$loading";
-    private static final String STATE_IMAGES_KEYS = PodcastsActivity.class.getName() + "$images.keys";
-    private static final String STATE_IMAGES_VALUES = PodcastsActivity.class.getName() + "$images.values";
+
+    private static final int DEFAULT_IMAGES_CAPACITY = 100;
+
+    private static final LoaderManager<Podcasts> podcastsLoaderManager = new LoaderManager<>();
 
     @VisibleForTesting
     PodcastsAdapter adapter;
 
     private Podcasts podcasts;
 
-    private PodcastsAsyncTask podcastsAsyncTask;
+    private Future<Podcasts> podcastsFuture;
 
-    private final LongSparseArray<Bitmap> images = new LongSparseArray<>(100);
+    private final LongSparseArray<Future<BitmapInfo>> futures = new LongSparseArray<>(DEFAULT_IMAGES_CAPACITY);
+
+    private final Loader.OnLoadListener<Podcasts> podcastsOnLoadListener = new Loader.OnLoadListener<Podcasts>() {
+        @Override
+        public void onLoadComplete(Loader<Podcasts> loader, Podcasts data) {
+            onPodcastsLoadComplete(data);
+        }
+
+        @Override
+        public void onLoadCancelled(Loader<Podcasts> loader) {
+            onPodcastsLoadCancelled();
+        }
+    };
+
+    private final Loader.OnLoadListener<BitmapInfo> podcastIconOnLoadListener = new Loader.OnLoadListener<BitmapInfo>() {
+        @Override
+        public void onLoadComplete(Loader<BitmapInfo> loader, BitmapInfo bitmapInfo) {
+            onIconLoadComplete(getPodcastId(loader), bitmapInfo);
+        }
+
+        @Override
+        public void onLoadCancelled(Loader<BitmapInfo> loader) {
+            onIconLoadCancelled(getPodcastId(loader));
+        }
+
+        private long getPodcastId(Loader<BitmapInfo> loader) {
+            return ((PodcastIconLoader) loader).getPodcast().getId();
+        }
+    };
 
     @Override
     protected void onCreate(@Nullable Bundle state) {
@@ -49,14 +80,13 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
             loading = state.getBoolean(STATE_LOADING, true);
             if (!loading) {
                 podcasts = state.getParcelable(Podcasts.class.getName());
-                onRestoreImagesState(state);
             }
         }
         if (podcasts == null) {
             podcasts = new Podcasts();
         }
 
-        adapter = new PodcastsAdapter(getLighthouseApplication(), podcasts.list(), images);
+        adapter = new PodcastsAdapter(getLighthouseApplication(), podcasts.list());
         adapter.setOnDisplayListener(new PodcastsAdapter.OnDisplayListener() {
             @Override
             public void onDisplay(int position) {
@@ -69,15 +99,14 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
         if (loading) {
             requestList();
         } else {
-            schedulePodcastsImageUpdate();
             showContentView();
         }
     }
 
     @Override
     protected void onDestroy() {
-        if (podcastsAsyncTask != null && !podcastsAsyncTask.isCancelled()) {
-            podcastsAsyncTask.cancel(true);
+        if (podcastsFuture != null && !podcastsFuture.isDone()) {
+            podcastsFuture.cancel(true);
         }
         super.onDestroy();
     }
@@ -191,26 +220,9 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
 
     @Override
     public void onSaveInstanceState(Bundle state) {
-//        state.putParcelable(STATE_LIST, getListView().onSaveInstanceState());
         state.putParcelable(Podcasts.class.getName(), podcasts);
         state.putBoolean(STATE_LOADING, getLoadingView().getVisibility() == View.VISIBLE);
-        onSaveImagesState(state);
         super.onSaveInstanceState(state);
-    }
-
-    private void onSaveImagesState(Bundle state) {
-        int size = images.size();
-        if (size == 0) {
-            return;
-        }
-        long[] keys = new long[size];
-        Bitmap[] bitmaps = new Bitmap[size];
-        for (int i = 0; i < size; i++) {
-            keys[i] = images.keyAt(i);
-            bitmaps[i] = images.valueAt(i);
-        }
-        state.putLongArray(STATE_IMAGES_KEYS, keys);
-        state.putParcelableArray(STATE_IMAGES_VALUES, bitmaps);
     }
 
     @Override
@@ -218,31 +230,16 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
         super.onRestoreInstanceState(state);
     }
 
-    private void onRestoreImagesState(Bundle state) {
-        long[] keys = state.getLongArray(STATE_IMAGES_KEYS);
-        Parcelable[] bitmaps = state.getParcelableArray(STATE_IMAGES_VALUES);
-        if (keys == null || bitmaps == null || keys.length != bitmaps.length) {
-            return;
-        }
-        int size = Math.min(keys.length, bitmaps.length);
-        for (int i = 0; i < size; i++) {
-            images.put(keys[i], (Bitmap) bitmaps[i]);
-        }
-    }
-
     @VisibleForTesting
     void requestList() {
-        if (podcastsAsyncTask != null) {
+        if (podcastsFuture != null) {
             return;
         }
         boolean isConnected = NetworkUtils.isConnected(this);
         if (adapter.isEmpty() || isConnected) {
-            podcastsAsyncTask = new PodcastsAsyncTask(this, this);
+            podcastsFuture = podcastsLoaderManager.execute(new PodcastsLoader(this, adapter.isEmpty()), podcastsOnLoadListener);
             if (adapter.isEmpty()) {
-                podcastsAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, PodcastsAsyncTask.LOOPBACK);
                 showLoadingView();
-            } else {
-                podcastsAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR);
             }
         } else {
             toast(R.string.toast_no_connection, Toast.LENGTH_SHORT);
@@ -292,10 +289,9 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
         startActivity(intent);
     }
 
-    @Override
-    public void onPodcastsLoaded(Podcasts podcasts, boolean isCancelled) {
-        podcastsAsyncTask = null;
-        if (!isCancelled && !isDestroyed()) {
+    public void onPodcastsLoadComplete(Podcasts podcasts) {
+        podcastsFuture = null;
+        if (!isDestroyed()) {
             if (podcasts.list().isEmpty() && !adapter.isEmpty()) {
                 Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
             } else {
@@ -305,19 +301,9 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
         showContentView();
     }
 
-    private void schedulePodcastsImageUpdate() {
-        for (Podcast podcast : podcasts.list()) {
-            if (podcast.getIcon() != null) {
-                schedulePodcastImageUpdate(podcast);
-            }
-        }
-    }
-
-    private void schedulePodcastImageUpdate(Podcast podcast) {
-        if (images.get(podcast.getId()) != null) {
-            return;
-        }
-        images.put(podcast.getId(), null);
+    public void onPodcastsLoadCancelled() {
+        podcastsFuture = null;
+        showContentView();
     }
 
     private void updatePodcasts(Iterable<Podcast> iterable) {
@@ -327,9 +313,6 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
 
         int index = 0;
         for (Podcast item : iterable) {
-            if (item.getIcon() != null) {
-                schedulePodcastImageUpdate(item);
-            }
             Podcast podcast = podcasts.get(item.getId());
             if (podcast == null) {
                 podcasts.add(index, item);
@@ -370,47 +353,41 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastsAsyn
         if (image == null) {
             return;
         }
-        if (images.indexOfKey(podcast.getId()) < 0 || images.get(podcast.getId()) != null) {
+        long id = podcast.getId();
+        if (futures.indexOfKey(id) < 0 || PodcastImageCache.getInstance().getIcon(id) != null) {
             return;
         }
-        images.remove(podcast.getId());
-        PodcastIconAsyncTask task = new PodcastIconAsyncTask(this, this) {
-            @Override
-            protected LongSparseArray<BitmapInfo> doInBackground(Podcast... podcasts) {
-                publishProgress();
-                return super.doInBackground(podcasts);
-            }
-
-            @Override
-            protected void onProgressUpdate(Void... values) {
-                if (getPodcastRow(podcast.getId()) < 0) {
-                    images.put(podcast.getId(), null);
-                    cancel(true);
-                }
-            }
-        };
-        task.executeOnExecutor(LighthouseApplication.NETWORK_POOL_EXECUTOR, podcast);
+        PodcastIconLoader loader = new PodcastIconLoader(this, podcast);
+        futures.put(id, getLighthouseApplication().getImageLoaderManager().execute(loader, podcastIconOnLoadListener));
     }
 
-    @Override
-    public void onPodcastIconResponse(LongSparseArray<BitmapInfo> response) {
+    public void onIconLoadStarted(long id) {
+        if (getPodcastRow(id) < 0) {
+            Future<BitmapInfo> future = futures.get(id);
+            if (future != null) {
+                future.cancel(true);
+            }
+        }
+    }
+
+    public void onIconLoadComplete(long id, BitmapInfo bitmapInfo) {
+        futures.remove(id);
         if (isDestroyed()) {
             return;
         }
-        int size = response.size();
-        for (int i = 0; i < size; i++) {
-            BitmapInfo bitmapInfo = response.valueAt(i);
-            if (bitmapInfo != null) {
-                long id = response.keyAt(i);
-                images.put(id, bitmapInfo.getBitmap());
-                Podcast podcast = podcasts.get(id);
-                if (bitmapInfo.getPrimaryColor() != 0) {
-                    Image icon = Objects.requireNonNull(podcast.getIcon());
-                    icon.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
-                }
-                updatePodcastRow(podcast);
+        if (bitmapInfo != null) {
+            PodcastImageCache.getInstance().putIcon(id, bitmapInfo.getBitmap());
+            Podcast podcast = podcasts.get(id);
+            if (bitmapInfo.getPrimaryColor() != 0) {
+                Image icon = Objects.requireNonNull(podcast.getIcon());
+                icon.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
             }
+            updatePodcastRow(podcast);
         }
+    }
+
+    public void onIconLoadCancelled(long id) {
+        futures.remove(id);
     }
 
     private int getPodcastRow(Podcast podcast) {

@@ -3,7 +3,6 @@ package ru.radiomayak.podcasts;
 import android.content.Context;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -12,11 +11,11 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class PodcastSplashAsyncTaskTest {
-    private PodcastSplashAsyncTask task;
+    private PodcastSplashLoader task;
 
     @Before
     public void before() {
-        task = new PodcastSplashAsyncTask(Mockito.mock(Context.class), Mockito.mock(PodcastSplashAsyncTask.Listener.class));
+        task = new PodcastSplashLoader(Mockito.mock(Context.class), null);
     }
 
     @Test

@@ -22,7 +22,6 @@ import ru.radiomayak.R;
 class PodcastsAdapter extends BaseAdapter {
     private final LighthouseApplication application;
     private final List<Podcast> podcasts;
-    private final LongSparseArray<Bitmap> images;
     private final Bitmap micBitmap;
 
     private OnDisplayListener onDisplayListener;
@@ -31,10 +30,9 @@ class PodcastsAdapter extends BaseAdapter {
         void onDisplay(int position);
     }
 
-    PodcastsAdapter(LighthouseApplication application, List<Podcast> podcasts, LongSparseArray<Bitmap> images) {
+    PodcastsAdapter(LighthouseApplication application, List<Podcast> podcasts) {
         this.application = application;
         this.podcasts = podcasts;
-        this.images = images;
 
         int size = application.getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
         Drawable micDrawable = ResourcesCompat.getDrawable(application.getResources(), R.drawable.mic, application.getTheme());
@@ -97,7 +95,7 @@ class PodcastsAdapter extends BaseAdapter {
         ImageView iconView = getIconView(convertView);
         iconView.setContentDescription(podcast.getName());
 
-        Bitmap iconBitmap = images.get(podcast.getId());
+        Bitmap iconBitmap = PodcastImageCache.getInstance().getIcon(podcast.getId());
         setCircularImageBitmap(iconView, iconBitmap == null ? micBitmap : iconBitmap);
 
         TextView descriptionView = getDescriptionView(convertView);

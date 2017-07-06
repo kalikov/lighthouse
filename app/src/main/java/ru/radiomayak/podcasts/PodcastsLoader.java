@@ -18,43 +18,36 @@ import ru.radiomayak.http.HttpUtils;
 import ru.radiomayak.http.HttpVersion;
 import ru.radiomayak.http.message.BasicHttpRequest;
 
-class PodcastsAsyncTask extends AbstractHttpAsyncTask<Object, Void, Podcasts> {
-    static final Object LOOPBACK = new Object();
-
-    private static final String LOG_TAG = PodcastsAsyncTask.class.getSimpleName();
+class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
+    private static final String LOG_TAG = PodcastsLoader.class.getSimpleName();
 
     private static final String PODCASTS_URL = "http://radiomayak.ru/podcasts/";
 
     private final PodcastsLayoutParser parser = new PodcastsLayoutParser();
 
-    private final Context context;
-    private final Listener listener;
+    private final boolean loopback;
 
-    interface Listener {
-        void onPodcastsLoaded(Podcasts response, boolean isCancelled);
-    }
-
-    PodcastsAsyncTask(Context context, Listener listener) {
-        this.context = context;
-        this.listener = listener;
+    PodcastsLoader(Context context, boolean loopback) {
+        super(context);
+        this.loopback = loopback;
     }
 
     @Override
-    protected Podcasts doInBackground(Object... params) {
+    protected Podcasts onExecute() {
         Podcasts podcasts = null;
         try {
-            if (NetworkUtils.isConnected(context)) {
+            if (NetworkUtils.isConnected(getContext())) {
                 try {
                     podcasts = requestPodcasts(PODCASTS_URL);
                     if (podcasts != null && !podcasts.list().isEmpty()) {
-                        PodcastsUtils.storePodcasts(context, podcasts);
+                        PodcastsUtils.storePodcasts(getContext(), podcasts);
                         return podcasts;
                     }
                 } catch (IOException | HttpException ignored) {
                 }
             }
-            if (params.length > 0 && params[0] == LOOPBACK) {
-                return PodcastsUtils.loadPodcasts(context);
+            if (loopback) {
+                return PodcastsUtils.loadPodcasts(getContext());
             }
         } catch (Throwable e) {
             Log.e(LOG_TAG, e.getMessage(), e);
@@ -63,16 +56,6 @@ class PodcastsAsyncTask extends AbstractHttpAsyncTask<Object, Void, Podcasts> {
             }
         }
         return podcasts;
-    }
-
-    @Override
-    protected void onPostExecute(Podcasts response) {
-        listener.onPodcastsLoaded(response, false);
-    }
-
-    @Override
-    protected void onCancelled(Podcasts response) {
-        listener.onPodcastsLoaded(response, true);
     }
 
     private Podcasts requestPodcasts(String spec) throws IOException, HttpException {
@@ -90,5 +73,22 @@ class PodcastsAsyncTask extends AbstractHttpAsyncTask<Object, Void, Podcasts> {
             byte[] bytes = getResponseBytes(response);
             return bytes == null ? null : parser.parse(ByteBuffer.wrap(bytes), HttpUtils.getCharset(response), url.toString());
         }
+    }
+
+    @Override
+    public int hashCode() {
+        return loopback ? 1 : 0;
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        if (object == this) {
+            return true;
+        }
+        if (!(object instanceof PodcastsLoader)) {
+            return false;
+        }
+        PodcastsLoader other = (PodcastsLoader) object;
+        return loopback == other.loopback;
     }
 }

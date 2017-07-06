@@ -1,22 +1,22 @@
-package ru.radiomayak.podcasts;
+package ru.radiomayak.graphics;
 
 import android.graphics.Bitmap;
 
 import ru.radiomayak.graphics.BitmapColors;
 
-class BitmapInfo {
+public class BitmapInfo {
     private final Bitmap bitmap;
     private final int primaryColor;
     private final int secondaryColor;
 
-    BitmapInfo(Bitmap bitmap) {
+    public BitmapInfo(Bitmap bitmap) {
         this.bitmap = bitmap;
         BitmapColors colorCube = getBitmapColorCube(bitmap);
         primaryColor = colorCube.getPrimaryColorByCube();
         secondaryColor = colorCube.getMaxContrastingColor(primaryColor);
     }
 
-    BitmapInfo(Bitmap bitmap, int primaryColor, int secondaryColor) {
+    public BitmapInfo(Bitmap bitmap, int primaryColor, int secondaryColor) {
         this.bitmap = bitmap;
         this.primaryColor = primaryColor;
         this.secondaryColor = secondaryColor;
@@ -36,15 +36,15 @@ class BitmapInfo {
         return cube;
     }
 
-    Bitmap getBitmap() {
+    public Bitmap getBitmap() {
         return bitmap;
     }
 
-    int getPrimaryColor() {
+    public int getPrimaryColor() {
         return primaryColor;
     }
 
-    int getSecondaryColor() {
+    public int getSecondaryColor() {
         return secondaryColor;
     }
 }

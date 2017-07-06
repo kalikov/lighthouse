@@ -13,14 +13,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
-public class PodcastsAsyncTaskTest {
+public class PodcastsLoaderTest {
     private static final String RESPONSE_URL = "http://radiomayak.ru/podcasts/";
 
-    private PodcastsAsyncTask task;
+    private PodcastsLoader task;
 
     @Before
     public void before() {
-        task = Mockito.spy(new PodcastsAsyncTask(Mockito.mock(Context.class), Mockito.mock(PodcastsAsyncTask.Listener.class)));
+        task = Mockito.spy(new PodcastsLoader(Mockito.mock(Context.class), true));
     }
 
     private static Connection.Response mockResponse(byte[] bytes, String charset, String url) throws IOException {
@@ -31,7 +31,7 @@ public class PodcastsAsyncTaskTest {
         return response;
     }
 
-    private static void mockResponse(PodcastsAsyncTask task, byte[] bytes, String charset) throws IOException {
+    private static void mockResponse(PodcastsLoader task, byte[] bytes, String charset) throws IOException {
         Connection.Response response = mockResponse(bytes, charset, RESPONSE_URL);
 //        Mockito.doReturn(response).when(task).request(RESPONSE_URL);
     }
@@ -40,7 +40,7 @@ public class PodcastsAsyncTaskTest {
     public void shouldCorrectlyHandleUnsupportedResponse() throws IOException {
         mockResponse(task, "<html></html>".getBytes(), "utf-8");
 
-        Podcasts podcasts = task.doInBackground(RESPONSE_URL);
+        Podcasts podcasts = task.onExecute();
         Assert.assertTrue(podcasts.list().isEmpty());
     }
 
@@ -58,7 +58,7 @@ public class PodcastsAsyncTaskTest {
         Podcasts podcasts;
         try (InputStream resource = getClass().getClassLoader().getResourceAsStream(resourceName + ".html")) {
 //            mockResponse(task, IOUtils.toByteArray(resource), "utf-8");
-            podcasts = task.doInBackground(RESPONSE_URL);
+            podcasts = task.onExecute();
         }
         try (InputStream resource = getClass().getClassLoader().getResourceAsStream(resourceName + ".json")) {
             Assert.assertEquals(IOUtils.toString(resource, "utf-8"), podcasts.toJson().toString());

@@ -19,6 +19,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import ru.radiomayak.content.LoaderManager;
+import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.media.MediaNotificationManager;
 import ru.radiomayak.media.MediaPlayerObservable;
 import ru.radiomayak.media.MediaPlayerObserver;
@@ -45,6 +47,8 @@ public class LighthouseApplication extends Application {
     }
 
     public static final Executor NETWORK_SERIAL_EXECUTOR = Executors.newSingleThreadExecutor();
+
+    private final LoaderManager<BitmapInfo> imageLoaderManager = new LoaderManager<>(true);
 
     private final MediaPlayerObservable mediaPlayerObservable = new MediaPlayerObservable();
 
@@ -263,5 +267,9 @@ public class LighthouseApplication extends Application {
     public void pause() {
         getMediaPlayer().pause();
         notificationManager.updateNotification();
+    }
+
+    public LoaderManager<BitmapInfo> getImageLoaderManager() {
+        return imageLoaderManager;
     }
 }

@@ -15,7 +15,6 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
-import android.util.LongSparseArray;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -24,6 +23,7 @@ import android.widget.Toast;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.concurrent.Future;
 
 import ru.radiomayak.LighthouseActivity;
 import ru.radiomayak.LighthouseApplication;
@@ -31,10 +31,12 @@ import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.R;
 import ru.radiomayak.StringUtils;
+import ru.radiomayak.content.Loader;
+import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.widget.ToolbarCompat;
 
 public class RecordsActivity extends LighthouseActivity
-        implements PodcastAsyncTask.Listener, PageAsyncTask.Listener, PodcastSplashAsyncTask.Listener, RecordsPlayer {
+        implements PodcastAsyncTask.Listener, PageAsyncTask.Listener, RecordsPlayer {
 
     public static final String EXTRA_PODCAST = "ru.radiomayak.podcasts.PODCAST";
 
@@ -42,6 +44,18 @@ public class RecordsActivity extends LighthouseActivity
     private static final String STATE_SPLASH = RecordsActivity.class.getName() + "$splash";
     private static final String STATE_FOOTER = RecordsActivity.class.getName() + "$footer";
     private static final String STATE_PAGINATOR = RecordsActivity.class.getName() + "$paginator";
+
+    private final Loader.OnLoadListener<BitmapInfo> splashOnLoadListener = new Loader.OnLoadListener<BitmapInfo>() {
+        @Override
+        public void onLoadComplete(Loader<BitmapInfo> loader, BitmapInfo data) {
+            onSplashLoadComplete(data);
+        }
+
+        @Override
+        public void onLoadCancelled(Loader<BitmapInfo> loader) {
+            onSplashLoadCancelled();
+        }
+    };
 
     private RecordsAdapter adapter;
 
@@ -51,8 +65,9 @@ public class RecordsActivity extends LighthouseActivity
     private Bitmap splash;
 
     private PodcastAsyncTask podcastAsyncTask;
-    private PodcastSplashAsyncTask splashAsyncTask;
     private PageAsyncTask pageAsyncTask;
+
+    private Future<BitmapInfo> splashFuture;
 
     private RecordsPaginator paginator;
 
@@ -112,8 +127,8 @@ public class RecordsActivity extends LighthouseActivity
         if (podcastAsyncTask != null && !podcastAsyncTask.isCancelled()) {
             podcastAsyncTask.cancel(true);
         }
-        if (splashAsyncTask != null && !splashAsyncTask.isCancelled()) {
-            splashAsyncTask.cancel(true);
+        if (splashFuture != null && !splashFuture.isDone()) {
+            splashFuture.cancel(true);
         }
         super.onDestroy();
     }
@@ -495,11 +510,11 @@ public class RecordsActivity extends LighthouseActivity
 
     private void requestPodcastSplash() {
         Image splash = podcast.getSplash();
-        if (splash == null || splashAsyncTask != null || this.splash != null) {
+        if (splash == null || splashFuture != null || this.splash != null) {
             return;
         }
-        splashAsyncTask = new PodcastSplashAsyncTask(this, this);
-        splashAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_POOL_EXECUTOR, podcast);
+        PodcastSplashLoader loader = new PodcastSplashLoader(this, podcast);
+        splashFuture = getLighthouseApplication().getImageLoaderManager().execute(loader, splashOnLoadListener);
     }
 
     private void updatePageRecords(RecordsPaginator paginator) {
@@ -543,11 +558,9 @@ public class RecordsActivity extends LighthouseActivity
         }
     }
 
-    @Override
-    public void onPodcastSplashResponse(LongSparseArray<BitmapInfo> array, boolean isCancelled) {
+    public void onSplashLoadComplete(BitmapInfo bitmapInfo) {
         podcastAsyncTask = null;
-        BitmapInfo bitmapInfo = array.get(podcast.getId());
-        if (bitmapInfo == null || isCancelled ||  isDestroyed()) {
+        if (bitmapInfo == null || isDestroyed()) {
             return;
         }
         setPodcastSplash(bitmapInfo.getBitmap());
@@ -556,6 +569,10 @@ public class RecordsActivity extends LighthouseActivity
             splash.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
             updateToolbarColor();
         }
+    }
+
+    public void onSplashLoadCancelled() {
+        podcastAsyncTask = null;
     }
 
     private void setPodcastSplash(Bitmap bitmap) {
