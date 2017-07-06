@@ -52,9 +52,7 @@ final class LayoutUtils {
 
             int eventType = xpp.getEventType();
             while (eventType != XmlPullParser.END_DOCUMENT) {
-                if (eventType == XmlPullParser.START_DOCUMENT) {
-                    System.out.println("Start document");
-                } else if (eventType == XmlPullParser.START_TAG) {
+                if (eventType == XmlPullParser.START_TAG) {
                     String tag = xpp.getName();
                     if ("body".equalsIgnoreCase(tag)) {
                         break;

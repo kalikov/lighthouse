@@ -354,7 +354,7 @@ public class PodcastsActivity extends LighthouseActivity {
             return;
         }
         long id = podcast.getId();
-        if (futures.indexOfKey(id) < 0 || PodcastImageCache.getInstance().getIcon(id) != null) {
+        if (futures.indexOfKey(id) >= 0 || PodcastImageCache.getInstance().getIcon(id) != null) {
             return;
         }
         PodcastIconLoader loader = new PodcastIconLoader(this, podcast);

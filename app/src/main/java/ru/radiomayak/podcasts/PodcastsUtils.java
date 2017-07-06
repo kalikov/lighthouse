@@ -175,8 +175,8 @@ public final class PodcastsUtils {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
         try (SQLiteDatabase database = helper.getWritableDatabase()) {
             ContentValues values = new ContentValues();
-            values.put(PODCAST_ICON_RGB, primaryColor);
-            values.put(PODCAST_ICON_RGB2, secondaryColor);
+            values.put(PODCAST_SPLASH_RGB, primaryColor);
+            values.put(PODCAST_SPLASH_RGB2, secondaryColor);
             database.update(PodcastsOpenHelper.PODCASTS, values, PODCAST_ID + " = ?", args(toString(id)));
         }
     }
