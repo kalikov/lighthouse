@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.support.annotation.Nullable;
 
 import org.apache.commons.io.IOUtils;
 
@@ -159,6 +160,32 @@ public final class PodcastsUtils {
             }
         }
         return cursor;
+    }
+
+    static boolean hasColors(Context context, Podcast podcast, @Nullable String iconUrl, @Nullable String splashUrl) {
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
+        String[] args = args(toString(podcast.getId()));
+        try (SQLiteDatabase database = helper.getReadableDatabase(); Cursor cursor = database.rawQuery(PODCAST_COLORS_SELECT_SQL, args)) {
+            if (cursor.moveToNext()) {
+                return hasColors(cursor, 0, iconUrl) || hasColors(cursor, 3, splashUrl);
+            }
+        }
+        return false;
+    }
+
+    static boolean hasSplashColors(Context context, Podcast podcast, @Nullable String splashUrl) {
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
+        String[] args = args(toString(podcast.getId()));
+        try (SQLiteDatabase database = helper.getReadableDatabase(); Cursor cursor = database.rawQuery(PODCAST_COLORS_SELECT_SQL, args)) {
+            if (cursor.moveToNext()) {
+                return hasColors(cursor, 3, splashUrl);
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasColors(Cursor cursor, int index, @Nullable String url) {
+        return (url == null || url.equalsIgnoreCase(cursor.getString(index))) && cursor.getInt(index + 1) != 0;
     }
 
     static void storePodcastIconColors(Context context, long id, int primaryColor, int secondaryColor) {

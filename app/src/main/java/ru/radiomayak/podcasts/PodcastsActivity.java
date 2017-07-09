@@ -20,6 +20,7 @@ import java.util.Objects;
 import java.util.concurrent.Future;
 
 import ru.radiomayak.LighthouseActivity;
+import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.R;
 import ru.radiomayak.content.Loader;
@@ -289,13 +290,14 @@ public class PodcastsActivity extends LighthouseActivity {
         startActivity(intent);
     }
 
-    public void onPodcastsLoadComplete(Podcasts podcasts) {
+    public void onPodcastsLoadComplete(@Nullable Podcasts podcasts) {
         podcastsFuture = null;
         if (!isDestroyed()) {
-            if (podcasts.list().isEmpty() && !adapter.isEmpty()) {
+            if ((podcasts == null || podcasts.list().isEmpty()) && !adapter.isEmpty()) {
                 Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
-            } else {
+            } else if (podcasts != null && !podcasts.list().isEmpty()) {
                 updatePodcasts(podcasts.list());
+                new PodcastsStoreAsyncTask(getBaseContext()).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcasts);
             }
         }
         showContentView();

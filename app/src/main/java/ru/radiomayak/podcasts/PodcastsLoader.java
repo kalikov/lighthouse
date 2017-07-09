@@ -2,8 +2,12 @@ package ru.radiomayak.podcasts;
 
 import android.content.Context;
 import android.util.Log;
+import android.widget.Toast;
+
+import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 
@@ -40,7 +44,7 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
                 try {
                     podcasts = requestPodcasts(PODCASTS_URL);
                     if (podcasts != null && !podcasts.list().isEmpty()) {
-                        PodcastsUtils.storePodcasts(getContext(), podcasts);
+                        //PodcastsUtils.storePodcasts(getContext(), podcasts);
                         return podcasts;
                     }
                 } catch (IOException | HttpException ignored) {
@@ -59,6 +63,7 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
     }
 
     private Podcasts requestPodcasts(String spec) throws IOException, HttpException {
+        long start = System.currentTimeMillis();
         URL url = new URL(spec);
         HttpRequest request = new BasicHttpRequest("GET", url.getPath(), HttpVersion.HTTP_1_1);
         request.setHeader(HttpHeaders.ACCEPT, "text/html,*/*");
@@ -70,8 +75,12 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
             if (response == null) {
                 return null;
             }
-            byte[] bytes = getResponseBytes(response);
-            return bytes == null ? null : parser.parse(ByteBuffer.wrap(bytes), HttpUtils.getCharset(response), url.toString());
+            try (InputStream input = HttpUtils.getContent(response.getEntity())) {
+                Podcasts p = parser.parse(IOUtils.toBufferedInputStream(input), HttpUtils.getCharset(response), url.toString());
+                long parsing = System.currentTimeMillis() - start;
+                System.out.println(parsing);
+                return p;
+            }
         }
     }
 

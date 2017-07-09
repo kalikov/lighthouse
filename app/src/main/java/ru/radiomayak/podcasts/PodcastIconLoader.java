@@ -23,12 +23,7 @@ class PodcastIconLoader extends AbstractPodcastImageLoader {
     @Override
     protected boolean shouldExtractColors() {
         Image splash = getPodcast().getSplash();
-        return splash == null || splash.getPrimaryColor() == 0 || hasEmptyIconColors();
-    }
-
-    private boolean hasEmptyIconColors() {
-        Image icon = getPodcast().getIcon();
-        return icon != null && icon.getPrimaryColor() == 0;
+        return !PodcastsUtils.hasColors(getContext(), getPodcast(), getUrl(), splash == null ? null : splash.getUrl());
     }
 
     @Nullable
