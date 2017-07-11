@@ -150,7 +150,7 @@ public final class PodcastsUtils {
     private static Cursor updateColors(SQLiteDatabase database, Cursor cursor, Podcast podcast, Image image, int index) {
         if (image.getPrimaryColor() == 0) {
             if (cursor == null) {
-                cursor = database.rawQuery(PODCAST_COLORS_SELECT_SQL, args(toString(podcast.getId())));
+                cursor = database.rawQuery(PODCAST_COLORS_SELECT_SQL, args(podcast.getId()));
             }
             if (!cursor.isFirst() && !cursor.moveToFirst()) {
                 return cursor;
@@ -164,7 +164,7 @@ public final class PodcastsUtils {
 
     static boolean hasColors(Context context, Podcast podcast, @Nullable String iconUrl, @Nullable String splashUrl) {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
-        String[] args = args(toString(podcast.getId()));
+        String[] args = args(podcast.getId());
         try (SQLiteDatabase database = helper.getReadableDatabase(); Cursor cursor = database.rawQuery(PODCAST_COLORS_SELECT_SQL, args)) {
             if (cursor.moveToNext()) {
                 return hasColors(cursor, 0, iconUrl) || hasColors(cursor, 3, splashUrl);
@@ -175,7 +175,7 @@ public final class PodcastsUtils {
 
     static boolean hasSplashColors(Context context, Podcast podcast, @Nullable String splashUrl) {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
-        String[] args = args(toString(podcast.getId()));
+        String[] args = args(podcast.getId());
         try (SQLiteDatabase database = helper.getReadableDatabase(); Cursor cursor = database.rawQuery(PODCAST_COLORS_SELECT_SQL, args)) {
             if (cursor.moveToNext()) {
                 return hasColors(cursor, 3, splashUrl);
@@ -194,7 +194,7 @@ public final class PodcastsUtils {
             ContentValues values = new ContentValues();
             values.put(PODCAST_ICON_RGB, primaryColor);
             values.put(PODCAST_ICON_RGB2, secondaryColor);
-            database.update(PodcastsOpenHelper.PODCASTS, values, PODCAST_ID + " = ?", args(toString(id)));
+            database.update(PodcastsOpenHelper.PODCASTS, values, PODCAST_ID + " = ?", args(id));
         }
     }
 
@@ -204,16 +204,16 @@ public final class PodcastsUtils {
             ContentValues values = new ContentValues();
             values.put(PODCAST_SPLASH_RGB, primaryColor);
             values.put(PODCAST_SPLASH_RGB2, secondaryColor);
-            database.update(PodcastsOpenHelper.PODCASTS, values, PODCAST_ID + " = ?", args(toString(id)));
+            database.update(PodcastsOpenHelper.PODCASTS, values, PODCAST_ID + " = ?", args(id));
         }
     }
 
     static String getPodcastIconFilename(Podcast podcast) {
-        return String.format(PODCAST_ICON_FILE, toString(podcast.getId()));
+        return String.format(PODCAST_ICON_FILE, String.valueOf(podcast.getId()));
     }
 
     static String getPodcastSplashFilename(Podcast podcast) {
-        return String.format(PODCAST_SPLASH_FILE, toString(podcast.getId()));
+        return String.format(PODCAST_SPLASH_FILE, String.valueOf(podcast.getId()));
     }
 
     static List<Record> loadRecords(Context context, long podcast, long from, int count) {
@@ -223,10 +223,10 @@ public final class PodcastsUtils {
             String args[];
             if (from > 0) {
                 sql += " WHERE " + RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " < ?";
-                args = args(toString(podcast), toString(from));
+                args = args(podcast, from);
             } else {
                 sql += " WHERE " + RECORD_PODCAST_ID + " = ?";
-                args = args(toString(podcast));
+                args = args(podcast);
             }
             sql += " ORDER BY " + RECORD_ID + " DESC LIMIT " + count;
 
@@ -262,7 +262,7 @@ public final class PodcastsUtils {
                 values.put(RECORD_DATE, record.getDate());
                 values.put(RECORD_DURATION, record.getDuration());
                 if (!record.isPlayed()) {
-                    try (Cursor cursor = database.rawQuery(RECORD_PLAYED_SELECT_SQL, args(toString(podcast), toString(record.getId())))) {
+                    try (Cursor cursor = database.rawQuery(RECORD_PLAYED_SELECT_SQL, args(podcast, record.getId()))) {
                         if (cursor.moveToNext()) {
                             record.setPlayed(cursor.getInt(0) != 0);
                         }
@@ -279,13 +279,13 @@ public final class PodcastsUtils {
         try (SQLiteDatabase database = helper.getWritableDatabase()) {
             ContentValues values = new ContentValues();
             values.put(RECORD_PLAYED, record.isPlayed() ? 1 : 0);
-            String[] args = args(toString(podcast), toString(record.getId()));
+            String[] args = args(podcast, record.getId());
             database.update(PodcastsOpenHelper.RECORDS, values, RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " = ?", args);
         }
     }
 
-    private static String toString(long arg) {
-        return String.valueOf(arg);
+    private static String[] args(long arg) {
+        return args(String.valueOf(arg));
     }
 
     private static String[] args(String arg) {
@@ -296,6 +296,10 @@ public final class PodcastsUtils {
         }
         array[0] = arg;
         return array;
+    }
+
+    private static String[] args(long arg1, long arg2) {
+        return args(String.valueOf(arg1), String.valueOf(arg2));
     }
 
     private static String[] args(String arg1, String arg2) {
