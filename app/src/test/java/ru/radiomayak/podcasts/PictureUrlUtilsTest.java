@@ -28,7 +28,7 @@ public class PictureUrlUtilsTest {
     public void shouldGetCorrectUrl() {
         int i = 0;
         for (String url : valid) {
-            Assert.assertEquals(r[i], PictureUrlUtils.getPictureUrl(url, PictureUrlUtils.Quality.XS_SQUARE));
+            Assert.assertEquals(r[i], PictureUrlUtils.getPictureUrl(url, PictureUrlUtils.Size.XS_SQUARE));
             i++;
         }
     }

@@ -1,6 +1,10 @@
 package ru.radiomayak.podcasts;
 
+import android.app.FragmentManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.annotation.VisibleForTesting;
@@ -44,6 +48,18 @@ public class PodcastsActivity extends LighthouseActivity {
 
     private final LongSparseArray<Future<BitmapInfo>> futures = new LongSparseArray<>(DEFAULT_IMAGES_CAPACITY);
 
+    private final BroadcastReceiver viewReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            long id = intent.getLongExtra(RecordsActivity.EXTRA_PODCAST_ID, 0);
+            Podcast podcast = podcasts.get(id);
+            if (podcast != null) {
+                podcast.setSeen(podcast.getLength());
+                updatePodcastRow(id);
+            }
+        }
+    };
+
     private final Loader.OnLoadListener<Podcasts> podcastsOnLoadListener = new Loader.OnLoadListener<Podcasts>() {
         @Override
         public void onLoadComplete(Loader<Podcasts> loader, Podcasts data) {
@@ -76,11 +92,17 @@ public class PodcastsActivity extends LighthouseActivity {
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
 
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(RecordsActivity.ACTION_VIEW);
+        registerReceiver(viewReceiver, filter);
+
         boolean loading = true;
         if (state != null) {
             loading = state.getBoolean(STATE_LOADING, true);
             if (!loading) {
-                podcasts = state.getParcelable(Podcasts.class.getName());
+                FragmentManager fragmentManager = getFragmentManager();
+                PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag("data");
+                podcasts = dataFragment.getPodcasts();
             }
         }
         if (podcasts == null) {
@@ -106,6 +128,8 @@ public class PodcastsActivity extends LighthouseActivity {
 
     @Override
     protected void onDestroy() {
+        unregisterReceiver(viewReceiver);
+
         if (podcastsFuture != null && !podcastsFuture.isDone()) {
             podcastsFuture.cancel(true);
         }
@@ -221,7 +245,15 @@ public class PodcastsActivity extends LighthouseActivity {
 
     @Override
     public void onSaveInstanceState(Bundle state) {
-        state.putParcelable(Podcasts.class.getName(), podcasts);
+        if (podcasts != null && !podcasts.list().isEmpty()) {
+            FragmentManager fragmentManager = getFragmentManager();
+            PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag("data");
+            if (dataFragment == null) {
+                dataFragment = new PodcastsDataFragment();
+                fragmentManager.beginTransaction().add(dataFragment, "data").commit();
+            }
+            dataFragment.setPodcasts(podcasts);
+        }
         state.putBoolean(STATE_LOADING, getLoadingView().getVisibility() == View.VISIBLE);
         super.onSaveInstanceState(state);
     }

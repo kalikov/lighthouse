@@ -11,14 +11,18 @@ class PodcastSplashLoader extends AbstractPodcastImageLoader {
     @Override
     protected boolean shouldExtractColors() {
         Image splash = getPodcast().getSplash();
-        return splash != null && splash.getPrimaryColor() == 0;
+        return !PodcastsUtils.hasSplashColors(getContext(), getPodcast(), splash == null ? null : splash.getUrl());
     }
 
     @Nullable
     @Override
     protected String getUrl() {
         Image splash = getPodcast().getSplash();
-        return splash == null ? null : splash.getUrl();
+        if (splash != null) {
+            return splash.getUrl();
+        }
+        Image icon = getPodcast().getIcon();
+        return icon == null ? null : PictureUrlUtils.getPictureUrl(icon.getUrl(), PictureUrlUtils.Size.L);
     }
 
     @Override

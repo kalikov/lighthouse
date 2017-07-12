@@ -42,11 +42,13 @@
                 android:layout_alignBaseline="@id/name"
                 android:layout_alignParentEnd="true"
                 android:maxLines="1"
-                android:paddingEnd="0sp"
+                android:paddingEnd="@dimen/podcast_length_padding"
                 android:paddingStart="@dimen/podcast_length_padding"
                 android:text="@string/zero"
+                android:textColor="@color/titleTextColor"
                 android:textAppearance="@style/AppTheme.Text.Small"
                 android:textSize="@dimen/text_ultra_small_size"
+                android:background="@drawable/length_background"
                 app:layout_constraintEnd_toEndOf="parent"/>
         </RelativeLayout>
 

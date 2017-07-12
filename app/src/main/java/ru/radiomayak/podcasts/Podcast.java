@@ -12,8 +12,6 @@ import ru.radiomayak.Jsonable;
 import ru.radiomayak.StringUtils;
 
 public class Podcast implements Parcelable, Jsonable {
-    private static final int VERSION = 1;
-
     private static final byte IMAGE_NONE = 0;
     private static final byte IMAGE_DEFAULT = 1;
 
@@ -33,17 +31,18 @@ public class Podcast implements Parcelable, Jsonable {
     private final String name;
     private String description;
     private int length;
+    private int seen;
     private Image icon;
     private Image splash;
 
     protected Podcast(Parcel in) {
-        int version = in.readInt();
         id = in.readLong();
         name = in.readString();
         if (in.readInt() > 0) {
             description = in.readString();
         }
         length = in.readInt();
+        seen = in.readInt();
         icon = readImageFromParcel(in);
         splash = readImageFromParcel(in);
     }
@@ -60,11 +59,11 @@ public class Podcast implements Parcelable, Jsonable {
 
     @Override
     public void writeToParcel(Parcel out, int flags) {
-        out.writeInt(VERSION);
         out.writeLong(id);
         out.writeString(name);
         writeStringToParcel(out, description);
         out.writeInt(length);
+        out.writeInt(seen);
         writeImageToParcel(out, icon, flags);
         writeImageToParcel(out, splash, flags);
     }
@@ -123,6 +122,17 @@ public class Podcast implements Parcelable, Jsonable {
         this.length = length;
     }
 
+    public int getSeen() {
+        return seen;
+    }
+
+    public void setSeen(int seen) {
+        if (seen < 0) {
+            throw new IllegalArgumentException();
+        }
+        this.seen = seen;
+    }
+
     @Nullable
     public Image getIcon() {
         return icon;
@@ -146,6 +156,10 @@ public class Podcast implements Parcelable, Jsonable {
         if (podcast.getLength() > 0) {
             updated = length != podcast.getLength();
             length = podcast.getLength();
+        }
+        if (podcast.getSeen() > seen) {
+            updated = true;
+            seen = podcast.getSeen();
         }
         if (podcast.getDescription() != null) {
             updated = updated || !StringUtils.equals(podcast.getDescription(), description);
@@ -191,6 +205,9 @@ public class Podcast implements Parcelable, Jsonable {
         if (length > 0) {
             json.addProperty("length", length);
         }
+        if (seen > 0) {
+            json.addProperty("seen", seen);
+        }
         if (icon != null) {
             json.add("icon", icon.toJson());
         }
@@ -212,10 +229,8 @@ public class Podcast implements Parcelable, Jsonable {
         }
         Podcast podcast = new Podcast(id, name);
         podcast.setDescription(StringUtils.nonEmpty(JsonUtils.getOptString(json, "description")));
-        int length = JsonUtils.getOptInt(json, "length", 0);
-        if (length > 0) {
-            podcast.setLength(length);
-        }
+        podcast.setLength(JsonUtils.getOptInt(json, "length", 0));
+        podcast.setSeen(JsonUtils.getOptInt(json, "seen", 0));
         podcast.setIcon(getOptImage(json, "icon"));
         podcast.setSplash(getOptImage(json, "splash"));
         return podcast;

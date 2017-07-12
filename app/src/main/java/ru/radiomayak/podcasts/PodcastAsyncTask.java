@@ -3,7 +3,10 @@ package ru.radiomayak.podcasts;
 import android.content.Context;
 import android.util.Log;
 
+import org.apache.commons.io.IOUtils;
+
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.List;
 
@@ -27,7 +30,7 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
 
     private static final int OFFLINE_PAGE_SIZE = 20;
 
-    private final PodcastLayoutJsoupParser parser = new PodcastLayoutJsoupParser();
+    private final PodcastLayoutParser parser = new PodcastLayoutParser();
 
     private final Context context;
     private final Listener listener;
@@ -77,6 +80,7 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
     }
 
     private PodcastLayoutContent requestContent(long id) throws IOException, HttpException {
+        long start = System.currentTimeMillis();
         URL url = new URL(String.format(PODCAST_URL, String.valueOf(id)));
         HttpRequest request = new BasicHttpRequest("GET", url.getPath(), HttpVersion.HTTP_1_1);
         request.setHeader(HttpHeaders.ACCEPT, "text/html,*/*");
@@ -88,8 +92,12 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
             if (response == null) {
                 return null;
             }
-            byte[] bytes = getResponseBytes(response);
-            return bytes == null ? null : parser.parse(bytes, HttpUtils.getCharset(response), url.toString());
+            try (InputStream input = HttpUtils.getContent(response.getEntity())) {
+                return parser.parse(IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
+            }
+        } finally {
+            long parsing = System.currentTimeMillis() - start;
+            System.out.println(parsing);
         }
     }
 }

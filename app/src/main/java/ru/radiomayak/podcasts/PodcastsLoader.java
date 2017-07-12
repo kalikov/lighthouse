@@ -2,14 +2,12 @@ package ru.radiomayak.podcasts;
 
 import android.content.Context;
 import android.util.Log;
-import android.widget.Toast;
 
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.nio.ByteBuffer;
 
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.http.DefaultHttpClientConnectionFactory;
@@ -40,18 +38,26 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
     protected Podcasts onExecute() {
         Podcasts podcasts = null;
         try {
+            Podcasts loopbackPodcasts = PodcastsUtils.loadPodcasts(getContext());
             if (NetworkUtils.isConnected(getContext())) {
                 try {
                     podcasts = requestPodcasts(PODCASTS_URL);
                     if (podcasts != null && !podcasts.list().isEmpty()) {
-                        //PodcastsUtils.storePodcasts(getContext(), podcasts);
+                        for (Podcast podcast : podcasts.list()) {
+                            Podcast loopbackPodcast = loopbackPodcasts.get(podcast.getId());
+                            if (loopbackPodcast != null) {
+                                podcast.setSeen(loopbackPodcast.getSeen());
+                                setColors(podcast.getIcon(), loopbackPodcast.getIcon());
+                                setColors(podcast.getSplash(), loopbackPodcast.getSplash());
+                            }
+                        }
                         return podcasts;
                     }
                 } catch (IOException | HttpException ignored) {
                 }
             }
             if (loopback) {
-                return PodcastsUtils.loadPodcasts(getContext());
+                return loopbackPodcasts;
             }
         } catch (Throwable e) {
             Log.e(LOG_TAG, e.getMessage(), e);
@@ -60,6 +66,13 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
             }
         }
         return podcasts;
+    }
+
+    private static void setColors(Image target, Image source) {
+        if (target != null && source != null && target.getUrl().equalsIgnoreCase(source.getUrl())) {
+            target.setPrimaryColor(source.getPrimaryColor());
+            target.setSecondaryColor(source.getSecondaryColor());
+        }
     }
 
     private Podcasts requestPodcasts(String spec) throws IOException, HttpException {
@@ -76,7 +89,7 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
                 return null;
             }
             try (InputStream input = HttpUtils.getContent(response.getEntity())) {
-                Podcasts p = parser.parse(IOUtils.toBufferedInputStream(input), HttpUtils.getCharset(response), url.toString());
+                Podcasts p = parser.parse(IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
                 long parsing = System.currentTimeMillis() - start;
                 System.out.println(parsing);
                 return p;

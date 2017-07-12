@@ -8,9 +8,6 @@ import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import org.jsoup.Jsoup;
-import org.jsoup.safety.Whitelist;
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -145,7 +142,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             TextView descriptionView = getDescriptionView(itemView);
             if (record.getDescription() != null) {
                 descriptionView.setVisibility(View.VISIBLE);
-                descriptionView.setText(Jsoup.clean(record.getDescription(), Whitelist.none()));
+                descriptionView.setText(record.getDescription());
             } else {
                 descriptionView.setVisibility(View.GONE);
             }

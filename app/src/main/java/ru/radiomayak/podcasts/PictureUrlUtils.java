@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 final class PictureUrlUtils {
     private static final Pattern pattern = Pattern.compile("^(.+/vh/pictures/)([a-z]+)(/\\d+/\\d+(/\\d+)?.[a-z]+)$");
 
-    enum Quality {
+    enum Size {
         XS_SQUARE("r", 104, 104),
         M_SQUARE("bq", 400, 400),
         M("xw", 720, 409),
@@ -20,7 +20,7 @@ final class PictureUrlUtils {
         private final int width;
         private final int height;
 
-        Quality(String key, int width, int height) {
+        Size(String key, int width, int height) {
             this.key = key;
             this.width = width;
             this.height = height;
@@ -38,15 +38,21 @@ final class PictureUrlUtils {
     private PictureUrlUtils() {
     }
 
+    static boolean isPictureUrl(String url) {
+        Matcher matcher = pattern.matcher(url);
+        return matcher.matches();
+    }
+
+
     @Nullable
-    static String getPictureUrl(String url, Quality quality) {
+    static String getPictureUrl(String url, Size size) {
         Matcher matcher = pattern.matcher(url);
         if (!matcher.matches()) {
             return null;
         }
-        if (quality.key.equals(matcher.group(2))) {
+        if (size.key.equals(matcher.group(2))) {
             return url;
         }
-        return matcher.group(1) + quality.key + matcher.group(3);
+        return matcher.group(1) + size.key + matcher.group(3);
     }
 }

@@ -6,7 +6,6 @@ import android.graphics.drawable.Drawable;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawable;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawableFactory;
-import android.util.LongSparseArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -84,9 +83,10 @@ class PodcastsAdapter extends BaseAdapter {
 
         TextView lengthView = getLengthView(convertView);
         int length = podcast.getLength();
-        if (length > 0) {
+        int seen = podcast.getSeen();
+        if (length > seen) {
             lengthView.setVisibility(View.VISIBLE);
-            lengthView.setText(String.valueOf(length));
+            lengthView.setText(String.valueOf(length - seen));
             lengthView.setTypeface(application.getFontLight());
         } else {
             lengthView.setVisibility(View.GONE);

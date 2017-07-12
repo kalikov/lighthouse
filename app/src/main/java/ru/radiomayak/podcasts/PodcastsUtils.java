@@ -23,6 +23,7 @@ public final class PodcastsUtils {
     private static final String PODCAST_NAME = PodcastsOpenHelper.PODCAST_NAME;
     private static final String PODCAST_DESC = PodcastsOpenHelper.PODCAST_DESC;
     private static final String PODCAST_LENGTH = PodcastsOpenHelper.PODCAST_LENGTH;
+    private static final String PODCAST_SEEN = PodcastsOpenHelper.PODCAST_SEEN;
     private static final String PODCAST_ICON_URL = PodcastsOpenHelper.PODCAST_ICON_URL;
     private static final String PODCAST_ICON_RGB = PodcastsOpenHelper.PODCAST_ICON_RGB;
     private static final String PODCAST_ICON_RGB2 = PodcastsOpenHelper.PODCAST_ICON_RGB2;
@@ -40,7 +41,7 @@ public final class PodcastsUtils {
     private static final String RECORD_DURATION = PodcastsOpenHelper.RECORD_DURATION;
     private static final String RECORD_PLAYED = PodcastsOpenHelper.RECORD_PLAYED;
 
-    private static final String[] PODCASTS_SELECT_FIELDS = {PODCAST_ID, PODCAST_NAME, PODCAST_DESC, PODCAST_LENGTH,
+    private static final String[] PODCASTS_SELECT_FIELDS = {PODCAST_ID, PODCAST_NAME, PODCAST_DESC, PODCAST_LENGTH, PODCAST_SEEN,
             PODCAST_ICON_URL, PODCAST_ICON_RGB, PODCAST_ICON_RGB2, PODCAST_SPLASH_URL, PODCAST_SPLASH_RGB, PODCAST_SPLASH_RGB2};
 
     private static final String PODCASTS_SELECT_SQL = "SELECT " + StringUtils.join(PODCASTS_SELECT_FIELDS, ", ") +
@@ -76,6 +77,7 @@ public final class PodcastsUtils {
                     i += 2;
                     podcast.setDescription(cursor.getString(i++));
                     podcast.setLength(cursor.getInt(i++));
+                    podcast.setSeen(cursor.getInt(i++));
 
                     String iconUrl = cursor.getString(i++);
                     if (iconUrl != null) {
@@ -113,6 +115,7 @@ public final class PodcastsUtils {
                     values.put(PODCAST_DESC, podcast.getDescription());
                 }
                 values.put(PODCAST_LENGTH, podcast.getLength());
+                values.put(PODCAST_SEEN, podcast.getSeen());
                 Cursor cursor = null;
                 try {
                     if (podcast.getIcon() != null) {
@@ -205,6 +208,24 @@ public final class PodcastsUtils {
             values.put(PODCAST_SPLASH_RGB, primaryColor);
             values.put(PODCAST_SPLASH_RGB2, secondaryColor);
             database.update(PodcastsOpenHelper.PODCASTS, values, PODCAST_ID + " = ?", args(id));
+        }
+    }
+
+    static void storePodcastSeen(Context context, long id) {
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
+        try (SQLiteDatabase database = helper.getWritableDatabase()) {
+//            String[] args = args(id);
+//            int length = 0;
+//            try (Cursor cursor = database.rawQuery(PODCAST_LENGTH_SELECT_SQL, args)) {
+//                if (cursor.moveToNext()) {
+//                    length = cursor.getInt(0);
+//                }
+//            }
+//            ContentValues values = new ContentValues();
+//            values.put(PODCAST_SEEN, length);
+//            database.update(PodcastsOpenHelper.PODCASTS, values, PODCAST_ID + " = ?", args(id));
+            database.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH +
+                    " WHERE " + PODCAST_ID + " = ?", args(id));
         }
     }
 

@@ -25,6 +25,7 @@ class PodcastLayoutParser extends AbstractLayoutParser {
     private static final String PODCAST_SPLASH_CLASS = "b-podcast__pic";
     private static final String PODCAST_LOGO_CLASS = "b-podcast__logo";
     private static final String PODCAST_LOGO_QUERY = "img.b-podcast__pic";
+    private static final String PODCAST_NEXT_PAGE_CLASS = "b-podcast__records-show-more__btn";
     private static final String PODCAST_NEXT_PAGE_QUERY = "a.b-podcast__records-show-more__btn";
 
     private static final String RECORDS_LIST_CLASS = "b-podcast__records";
@@ -63,7 +64,7 @@ class PodcastLayoutParser extends AbstractLayoutParser {
             String name = null;
             String splash = null;
 
-            Records records = null;
+            Records records = new Records();
             long nextPage = 0;
 
             URI uri = NetworkUtils.toOptURI(baseUri);
@@ -82,6 +83,9 @@ class PodcastLayoutParser extends AbstractLayoutParser {
                         splash = xpp.getAttributeValue(null, "src");
                         name = StringUtils.nonEmpty(xpp.getAttributeValue(null, "title"));
                         isLogo = false;
+                    } else if ("a".equalsIgnoreCase(tag) && hasClass(xpp, PODCAST_NEXT_PAGE_CLASS)) {
+                        nextPage = StringUtils.parseLong(xpp.getAttributeValue(null, "data-page"), 0);
+                        break;
                     }
                 }
                 eventType = lenientNext(xpp);

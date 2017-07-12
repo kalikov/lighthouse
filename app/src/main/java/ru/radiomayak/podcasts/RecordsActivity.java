@@ -1,5 +1,6 @@
 package ru.radiomayak.podcasts;
 
+import android.animation.ValueAnimator;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
@@ -16,6 +17,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
+import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,7 +40,10 @@ import ru.radiomayak.widget.ToolbarCompat;
 public class RecordsActivity extends LighthouseActivity
         implements PodcastAsyncTask.Listener, PageAsyncTask.Listener, RecordsPlayer {
 
-    public static final String EXTRA_PODCAST = "ru.radiomayak.podcasts.PODCAST";
+    public static final String ACTION_VIEW = RecordsActivity.class.getPackage().getName() + ".view";
+
+    public static final String EXTRA_PODCAST = RecordsActivity.class.getPackage().getName() + ".PODCAST";
+    public static final String EXTRA_PODCAST_ID = RecordsActivity.class.getPackage().getName() + ".PODCAST_ID";
 
     private static final String STATE_LOADING = RecordsActivity.class.getName() + "$loading";
     private static final String STATE_SPLASH = RecordsActivity.class.getName() + "$splash";
@@ -63,6 +68,8 @@ public class RecordsActivity extends LighthouseActivity
     private Records records;
 
     private Bitmap splash;
+    private float maxAlpha = -1.0f;
+    private ValueAnimator alphaAnimator;
 
     private PodcastAsyncTask podcastAsyncTask;
     private PageAsyncTask pageAsyncTask;
@@ -186,30 +193,109 @@ public class RecordsActivity extends LighthouseActivity
                 }
                 int toolbarHeight = toolbar.getHeight();
                 int collapsingSize = scrollRange + verticalOffset;
-                if (collapsingSize <= 0) {
-                    toolbarImage.setVisibility(View.GONE);
-                    toolbarTitle.setVisibility(View.VISIBLE);
-                    int offset = toolbar.getTop();
-                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-                } else if (splash == null) {
-                    toolbarImage.setVisibility(View.GONE);
-                    toolbarTitle.setVisibility(View.VISIBLE);
-                    int offset = toolbar.getTop() + collapsingSize;
-                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-                } else if (collapsingSize > toolbarHeight) {
-                    toolbarImage.setVisibility(View.VISIBLE);
-                    toolbarImage.setImageAlpha((int) (255f * (collapsingSize - toolbarHeight) / (scrollRange - toolbarHeight)));
-                    toolbarTitle.setVisibility(View.GONE);
-                } else {
-                    toolbarImage.setVisibility(View.GONE);
-                    toolbarTitle.setVisibility(View.VISIBLE);
-                    int offset = toolbar.getTop() + 2 * collapsingSize;
-                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-                }
+//                if (collapsingSize <= 0) {
+//                    toolbarImage.setVisibility(View.GONE);
+//                    toolbarTitle.setVisibility(View.VISIBLE);
+//                    int offset = toolbar.getTop();
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+//                } else if (splash == null) {
+//                    toolbarImage.setVisibility(View.GONE);
+//                    toolbarTitle.setVisibility(View.VISIBLE);
+//                    int offset = toolbar.getTop() + collapsingSize;
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+//                } else if (collapsingSize > toolbarHeight) {
+//                    toolbarImage.setVisibility(View.VISIBLE);
+//                    toolbarImage.setImageAlpha((int) (255f * (collapsingSize - toolbarHeight) / (scrollRange - toolbarHeight)));
+//                    toolbarTitle.setVisibility(View.GONE);
+//                } else {
+//                    toolbarImage.setVisibility(View.GONE);
+//                    toolbarTitle.setVisibility(View.VISIBLE);
+//                    int offset = toolbar.getTop() + 2 * collapsingSize;
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+//                }
+                updateToolbarControls(toolbarImage, toolbarTitle, collapsingSize, scrollRange);
             }
         });
 
         updateToolbarColor();
+    }
+
+    private void updateToolbarControls(ImageView toolbarImage, TextView toolbarTitle, int collapsingSize, int scrollRange) {
+//                if (collapsingSize <= 0) {
+//                    toolbarImage.setVisibility(View.GONE);
+//                    toolbarTitle.setVisibility(View.VISIBLE);
+//                    int offset = toolbar.getTop();
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+//                } else if (splash == null) {
+//                    toolbarImage.setVisibility(View.GONE);
+//                    toolbarTitle.setVisibility(View.VISIBLE);
+//                    int offset = toolbar.getTop() + collapsingSize;
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+//                } else if (collapsingSize > toolbarHeight) {
+//                    toolbarImage.setVisibility(View.VISIBLE);
+//                    toolbarImage.setImageAlpha((int) (255f * (collapsingSize - toolbarHeight) / (scrollRange - toolbarHeight)));
+//                    toolbarTitle.setVisibility(View.GONE);
+//                } else {
+//                    toolbarImage.setVisibility(View.GONE);
+//                    toolbarTitle.setVisibility(View.VISIBLE);
+//                    int offset = toolbar.getTop() + 2 * collapsingSize;
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+//                }
+        if (collapsingSize <= 0) {
+            toolbarImage.setVisibility(View.GONE);
+            toolbarTitle.setVisibility(View.VISIBLE);
+            toolbarTitle.setAlpha(1.0f);
+            maxAlpha = 1.0f;
+            if (alphaAnimator != null) {
+                alphaAnimator.cancel();
+            }
+//                    int offset = toolbarLayout.getHeight() - toolbarTitle.getHeight();
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+        } else if (splash == null) {
+            toolbarImage.setVisibility(View.GONE);
+            toolbarTitle.setVisibility(View.VISIBLE);
+            toolbarTitle.setAlpha(1.0f);
+//                    int offset = toolbarLayout.getHeight() - toolbarTitle.getHeight();
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+        } else if (collapsingSize > scrollRange / 2) {
+            toolbarImage.setVisibility(View.VISIBLE);
+            float alpha = (2.0f * collapsingSize - scrollRange) / scrollRange;
+            if (alpha <= maxAlpha) {
+                maxAlpha = 1.0f;
+                if (alphaAnimator != null) {
+                    alphaAnimator.cancel();
+                }
+            } else if (maxAlpha >= 0) {
+                alpha = maxAlpha;
+            } else {
+                alpha = 0;
+            }
+            toolbarImage.setImageAlpha((int) (255f * alpha));
+
+            if (maxAlpha < 0) {
+                toolbarTitle.setVisibility(View.VISIBLE);
+                toolbarTitle.setAlpha(-maxAlpha);
+            } else {
+                toolbarTitle.setVisibility(View.GONE);
+            }
+//                    int offset = toolbarLayout.getHeight() - toolbarTitle.getHeight();
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+        } else {
+            toolbarImage.setVisibility(View.GONE);
+            toolbarTitle.setVisibility(View.VISIBLE);
+            float alpha = 1.0f - 2f * collapsingSize / scrollRange;
+            if (alpha >= -maxAlpha) {
+                maxAlpha = 1.0f;
+                if (alphaAnimator != null) {
+                    alphaAnimator.cancel();
+                }
+            } else if (maxAlpha < 0) {
+                alpha = -maxAlpha;
+            }
+            toolbarTitle.setAlpha(alpha);
+//                    int offset = toolbarLayout.getHeight() - toolbarTitle.getHeight();
+//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
+        }
     }
 
     private void updateToolbarColor() {
@@ -478,6 +564,7 @@ public class RecordsActivity extends LighthouseActivity
                     records.remove(record);
                 }
             }
+            new PodcastViewAsyncTask(this).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcast);
         }
         if (notifyDataSetChanged) {
             adapter.notifyDataSetChanged();
@@ -509,8 +596,9 @@ public class RecordsActivity extends LighthouseActivity
     }
 
     private void requestPodcastSplash() {
+        Image icon = podcast.getIcon();
         Image splash = podcast.getSplash();
-        if (splash == null || splashFuture != null || this.splash != null) {
+        if (splash == null && (icon == null || !PictureUrlUtils.isPictureUrl(icon.getUrl())) || splashFuture != null || this.splash != null) {
             return;
         }
         PodcastSplashLoader loader = new PodcastSplashLoader(this, podcast);
@@ -565,7 +653,11 @@ public class RecordsActivity extends LighthouseActivity
         }
         setPodcastSplash(bitmapInfo.getBitmap());
         if (bitmapInfo.getPrimaryColor() != 0) {
-            Image splash = Objects.requireNonNull(podcast.getSplash());
+            Image splash = podcast.getSplash();
+            if (splash == null) {
+                Image icon = Objects.requireNonNull(podcast.getIcon());
+                splash = new Image(PictureUrlUtils.getPictureUrl(icon.getUrl(), PictureUrlUtils.Size.L));
+            }
             splash.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
             updateToolbarColor();
         }
@@ -575,9 +667,45 @@ public class RecordsActivity extends LighthouseActivity
         podcastAsyncTask = null;
     }
 
-    private void setPodcastSplash(Bitmap bitmap) {
-        splash = bitmap;
-        getToolbarImage().setImageBitmap(bitmap);
+    private void setPodcastSplash(final Bitmap bitmap) {
+        getToolbarImage().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+
+
+                splash = bitmap;
+                getToolbarImage().setImageBitmap(bitmap);
+                alphaAnimator = ValueAnimator.ofFloat(-1.0f, 1.0f);
+                alphaAnimator.setInterpolator(new LinearInterpolator());
+                alphaAnimator.setDuration(2000);
+                alphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        maxAlpha = (float) animation.getAnimatedValue();
+                        int scrollRange = getAppBarLayout().getTotalScrollRange();
+                        updateToolbarControls(getToolbarImage(), getToolbarTitle(), scrollRange + getAppBarLayout().getVerticalScrollbarPosition(), scrollRange);
+                    }
+                });
+                alphaAnimator.start();
+//                increaseMaxAlpha();
+            }
+        }, 10000);
+    }
+
+    private void increaseMaxAlpha() {
+        maxAlpha += 0.0005f;
+        if (maxAlpha >= 1.0f) {
+            maxAlpha = 1.0f;
+        } else {
+            getToolbarImage().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    increaseMaxAlpha();
+                }
+            }, 5);
+        }
+        int scrollRange = getAppBarLayout().getTotalScrollRange();
+        updateToolbarControls(getToolbarImage(), getToolbarTitle(), scrollRange + getAppBarLayout().getVerticalScrollbarPosition(), scrollRange);
     }
 
     @Override
