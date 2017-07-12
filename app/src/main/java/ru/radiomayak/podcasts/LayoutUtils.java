@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -128,5 +130,90 @@ final class LayoutUtils {
             buffer.position(3); // 16 and 32 decoders consume the BOM to determine be/le; utf-8 should be consumed here
         }
         return charsetName;
+    }
+
+    static boolean hasClass(String attribute, String className) {
+        if (attribute == null || attribute.isEmpty()) {
+            return false;
+        }
+        int nameLength = className.length();
+        int length = attribute.length();
+        int offset = 0;
+        while (offset + nameLength <= length) {
+            int index = attribute.indexOf(className, offset);
+            if (index < 0) {
+                return false;
+            }
+            boolean isStart = index <= 0 || Character.isWhitespace(attribute.charAt(index - 1));
+            boolean isEnd = index + nameLength >= length || Character.isWhitespace(attribute.charAt(index + nameLength));
+            if (isStart && isEnd) {
+                return true;
+            }
+            offset = index + 1;
+        }
+        return false;
+    }
+
+    static class Stack {
+        private final Deque<StackElement> elements;
+
+        Stack(int numElements) {
+            elements = new ArrayDeque<>(numElements);
+        }
+
+        void push(String tag, String classAttribute) {
+            elements.push(new StackElement(tag, classAttribute));
+        }
+
+        void pop(String tag) {
+            StackElement element;
+            do {
+                element = elements.pop();
+            } while (!element.tag.equalsIgnoreCase(tag) && !elements.isEmpty());
+        }
+
+        boolean isEmpty() {
+            return elements.isEmpty();
+        }
+
+        boolean isUnder(String tag, String tagClass, String parent, String parentClass) {
+            boolean tagFound = false;
+            for (StackElement element : elements) {
+                if (!tagFound) {
+                    tagFound = matches(element, tag, tagClass);
+                } else if (matches(element, parent, parentClass)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        boolean isUnder(String tag, String tagClass) {
+            for (StackElement element : elements) {
+                if (matches(element, tag, tagClass)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        boolean is(String tag, String tagClass) {
+            StackElement element = elements.peek();
+            return matches(element, tag, tagClass);
+        }
+
+        private static boolean matches(StackElement element, String tag, String tagClass) {
+            return (tag == null || tag.equalsIgnoreCase(element.tag)) && (tagClass == null || hasClass(element.classAttribute, tagClass));
+        }
+    }
+
+    private static class StackElement {
+        private final String tag;
+        private final String classAttribute;
+
+        private StackElement(String tag, String classAttribute) {
+            this.tag = tag;
+            this.classAttribute = classAttribute;
+        }
     }
 }

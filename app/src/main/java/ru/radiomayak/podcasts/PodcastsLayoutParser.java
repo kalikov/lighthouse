@@ -9,8 +9,6 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,13 +16,12 @@ import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.StringUtils;
 
 class PodcastsLayoutParser {
-    private static final String PODCAST_LIST_QUERY = ".b-podcast__list";
-    private static final String PODCAST_ITEM_QUERY = ".b-podcast__item--listed";
-    private static final String PODCAST_ANCHOR_QUERY = "a.b-podcast__block-link";
-    private static final String PODCAST_NAME_QUERY = ".b-podcast__description h5";
-    private static final String PODCAST_DESCRIPTION_QUERY = ".b-podcast__description p";
-    private static final String PODCAST_IMAGE_QUERY = "img.b-podcast__pic";
-    private static final String PODCAST_LENGTH_QUERY = ".b-podcast__number";
+    private static final String PODCAST_LIST_CLASS = "b-podcast__list";
+    private static final String PODCAST_ITEM_CLASS = "b-podcast__item--listed";
+    private static final String PODCAST_ANCHOR_CLASS = "b-podcast__block-link";
+    private static final String PODCAST_DESCRIPTION_CLASS = "b-podcast__description";
+    private static final String PODCAST_IMAGE_CLASS = "b-podcast__pic";
+    private static final String PODCAST_LENGTH_CLASS = "b-podcast__number";
 
     private static final Pattern PODCAST_HREF_PATTERN = Pattern.compile("/podcasts/podcast/id/(\\d+)/");
 
@@ -35,13 +32,13 @@ class PodcastsLayoutParser {
             factory.setValidating(false);
 
             XmlPullParser xpp = factory.newPullParser();
-            xpp.setInput(input, null);
+            xpp.setInput(input, charset);
 
             int eventType = xpp.getEventType();
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 if (eventType == XmlPullParser.START_TAG) {
                     String tag = xpp.getName();
-                    if ("div".equalsIgnoreCase(tag) && hasClass(xpp, "b-podcast__list")) {
+                    if ("div".equalsIgnoreCase(tag) && hasClass(xpp, PODCAST_LIST_CLASS)) {
                         return parsePodcasts(xpp, NetworkUtils.toOptURI(baseUri));
                     }
                 }
@@ -61,31 +58,34 @@ class PodcastsLayoutParser {
         }
     }
 
+    private static void push(LayoutUtils.Stack stack, XmlPullParser xpp) {
+        stack.push(xpp.getName(), xpp.getAttributeValue(null, "class"));
+    }
+
+    private static void pop(LayoutUtils.Stack stack, XmlPullParser xpp) {
+        stack.pop(xpp.getName());
+    }
+
     private static Podcasts parsePodcasts(XmlPullParser xpp, @Nullable URI uri) throws IOException, XmlPullParserException {
         Podcasts podcasts = new Podcasts();
 
-        Deque<String> path = new ArrayDeque<>(5);
-
-        path.push(xpp.getName());
+        LayoutUtils.Stack path = new LayoutUtils.Stack(3);
+        push(path, xpp);
 
         int eventType = lenientNext(xpp);
         while (eventType != XmlPullParser.END_DOCUMENT) {
             if (eventType == XmlPullParser.START_TAG) {
                 String tag = xpp.getName();
-                if ("div".equalsIgnoreCase(tag) && hasClass(xpp, "b-podcast__item--listed")) {
+                if ("div".equalsIgnoreCase(tag) && hasClass(xpp, PODCAST_ITEM_CLASS)) {
                     Podcast podcast = parsePodcast(xpp, uri);
                     if (podcast != null) {
                         podcasts.add(podcast);
                     }
                 } else {
-                    path.push(tag);
+                    push(path, xpp);
                 }
             } else if (eventType == XmlPullParser.END_TAG) {
-                String tag = xpp.getName();
-                String pop;
-                do {
-                    pop = path.pop();
-                } while (!pop.equalsIgnoreCase(tag) && !path.isEmpty());
+                pop(path, xpp);
                 if (path.isEmpty()) {
                     break;
                 }
@@ -97,8 +97,10 @@ class PodcastsLayoutParser {
 
     @Nullable
     private static Podcast parsePodcast(XmlPullParser xpp, @Nullable URI uri) throws IOException, XmlPullParserException {
-        Deque<String> path = new ArrayDeque<>(5);
+        LayoutUtils.Stack path = new LayoutUtils.Stack(5);
+        push(path, xpp);
 
+        boolean failure = false;
         long id = 0;
         String anchorName = null;
         String name = null;
@@ -106,48 +108,46 @@ class PodcastsLayoutParser {
         String image = null;
         int length = 0;
 
-        path.push(xpp.getName());
-
         int eventType = lenientNext(xpp);
         while (eventType != XmlPullParser.END_DOCUMENT) {
             if (eventType == XmlPullParser.START_TAG) {
                 String tag = xpp.getName();
-                path.push(tag);
-                if ("a".equalsIgnoreCase(tag) && hasClass(xpp, "b-podcast__block-link")) {
-                    String href = xpp.getAttributeValue(null, "href");
-                    if (href == null || href.isEmpty()) {
-                        return null;
+                push(path, xpp);
+                if (!failure) {
+                    if ("a".equalsIgnoreCase(tag) && hasClass(xpp, PODCAST_ANCHOR_CLASS)) {
+                        id = parseIdentifier(xpp.getAttributeValue(null, "href"));
+                        if (id == 0) {
+                            failure = true;
+                        } else {
+                            anchorName = StringUtils.nonEmpty(xpp.getAttributeValue(null, "title"));
+                        }
+                    } else if ("img".equalsIgnoreCase(tag) && hasClass(xpp, PODCAST_IMAGE_CLASS)) {
+                        image = xpp.getAttributeValue(null, "src");
                     }
-                    Matcher matcher = PODCAST_HREF_PATTERN.matcher(href);
-                    if (!matcher.find()) {
-                        return null;
-                    }
-                    id = StringUtils.parseLong(matcher.group(1), 0);
-                    if (id == 0) {
-                        return null;
-                    }
-                    anchorName = xpp.getAttributeValue(null, "title");
-                } else if ("img".equalsIgnoreCase(tag) && hasClass(xpp, "b-podcast__pic")) {
-                    image = xpp.getAttributeValue(null, "src");
                 }
             } else if (eventType == XmlPullParser.TEXT) {
-                String tag = path.peek();
-                if ("h5".equalsIgnoreCase(tag)) {
-                    name = xpp.getText();
-                    if (name == null || name.isEmpty()) {
-                        return null;
+                if (!failure) {
+                    if (path.isUnder("h5", null, null, PODCAST_DESCRIPTION_CLASS)) {
+                        String text = StringUtils.nonEmptyTrimmed(xpp.getText());
+                        if (name == null) {
+                            name = text;
+                        } else if (text != null) {
+                            name += ' ' + text;
+                        }
+                    } else if (path.isUnder("p", null, null, PODCAST_DESCRIPTION_CLASS)) {
+                        String text = StringUtils.nonEmptyTrimmed(xpp.getText());
+                        if (description == null) {
+                            description = text;
+                        } else if (text != null) {
+                            description += ' ' + text;
+                        }
+                    } else if (path.is(null, PODCAST_LENGTH_CLASS)) {
+                        String text = StringUtils.nonEmptyTrimmed(xpp.getText());
+                        length = StringUtils.parseInt(text, 0);
                     }
-                } else if ("p".equalsIgnoreCase(tag)) {
-                    description = StringUtils.nonEmpty(xpp.getText());
-                } else if ("span".equalsIgnoreCase(tag)) {
-                    length = StringUtils.parseInt(xpp.getText(), 0);
                 }
             } else if (eventType == XmlPullParser.END_TAG) {
-                String tag = xpp.getName();
-                String pop;
-                do {
-                    pop = path.pop();
-                } while (!pop.equalsIgnoreCase(tag) && !path.isEmpty());
+                pop(path, xpp);
                 if (path.isEmpty()) {
                     break;
                 }
@@ -167,11 +167,19 @@ class PodcastsLayoutParser {
         return podcast;
     }
 
+    private static long parseIdentifier(String href) {
+        if (href == null || href.isEmpty()) {
+            return 0;
+        }
+        Matcher matcher = PODCAST_HREF_PATTERN.matcher(href);
+        if (!matcher.find()) {
+            return 0;
+        }
+        return StringUtils.parseLong(matcher.group(1), 0);
+    }
+
     private static boolean hasClass(XmlPullParser parser, String name) {
         String attr = parser.getAttributeValue(null, "class");
-        if (attr == null || attr.isEmpty()) {
-            return false;
-        }
-        return attr.contains(name);
+        return LayoutUtils.hasClass(attr, name);
     }
 }

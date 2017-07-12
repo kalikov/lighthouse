@@ -37,6 +37,15 @@ public final class StringUtils {
     }
 
     @Nullable
+    public static String nonEmptyTrimmed(@Nullable String string) {
+        if (string == null || string.isEmpty()) {
+            return null;
+        }
+        String trimmed = string.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    @Nullable
     public static String nonEmpty(@Nullable String string, String defaultString) {
         return string == null || string.isEmpty() ? defaultString : string;
     }

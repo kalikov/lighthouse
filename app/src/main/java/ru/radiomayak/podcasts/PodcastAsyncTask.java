@@ -5,7 +5,6 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.net.URL;
-import java.nio.ByteBuffer;
 import java.util.List;
 
 import ru.radiomayak.NetworkUtils;
@@ -28,7 +27,7 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
 
     private static final int OFFLINE_PAGE_SIZE = 20;
 
-    private final PodcastLayoutParser parser = new PodcastLayoutParser();
+    private final PodcastLayoutJsoupParser parser = new PodcastLayoutJsoupParser();
 
     private final Context context;
     private final Listener listener;
@@ -90,7 +89,7 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
                 return null;
             }
             byte[] bytes = getResponseBytes(response);
-            return bytes == null ? null : parser.parse(ByteBuffer.wrap(bytes), HttpUtils.getCharset(response), url.toString());
+            return bytes == null ? null : parser.parse(bytes, HttpUtils.getCharset(response), url.toString());
         }
     }
 }

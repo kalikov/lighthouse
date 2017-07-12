@@ -30,7 +30,15 @@ class PodcastIconLoader extends AbstractPodcastImageLoader {
     @Override
     protected String getUrl() {
         Image icon = getPodcast().getIcon();
-        return icon == null ? null : icon.getUrl();
+        if (icon == null) {
+            return null;
+        }
+        String url = icon.getUrl();
+        int size = getContext().getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
+        if (size <= PictureUrlUtils.Quality.XS_SQUARE.getWidth()) {
+            return PictureUrlUtils.getPictureUrl(url, PictureUrlUtils.Quality.XS_SQUARE);
+        }
+        return url;
     }
 
     @Override

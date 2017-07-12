@@ -25,17 +25,10 @@ public class PictureUrlUtilsTest {
     };
 
     @Test
-    public void shouldBeValidUrl() {
-        for (String url : valid) {
-            Assert.assertTrue(url, PictureUrlUtils.isPictureUrl(url));
-        }
-    }
-
-    @Test
     public void shouldGetCorrectUrl() {
         int i = 0;
         for (String url : valid) {
-            Assert.assertEquals(r[i], PictureUrlUtils.getPictureUrl(url, PictureUrlUtils.Quality.R));
+            Assert.assertEquals(r[i], PictureUrlUtils.getPictureUrl(url, PictureUrlUtils.Quality.XS_SQUARE));
             i++;
         }
     }
