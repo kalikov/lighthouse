@@ -63,10 +63,5 @@ class LoaderManagerAsyncTask<T> extends AsyncTask<Void, Void, T> {
     @MainThread
     protected void onCancelled(T response) {
         manager.remove(loader);
-        synchronized (listeners) {
-            for (Loader.OnLoadListener<T> listener : listeners) {
-                listener.onLoadCancelled(loader);
-            }
-        }
     }
 }

@@ -132,6 +132,26 @@ final class LayoutUtils {
         return charsetName;
     }
 
+    static boolean isDiv(String tag) {
+        return "div".equalsIgnoreCase(tag);
+    }
+
+    static boolean isSpan(String tag) {
+        return "span".equalsIgnoreCase(tag);
+    }
+
+    static boolean isBlock(String tag) {
+        return isDiv(tag) || isSpan(tag);
+    }
+
+    static boolean isAnchor(String tag) {
+        return "a".equalsIgnoreCase(tag);
+    }
+
+    static boolean isImage(String tag) {
+        return "img".equalsIgnoreCase(tag);
+    }
+
     static boolean hasClass(String attribute, String className) {
         if (attribute == null || attribute.isEmpty()) {
             return false;
@@ -172,20 +192,12 @@ final class LayoutUtils {
             } while (!element.tag.equalsIgnoreCase(tag) && !elements.isEmpty());
         }
 
-        boolean isEmpty() {
-            return elements.isEmpty();
+        StackElement pop() {
+            return elements.pop();
         }
 
-        boolean isUnder(String tag, String tagClass, String parent, String parentClass) {
-            boolean tagFound = false;
-            for (StackElement element : elements) {
-                if (!tagFound) {
-                    tagFound = matches(element, tag, tagClass);
-                } else if (matches(element, parent, parentClass)) {
-                    return true;
-                }
-            }
-            return false;
+        boolean isEmpty() {
+            return elements.isEmpty();
         }
 
         boolean isUnder(String tag, String tagClass) {
@@ -203,17 +215,25 @@ final class LayoutUtils {
         }
 
         private static boolean matches(StackElement element, String tag, String tagClass) {
-            return (tag == null || tag.equalsIgnoreCase(element.tag)) && (tagClass == null || hasClass(element.classAttribute, tagClass));
+            return (tag == null || tag.equalsIgnoreCase(element.tag)) && (tagClass == null || element.hasClass(tagClass));
         }
     }
 
-    private static class StackElement {
+    static class StackElement {
         private final String tag;
         private final String classAttribute;
 
         private StackElement(String tag, String classAttribute) {
             this.tag = tag;
             this.classAttribute = classAttribute;
+        }
+
+        String getTag() {
+            return tag;
+        }
+
+        boolean hasClass(String className) {
+            return LayoutUtils.hasClass(classAttribute, className);
         }
     }
 }

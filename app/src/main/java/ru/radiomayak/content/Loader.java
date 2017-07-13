@@ -8,8 +8,6 @@ import android.support.annotation.WorkerThread;
 public abstract class Loader<T> {
     public interface OnLoadListener<T> {
         void onLoadComplete(Loader<T> loader, T data);
-
-        void onLoadCancelled(Loader<T> loader);
     }
 
     private final Context context;

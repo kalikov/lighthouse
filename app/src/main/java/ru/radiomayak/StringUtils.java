@@ -2,7 +2,12 @@ package ru.radiomayak;
 
 import android.support.annotation.Nullable;
 
+import java.util.regex.Pattern;
+
 public final class StringUtils {
+//    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("(?: |\\u00A0|\\s|[\\s&&[^ ]])\\s*");
+    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\u00A0*[\\s&&[^\\u00A0]][\\u00A0\\s]*");
+
     public static int parseInt(String string, int defaultValue) {
         if (string != null && !string.isEmpty()) {
             try {
@@ -31,6 +36,18 @@ public final class StringUtils {
         return s1 != null && s2 != null ? s1.equalsIgnoreCase(s2) : s1 == null && s2 == null;
     }
 
+
+    @Nullable
+    public static String normalize(@Nullable String string) {
+        if (string == null) {
+            return null;
+        }
+        if (string.isEmpty()) {
+            return string;
+        }
+        return WHITESPACE_PATTERN.matcher(string).replaceAll(" ").trim();
+    }
+
     @Nullable
     public static String nonEmpty(@Nullable String string) {
         return string == null || string.isEmpty() ? null : string;
@@ -43,6 +60,12 @@ public final class StringUtils {
         }
         String trimmed = string.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    @Nullable
+    public static String nonEmptyNormalized(@Nullable String string) {
+        String normalized = normalize(string);
+        return nonEmpty(normalized);
     }
 
     @Nullable

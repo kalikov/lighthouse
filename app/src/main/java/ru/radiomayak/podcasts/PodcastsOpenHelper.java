@@ -88,9 +88,5 @@ class PodcastsOpenHelper extends SQLiteOpenHelper {
         if (oldVersion <= 1) {
             db.execSQL(ALTER_PODCASTS_SEEN_SQL);
         }
-//        if (oldVersion <= 2) {
-//            db.execSQL("ALTER TABLE " + PODCASTS +
-//                    " MODIFY COLUMN " + PODCAST_SEEN + " INTEGER NOT NULL");
-//        }
     }
 }

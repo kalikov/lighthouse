@@ -25,7 +25,7 @@ public class PodcastsLayoutParserTest {
     @Test
     public void shouldCorrectlyHandleUnsupportedResponse() throws IOException {
         Podcasts podcasts = parser.parse(IOUtils.toInputStream("<html></html>", "UTF-8"), "UTF-8", RESPONSE_URL);
-        Assert.assertNull(podcasts);
+        Assert.assertTrue(podcasts.list().isEmpty());
     }
 
     @Test
@@ -36,6 +36,11 @@ public class PodcastsLayoutParserTest {
     @Test
     public void shouldSkipBrokenPodcasts() throws IOException {
         testResource("podcasts/podcasts-2");
+    }
+
+    @Test
+    public void shouldHandleHtmlEntities() throws IOException {
+        testResource("podcasts/podcasts-3");
     }
 
     private void testResource(String resourceName) throws IOException {

@@ -38,13 +38,13 @@ class PodcastsLayoutParser {
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 if (eventType == XmlPullParser.START_TAG) {
                     String tag = xpp.getName();
-                    if ("div".equalsIgnoreCase(tag) && hasClass(xpp, PODCAST_LIST_CLASS)) {
+                    if (LayoutUtils.isDiv(tag) && hasClass(xpp, PODCAST_LIST_CLASS)) {
                         return parsePodcasts(xpp, NetworkUtils.toOptURI(baseUri));
                     }
                 }
                 eventType = lenientNext(xpp);
             }
-            return null;
+            return new Podcasts();
         } catch (XmlPullParserException e) {
             throw new IOException(e);
         }
@@ -53,6 +53,14 @@ class PodcastsLayoutParser {
     private static int lenientNext(XmlPullParser xpp) throws IOException, XmlPullParserException {
         try {
             return xpp.next();
+        } catch (XmlPullParserException e) {
+            return xpp.getEventType();
+        }
+    }
+
+    private static int lenientNextToken(XmlPullParser xpp) throws IOException, XmlPullParserException {
+        try {
+            return xpp.nextToken();
         } catch (XmlPullParserException e) {
             return xpp.getEventType();
         }
@@ -76,7 +84,7 @@ class PodcastsLayoutParser {
         while (eventType != XmlPullParser.END_DOCUMENT) {
             if (eventType == XmlPullParser.START_TAG) {
                 String tag = xpp.getName();
-                if ("div".equalsIgnoreCase(tag) && hasClass(xpp, PODCAST_ITEM_CLASS)) {
+                if (LayoutUtils.isDiv(tag) && hasClass(xpp, PODCAST_ITEM_CLASS)) {
                     Podcast podcast = parsePodcast(xpp, uri);
                     if (podcast != null) {
                         podcasts.add(podcast);
@@ -100,6 +108,10 @@ class PodcastsLayoutParser {
         LayoutUtils.Stack path = new LayoutUtils.Stack(5);
         push(path, xpp);
 
+        boolean isUnderDescription = false;
+        int nameNesting = 0;
+        int descriptionNesting = 0;
+
         boolean failure = false;
         long id = 0;
         String anchorName = null;
@@ -114,57 +126,84 @@ class PodcastsLayoutParser {
                 String tag = xpp.getName();
                 push(path, xpp);
                 if (!failure) {
-                    if ("a".equalsIgnoreCase(tag) && hasClass(xpp, PODCAST_ANCHOR_CLASS)) {
+                    if (LayoutUtils.isAnchor(tag) && hasClass(xpp, PODCAST_ANCHOR_CLASS)) {
                         id = parseIdentifier(xpp.getAttributeValue(null, "href"));
                         if (id == 0) {
                             failure = true;
                         } else {
                             anchorName = StringUtils.nonEmpty(xpp.getAttributeValue(null, "title"));
                         }
-                    } else if ("img".equalsIgnoreCase(tag) && hasClass(xpp, PODCAST_IMAGE_CLASS)) {
+                    } else if (LayoutUtils.isImage(tag) && hasClass(xpp, PODCAST_IMAGE_CLASS)) {
                         image = xpp.getAttributeValue(null, "src");
+                    } else if (LayoutUtils.isDiv(tag) && hasClass(xpp, PODCAST_DESCRIPTION_CLASS)) {
+                        isUnderDescription = true;
+                    } else if (isNameTag(tag) && isUnderDescription) {
+                        nameNesting++;
+                    } else if (isDescriptionTag(tag) && isUnderDescription) {
+                        descriptionNesting++;
+                    } else if (LayoutUtils.isBlock(tag) && hasClass(xpp, PODCAST_LENGTH_CLASS)) {
+                        length = parseLength(xpp);
+                        continue;
                     }
                 }
-            } else if (eventType == XmlPullParser.TEXT) {
-                if (!failure) {
-                    if (path.isUnder("h5", null, null, PODCAST_DESCRIPTION_CLASS)) {
-                        String text = StringUtils.nonEmptyTrimmed(xpp.getText());
-                        if (name == null) {
-                            name = text;
-                        } else if (text != null) {
-                            name += ' ' + text;
-                        }
-                    } else if (path.isUnder("p", null, null, PODCAST_DESCRIPTION_CLASS)) {
-                        String text = StringUtils.nonEmptyTrimmed(xpp.getText());
-                        if (description == null) {
-                            description = text;
-                        } else if (text != null) {
-                            description += ' ' + text;
-                        }
-                    } else if (path.is(null, PODCAST_LENGTH_CLASS)) {
-                        String text = StringUtils.nonEmptyTrimmed(xpp.getText());
-                        length = StringUtils.parseInt(text, 0);
+            } else if (!failure && (eventType == XmlPullParser.TEXT || eventType == XmlPullParser.ENTITY_REF)) {
+                if (nameNesting > 0) {
+                    String text = xpp.getText();
+                    if (name == null) {
+                        name = text;
+                    } else if (text != null) {
+                        name += text;
+                    }
+                } else if (descriptionNesting > 0) {
+                    String text = xpp.getText();
+                    if (description == null) {
+                        description = text;
+                    } else if (text != null) {
+                        description += text;
                     }
                 }
             } else if (eventType == XmlPullParser.END_TAG) {
-                pop(path, xpp);
+                LayoutUtils.StackElement element;
+                do {
+                    element = path.pop();
+                    if (isUnderDescription && LayoutUtils.isDiv(element.getTag()) && element.hasClass(PODCAST_DESCRIPTION_CLASS)) {
+                        isUnderDescription = false;
+                    } else if (isUnderDescription && isNameTag(element.getTag())) {
+                        nameNesting--;
+                    } else if (isUnderDescription && isDescriptionTag(element.getTag())) {
+                        descriptionNesting--;
+                    }
+                } while (!element.getTag().equalsIgnoreCase(xpp.getName()) && !path.isEmpty());
                 if (path.isEmpty()) {
                     break;
                 }
             }
-            eventType = lenientNext(xpp);
+            if (isUnderDescription) {
+                eventType = lenientNextToken(xpp);
+            } else {
+                eventType = lenientNext(xpp);
+            }
         }
 
+        name = StringUtils.nonEmptyNormalized(name);
         if (id == 0 || name == null && anchorName == null) {
             return null;
         }
         Podcast podcast = new Podcast(id, name == null ? anchorName : name);
-        podcast.setDescription(description);
+        podcast.setDescription(StringUtils.nonEmptyNormalized(description));
         podcast.setLength(length);
         if (image != null && !image.isEmpty()) {
             podcast.setIcon(new Image(image, uri));
         }
         return podcast;
+    }
+
+    private static boolean isNameTag(String tag) {
+        return "h5".equalsIgnoreCase(tag);
+    }
+
+    private static boolean isDescriptionTag(String tag) {
+        return "p".equalsIgnoreCase(tag);
     }
 
     private static long parseIdentifier(String href) {
@@ -176,6 +215,17 @@ class PodcastsLayoutParser {
             return 0;
         }
         return StringUtils.parseLong(matcher.group(1), 0);
+    }
+
+    private static int parseLength(XmlPullParser xpp) throws IOException, XmlPullParserException {
+        int eventType = lenientNext(xpp);
+        if (eventType == XmlPullParser.TEXT) {
+            String text = StringUtils.nonEmptyTrimmed(xpp.getText());
+            int length = StringUtils.parseInt(text, 0);
+            lenientNext(xpp);
+            return length;
+        }
+        return 0;
     }
 
     private static boolean hasClass(XmlPullParser parser, String name) {

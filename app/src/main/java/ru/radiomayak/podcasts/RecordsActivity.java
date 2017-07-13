@@ -55,11 +55,6 @@ public class RecordsActivity extends LighthouseActivity
         public void onLoadComplete(Loader<BitmapInfo> loader, BitmapInfo data) {
             onSplashLoadComplete(data);
         }
-
-        @Override
-        public void onLoadCancelled(Loader<BitmapInfo> loader) {
-            onSplashLoadCancelled();
-        }
     };
 
     private RecordsAdapter adapter;
@@ -128,6 +123,9 @@ public class RecordsActivity extends LighthouseActivity
 
     @Override
     protected void onDestroy() {
+        if (alphaAnimator != null) {
+            alphaAnimator.cancel();
+        }
         if (pageAsyncTask != null && !pageAsyncTask.isCancelled()) {
             pageAsyncTask.cancel(true);
         }
@@ -136,6 +134,7 @@ public class RecordsActivity extends LighthouseActivity
         }
         if (splashFuture != null && !splashFuture.isDone()) {
             splashFuture.cancel(true);
+            splashFuture = null;
         }
         super.onDestroy();
     }
@@ -606,14 +605,12 @@ public class RecordsActivity extends LighthouseActivity
     }
 
     private void updatePageRecords(RecordsPaginator paginator) {
-        boolean recordsChanged = false;
         boolean notifyDataSetChanged = adapter.isEmpty();
 
         for (Record item : paginator.current()) {
             Record record = records.get(item.getId());
             if (record == null) {
                 records.add(item);
-                recordsChanged = true;
                 notifyDataSetChanged = true;
             } else {
                 boolean update = false;
@@ -622,7 +619,6 @@ public class RecordsActivity extends LighthouseActivity
                     record.setDescription(item.getDescription());
                 }
                 if (update && !notifyDataSetChanged) {
-                    recordsChanged = true;
                     updateRecordRow(record);
                 }
             }
@@ -633,9 +629,6 @@ public class RecordsActivity extends LighthouseActivity
         }
         this.paginator = paginator;
         updateFooterMode();
-
-        if (recordsChanged) {
-        }
     }
 
     private void updateRecordRow(Record record) {
@@ -661,10 +654,6 @@ public class RecordsActivity extends LighthouseActivity
             splash.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
             updateToolbarColor();
         }
-    }
-
-    public void onSplashLoadCancelled() {
-        podcastAsyncTask = null;
     }
 
     private void setPodcastSplash(final Bitmap bitmap) {

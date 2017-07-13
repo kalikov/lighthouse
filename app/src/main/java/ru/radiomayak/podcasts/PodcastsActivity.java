@@ -65,22 +65,12 @@ public class PodcastsActivity extends LighthouseActivity {
         public void onLoadComplete(Loader<Podcasts> loader, Podcasts data) {
             onPodcastsLoadComplete(data);
         }
-
-        @Override
-        public void onLoadCancelled(Loader<Podcasts> loader) {
-            onPodcastsLoadCancelled();
-        }
     };
 
     private final Loader.OnLoadListener<BitmapInfo> podcastIconOnLoadListener = new Loader.OnLoadListener<BitmapInfo>() {
         @Override
         public void onLoadComplete(Loader<BitmapInfo> loader, BitmapInfo bitmapInfo) {
             onIconLoadComplete(getPodcastId(loader), bitmapInfo);
-        }
-
-        @Override
-        public void onLoadCancelled(Loader<BitmapInfo> loader) {
-            onIconLoadCancelled(getPodcastId(loader));
         }
 
         private long getPodcastId(Loader<BitmapInfo> loader) {
@@ -132,6 +122,7 @@ public class PodcastsActivity extends LighthouseActivity {
 
         if (podcastsFuture != null && !podcastsFuture.isDone()) {
             podcastsFuture.cancel(true);
+            podcastsFuture = null;
         }
         super.onDestroy();
     }
@@ -335,11 +326,6 @@ public class PodcastsActivity extends LighthouseActivity {
         showContentView();
     }
 
-    public void onPodcastsLoadCancelled() {
-        podcastsFuture = null;
-        showContentView();
-    }
-
     private void updatePodcasts(Iterable<Podcast> iterable) {
         boolean notifyDataSetChanged = adapter.isEmpty();
 
@@ -400,6 +386,7 @@ public class PodcastsActivity extends LighthouseActivity {
             Future<BitmapInfo> future = futures.get(id);
             if (future != null) {
                 future.cancel(true);
+                futures.remove(id);
             }
         }
     }
@@ -418,10 +405,6 @@ public class PodcastsActivity extends LighthouseActivity {
             }
             updatePodcastRow(podcast);
         }
-    }
-
-    public void onIconLoadCancelled(long id) {
-        futures.remove(id);
     }
 
     private int getPodcastRow(Podcast podcast) {
