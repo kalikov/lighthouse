@@ -1,6 +1,7 @@
 package ru.radiomayak.podcasts;
 
 import android.animation.ValueAnimator;
+import android.app.FragmentManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
@@ -46,9 +47,9 @@ public class RecordsActivity extends LighthouseActivity
     public static final String EXTRA_PODCAST_ID = RecordsActivity.class.getPackage().getName() + ".PODCAST_ID";
 
     private static final String STATE_LOADING = RecordsActivity.class.getName() + "$loading";
-    private static final String STATE_SPLASH = RecordsActivity.class.getName() + "$splash";
     private static final String STATE_FOOTER = RecordsActivity.class.getName() + "$footer";
-    private static final String STATE_PAGINATOR = RecordsActivity.class.getName() + "$paginator";
+
+    private static final String FRAGMENT_TAG = RecordsActivity.class.getName() + "$data";
 
     private final Loader.OnLoadListener<BitmapInfo> splashOnLoadListener = new Loader.OnLoadListener<BitmapInfo>() {
         @Override
@@ -78,18 +79,19 @@ public class RecordsActivity extends LighthouseActivity
         super.onCreate(state);
 
         boolean loading = true;
-        Bitmap splash = null;
+
         RecordsAdapter.FooterMode footerMode = null;
         if (state != null) {
             loading = state.getBoolean(STATE_LOADING, true);
             if (!loading) {
                 podcast = state.getParcelable(Podcast.class.getName());
-                records = state.getParcelable(Records.class.getName());
-                paginator = state.getParcelable(STATE_PAGINATOR);
+                FragmentManager fragmentManager = getFragmentManager();
+                RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
+                records = dataFragment.getRecords();
+                paginator = dataFragment.getPaginator();
                 footerMode = paginator != null && paginator.hasNext() ? RecordsAdapter.FooterMode.LOADING : RecordsAdapter.FooterMode.HIDDEN;
                 footerMode = RecordsAdapter.FooterMode.values()[state.getInt(STATE_FOOTER, footerMode.ordinal())];
             }
-            splash = state.getParcelable(STATE_SPLASH);
         }
         if (podcast == null) {
             podcast = getPodcast();
@@ -98,11 +100,12 @@ public class RecordsActivity extends LighthouseActivity
             finish();
             return;
         }
+        BitmapInfo splashInfo = PodcastImageCache.getInstance().getSplash(podcast.getId());
         if (records == null) {
             records = new Records();
         }
 
-        adapter = new RecordsAdapter(getLighthouseApplication(), this, records.list(), this);
+        adapter = new RecordsAdapter(getLighthouseApplication(), podcast, records.list(), this);
         if (footerMode != null) {
             adapter.setFooterMode(footerMode);
         }
@@ -114,8 +117,8 @@ public class RecordsActivity extends LighthouseActivity
         } else {
             showContentView();
         }
-        if (splash != null) {
-            setPodcastSplash(splash);
+        if (splashInfo != null) {
+            setPodcastSplash(splashInfo);
         } else {
             requestPodcastSplash();
         }
@@ -190,28 +193,7 @@ public class RecordsActivity extends LighthouseActivity
                 if (scrollRange == -1) {
                     scrollRange = appBarLayout.getTotalScrollRange();
                 }
-                int toolbarHeight = toolbar.getHeight();
                 int collapsingSize = scrollRange + verticalOffset;
-//                if (collapsingSize <= 0) {
-//                    toolbarImage.setVisibility(View.GONE);
-//                    toolbarTitle.setVisibility(View.VISIBLE);
-//                    int offset = toolbar.getTop();
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-//                } else if (splash == null) {
-//                    toolbarImage.setVisibility(View.GONE);
-//                    toolbarTitle.setVisibility(View.VISIBLE);
-//                    int offset = toolbar.getTop() + collapsingSize;
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-//                } else if (collapsingSize > toolbarHeight) {
-//                    toolbarImage.setVisibility(View.VISIBLE);
-//                    toolbarImage.setImageAlpha((int) (255f * (collapsingSize - toolbarHeight) / (scrollRange - toolbarHeight)));
-//                    toolbarTitle.setVisibility(View.GONE);
-//                } else {
-//                    toolbarImage.setVisibility(View.GONE);
-//                    toolbarTitle.setVisibility(View.VISIBLE);
-//                    int offset = toolbar.getTop() + 2 * collapsingSize;
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-//                }
                 updateToolbarControls(toolbarImage, toolbarTitle, collapsingSize, scrollRange);
             }
         });
@@ -220,26 +202,6 @@ public class RecordsActivity extends LighthouseActivity
     }
 
     private void updateToolbarControls(ImageView toolbarImage, TextView toolbarTitle, int collapsingSize, int scrollRange) {
-//                if (collapsingSize <= 0) {
-//                    toolbarImage.setVisibility(View.GONE);
-//                    toolbarTitle.setVisibility(View.VISIBLE);
-//                    int offset = toolbar.getTop();
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-//                } else if (splash == null) {
-//                    toolbarImage.setVisibility(View.GONE);
-//                    toolbarTitle.setVisibility(View.VISIBLE);
-//                    int offset = toolbar.getTop() + collapsingSize;
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-//                } else if (collapsingSize > toolbarHeight) {
-//                    toolbarImage.setVisibility(View.VISIBLE);
-//                    toolbarImage.setImageAlpha((int) (255f * (collapsingSize - toolbarHeight) / (scrollRange - toolbarHeight)));
-//                    toolbarTitle.setVisibility(View.GONE);
-//                } else {
-//                    toolbarImage.setVisibility(View.GONE);
-//                    toolbarTitle.setVisibility(View.VISIBLE);
-//                    int offset = toolbar.getTop() + 2 * collapsingSize;
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
-//                }
         if (collapsingSize <= 0) {
             toolbarImage.setVisibility(View.GONE);
             toolbarTitle.setVisibility(View.VISIBLE);
@@ -248,14 +210,10 @@ public class RecordsActivity extends LighthouseActivity
             if (alphaAnimator != null) {
                 alphaAnimator.cancel();
             }
-//                    int offset = toolbarLayout.getHeight() - toolbarTitle.getHeight();
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
         } else if (splash == null) {
             toolbarImage.setVisibility(View.GONE);
             toolbarTitle.setVisibility(View.VISIBLE);
             toolbarTitle.setAlpha(1.0f);
-//                    int offset = toolbarLayout.getHeight() - toolbarTitle.getHeight();
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
         } else if (collapsingSize > scrollRange / 2) {
             toolbarImage.setVisibility(View.VISIBLE);
             float alpha = (2.0f * collapsingSize - scrollRange) / scrollRange;
@@ -277,8 +235,6 @@ public class RecordsActivity extends LighthouseActivity
             } else {
                 toolbarTitle.setVisibility(View.GONE);
             }
-//                    int offset = toolbarLayout.getHeight() - toolbarTitle.getHeight();
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
         } else {
             toolbarImage.setVisibility(View.GONE);
             toolbarTitle.setVisibility(View.VISIBLE);
@@ -292,8 +248,6 @@ public class RecordsActivity extends LighthouseActivity
                 alpha = -maxAlpha;
             }
             toolbarTitle.setAlpha(alpha);
-//                    int offset = toolbarLayout.getHeight() - toolbarTitle.getHeight();
-//                    toolbarTitle.layout(toolbarTitle.getLeft(), offset, toolbarTitle.getRight(), offset + toolbarTitle.getHeight());
         }
     }
 
@@ -437,15 +391,19 @@ public class RecordsActivity extends LighthouseActivity
     @Override
     public void onSaveInstanceState(Bundle state) {
         state.putParcelable(Podcast.class.getName(), podcast);
-        state.putParcelable(Records.class.getName(), records);
+
+        FragmentManager fragmentManager = getFragmentManager();
+        RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
+        if (dataFragment == null) {
+            dataFragment = new RecordsDataFragment();
+            fragmentManager.beginTransaction().add(dataFragment, FRAGMENT_TAG).commit();
+        }
+        dataFragment.setRecords(records);
+        dataFragment.setPaginator(paginator);
+
         state.putBoolean(STATE_LOADING, getLoadingView().getVisibility() == View.VISIBLE);
         state.putInt(STATE_FOOTER, adapter.getFooterMode().ordinal());
-        if (paginator != null) {
-            state.putParcelable(STATE_PAGINATOR, paginator);
-        }
-        if (splash != null) {
-            state.putParcelable(STATE_SPLASH, splash);
-        }
+
         super.onSaveInstanceState(state);
     }
 
@@ -532,6 +490,9 @@ public class RecordsActivity extends LighthouseActivity
     private void updatePodcast(Podcast podcast) {
         boolean updated = this.podcast.merge(podcast);
         if (updated) {
+            if (!adapter.isEmpty()) {
+                adapter.notifyItemChanged(0);
+            }
             requestPodcastSplash();
         }
     }
@@ -644,6 +605,11 @@ public class RecordsActivity extends LighthouseActivity
         if (bitmapInfo == null || isDestroyed()) {
             return;
         }
+        PodcastImageCache.getInstance().setSplash(podcast.getId(), bitmapInfo);
+        setPodcastSplash(bitmapInfo);
+    }
+
+    private void setPodcastSplash(BitmapInfo bitmapInfo) {
         setPodcastSplash(bitmapInfo.getBitmap());
         if (bitmapInfo.getPrimaryColor() != 0) {
             Image splash = podcast.getSplash();
@@ -656,45 +622,25 @@ public class RecordsActivity extends LighthouseActivity
         }
     }
 
-    private void setPodcastSplash(final Bitmap bitmap) {
-        getToolbarImage().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-
-
-                splash = bitmap;
-                getToolbarImage().setImageBitmap(bitmap);
-                alphaAnimator = ValueAnimator.ofFloat(-1.0f, 1.0f);
-                alphaAnimator.setInterpolator(new LinearInterpolator());
-                alphaAnimator.setDuration(2000);
-                alphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                    @Override
-                    public void onAnimationUpdate(ValueAnimator animation) {
-                        maxAlpha = (float) animation.getAnimatedValue();
-                        int scrollRange = getAppBarLayout().getTotalScrollRange();
-                        updateToolbarControls(getToolbarImage(), getToolbarTitle(), scrollRange + getAppBarLayout().getVerticalScrollbarPosition(), scrollRange);
-                    }
-                });
-                alphaAnimator.start();
-//                increaseMaxAlpha();
-            }
-        }, 10000);
-    }
-
-    private void increaseMaxAlpha() {
-        maxAlpha += 0.0005f;
-        if (maxAlpha >= 1.0f) {
+    private void setPodcastSplash(Bitmap bitmap) {
+        splash = bitmap;
+        getToolbarImage().setImageBitmap(bitmap);
+        if (podcastAsyncTask != null) {
             maxAlpha = 1.0f;
-        } else {
-            getToolbarImage().postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    increaseMaxAlpha();
-                }
-            }, 5);
+            return;
         }
-        int scrollRange = getAppBarLayout().getTotalScrollRange();
-        updateToolbarControls(getToolbarImage(), getToolbarTitle(), scrollRange + getAppBarLayout().getVerticalScrollbarPosition(), scrollRange);
+        alphaAnimator = ValueAnimator.ofFloat(-1.0f, 1.0f);
+        alphaAnimator.setInterpolator(new LinearInterpolator());
+        alphaAnimator.setDuration(800);
+        alphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                maxAlpha = (float) animation.getAnimatedValue();
+                int scrollRange = getAppBarLayout().getTotalScrollRange();
+                updateToolbarControls(getToolbarImage(), getToolbarTitle(), scrollRange + getAppBarLayout().getVerticalScrollbarPosition(), scrollRange);
+            }
+        });
+        alphaAnimator.start();
     }
 
     @Override

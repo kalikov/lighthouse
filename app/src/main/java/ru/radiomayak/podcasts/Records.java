@@ -4,8 +4,9 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.LongSparseArray;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -97,17 +98,24 @@ public class Records implements Parcelable, Jsonable {
     }
 
     @Override
-    public JsonArray toJson() {
+    public JSONArray toJson() {
         return JsonUtils.toJsonArray(records);
     }
 
-    public static Records fromJson(JsonArray array) {
-        Records records = new Records(array.size());
-        for (JsonElement item : array) {
-            if (!item.isJsonObject()) {
+    public static Records fromJson(JSONArray array) {
+        int n = array.length();
+        Records records = new Records(n);
+        for (int i = 0; i < n; i++) {
+            Object item;
+            try {
+                item = array.get(i);
+            } catch (JSONException e) {
                 continue;
             }
-            Record record = Record.fromJson(item.getAsJsonObject());
+            if (!(item instanceof JSONObject)) {
+                continue;
+            }
+            Record record = Record.fromJson((JSONObject) item);
             if (record != null) {
                 records.add(record);
             }

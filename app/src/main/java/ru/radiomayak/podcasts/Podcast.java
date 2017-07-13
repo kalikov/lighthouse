@@ -4,8 +4,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.annotation.Nullable;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import ru.radiomayak.JsonUtils;
 import ru.radiomayak.Jsonable;
@@ -195,30 +195,34 @@ public class Podcast implements Parcelable, Jsonable {
     }
 
     @Override
-    public JsonObject toJson() {
-        JsonObject json = new JsonObject();
-        json.addProperty("id", id);
-        json.addProperty("name", name);
-        if (description != null) {
-            json.addProperty("description", description);
-        }
-        if (length > 0) {
-            json.addProperty("length", length);
-        }
-        if (seen > 0) {
-            json.addProperty("seen", seen);
-        }
-        if (icon != null) {
-            json.add("icon", icon.toJson());
-        }
-        if (splash != null) {
-            json.add("splash", splash.toJson());
+    public JSONObject toJson() {
+        JSONObject json = new JSONObject();
+        try {
+            json.put("id", id);
+            json.put("name", name);
+            if (description != null) {
+                json.put("description", description);
+            }
+            if (length > 0) {
+                json.put("length", length);
+            }
+            if (seen > 0) {
+                json.put("seen", seen);
+            }
+            if (icon != null) {
+                json.put("icon", icon.toJson());
+            }
+            if (splash != null) {
+                json.put("splash", splash.toJson());
+            }
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
         }
         return json;
     }
 
     @Nullable
-    public static Podcast fromJson(JsonObject json) {
+    public static Podcast fromJson(JSONObject json) {
         long id = JsonUtils.getOptLong(json, "id", 0);
         if (id <= 0) {
             return null;
@@ -237,11 +241,16 @@ public class Podcast implements Parcelable, Jsonable {
     }
 
     @Nullable
-    private static Image getOptImage(JsonObject json, String property) {
+    private static Image getOptImage(JSONObject json, String property) {
         if (json.has(property)) {
-            JsonElement element = json.get(property);
-            if (element.isJsonObject()) {
-                return Image.fromJson(element.getAsJsonObject());
+            Object element;
+            try {
+                element = json.get(property);
+            } catch (JSONException e) {
+                return null;
+            }
+            if (element instanceof JSONObject) {
+                return Image.fromJson((JSONObject) element);
             }
         }
         return null;

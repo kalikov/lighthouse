@@ -5,7 +5,6 @@ import android.support.annotation.Nullable;
 import java.util.regex.Pattern;
 
 public final class StringUtils {
-//    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("(?: |\\u00A0|\\s|[\\s&&[^ ]])\\s*");
     private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\u00A0*[\\s&&[^\\u00A0]][\\u00A0\\s]*");
 
     public static int parseInt(String string, int defaultValue) {

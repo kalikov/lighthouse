@@ -105,7 +105,7 @@ public final class PodcastsUtils {
         try (SQLiteDatabase database = helper.getWritableDatabase()) {
             ContentValues resetValues = new ContentValues();
             resetValues.put(PODCAST_ORD, 0);
-            database.update(PodcastsOpenHelper.PODCASTS, resetValues, null, null);
+            int updated = database.update(PodcastsOpenHelper.PODCASTS, resetValues, null, null);
             int index = podcasts.list().size();
             for (Podcast podcast : podcasts.list()) {
                 ContentValues values = new ContentValues();
@@ -115,7 +115,7 @@ public final class PodcastsUtils {
                     values.put(PODCAST_DESC, podcast.getDescription());
                 }
                 values.put(PODCAST_LENGTH, podcast.getLength());
-                values.put(PODCAST_SEEN, podcast.getSeen());
+                values.put(PODCAST_SEEN, updated > 0 || podcast.getSeen() > 0 ? podcast.getSeen() : podcast.getLength());
                 Cursor cursor = null;
                 try {
                     if (podcast.getIcon() != null) {
@@ -214,16 +214,6 @@ public final class PodcastsUtils {
     static void storePodcastSeen(Context context, long id) {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
         try (SQLiteDatabase database = helper.getWritableDatabase()) {
-//            String[] args = args(id);
-//            int length = 0;
-//            try (Cursor cursor = database.rawQuery(PODCAST_LENGTH_SELECT_SQL, args)) {
-//                if (cursor.moveToNext()) {
-//                    length = cursor.getInt(0);
-//                }
-//            }
-//            ContentValues values = new ContentValues();
-//            values.put(PODCAST_SEEN, length);
-//            database.update(PodcastsOpenHelper.PODCASTS, values, PODCAST_ID + " = ?", args(id));
             database.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH +
                     " WHERE " + PODCAST_ID + " = ?", args(id));
         }

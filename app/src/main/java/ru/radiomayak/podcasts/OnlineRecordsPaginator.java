@@ -3,6 +3,8 @@ package ru.radiomayak.podcasts;
 import android.content.Context;
 import android.os.Parcel;
 
+import org.apache.commons.io.IOUtils;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -112,7 +114,7 @@ class OnlineRecordsPaginator implements RecordsPaginator {
     }
 
     private static RecordsPaginator handlePageResponse(Context context, long podcast, InputStream input, URI uri) throws IOException {
-        PodcastLayoutContent content = parser.parse(new InputStreamReader(input), uri);
+        PodcastLayoutContent content = parser.parse(IOUtils.buffer(new InputStreamReader(input)), uri);
         Records records = content.getRecords();
         if (records.list().isEmpty()) {
             throw new UnsupportedFormatException();

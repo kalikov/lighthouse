@@ -1,6 +1,5 @@
 package ru.radiomayak.podcasts;
 
-import android.content.Context;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,10 +20,11 @@ import ru.radiomayak.R;
 
 class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
     static final int ITEM_VIEW_TYPE = 0;
-    static final int FOOTER_VIEW_TYPE = 1;
+    static final int HEADER_VIEW_TYPE = 1;
+    static final int FOOTER_VIEW_TYPE = 2;
 
     private final LighthouseApplication application;
-    private final Context context;
+    private final Podcast podcast;
     private final List<Record> records;
     private FooterMode footerMode;
 
@@ -38,9 +38,9 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         BUTTON
     }
 
-    RecordsAdapter(LighthouseApplication application, Context context, List<Record> records, RecordsPlayer player) {
+    RecordsAdapter(LighthouseApplication application, Podcast podcast, List<Record> records, RecordsPlayer player) {
         this.application = application;
-        this.context = context;
+        this.podcast = podcast;
         this.records = records;
         this.player = player;
         footerMode = FooterMode.HIDDEN;
@@ -51,16 +51,26 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
     @Override
     public int getItemCount() {
-        return records.size() + (footerMode != FooterMode.HIDDEN ? 1 : 0);
+        if (records.isEmpty()) {
+            return 0;
+        }
+        return (podcast.getLength() > 0 ? 1 : 0) + records.size() + (footerMode != FooterMode.HIDDEN ? 1 : 0);
     }
 
     public boolean isEmpty() {
-        return records.isEmpty() && footerMode == FooterMode.HIDDEN;
+        return records.isEmpty();
     }
 
     @Override
     public int getItemViewType(int position) {
-        return position < records.size() ? ITEM_VIEW_TYPE : FOOTER_VIEW_TYPE;
+        int index = position;
+        if (podcast.getLength() > 0) {
+            if (position == 0) {
+                return HEADER_VIEW_TYPE;
+            }
+            index--;
+        }
+        return index < records.size() ? ITEM_VIEW_TYPE : FOOTER_VIEW_TYPE;
     }
 
     FooterMode getFooterMode() {
@@ -85,18 +95,25 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
     @Override
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        if (viewType == 0) {
-            View view = LayoutInflater.from(context).inflate(R.layout.podcast_record, parent, false);
+        if (viewType == ITEM_VIEW_TYPE) {
+            View view = LayoutInflater.from(application).inflate(R.layout.podcast_record, parent, false);
             return new ItemViewHolder(view);
         }
-        View view = LayoutInflater.from(context).inflate(R.layout.podcast_loadmore, parent, false);
+        if (viewType == HEADER_VIEW_TYPE) {
+            View view = LayoutInflater.from(application).inflate(R.layout.podcast_header, parent, false);
+            return new HeaderViewHolder(view);
+        }
+        View view = LayoutInflater.from(application).inflate(R.layout.podcast_more, parent, false);
         return new FooterViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
         if (holder instanceof ItemViewHolder) {
-            ((ItemViewHolder) holder).bind(records.get(position));
+            int index = podcast.getLength() > 0 ? position - 1 : position;
+            ((ItemViewHolder) holder).bind(records.get(index));
+        } else if (holder instanceof HeaderViewHolder) {
+            ((HeaderViewHolder) holder).bind(podcast);
         } else if (holder instanceof FooterViewHolder) {
             ((FooterViewHolder) holder).bind(footerMode);
         }
@@ -104,7 +121,14 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
     @Override
     public long getItemId(int position) {
-        return position < records.size() ? records.get(position).getId() : 0;
+        int index = position;
+        if (podcast.getLength() > 0) {
+            if (position == 0) {
+                return 0;
+            }
+            index--;
+        }
+        return index < records.size() ? records.get(index).getId() : -1;
     }
 
     private static TextView getNameView(View view) {
@@ -186,6 +210,23 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                     return true;
                 }
             });
+        }
+    }
+
+    class HeaderViewHolder extends ViewHolder {
+        HeaderViewHolder(View itemView) {
+            super(itemView);
+        }
+
+        void bind(Podcast podcast) {
+            TextView lengthView = getLengthView(itemView);
+            lengthView.setTypeface(application.getFontNormal());
+            String format = application.getString(R.string.records_count);
+            lengthView.setText(String.format(format, String.valueOf(podcast.getLength())));
+        }
+
+        private TextView getLengthView(View view) {
+            return (TextView) view.findViewById(R.id.length);
         }
     }
 

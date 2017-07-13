@@ -27,6 +27,7 @@
 
     <string name="records_loading">Получение списка записей&#8230;</string>
     <string name="records_error">Не удалось получить список записей.\nПопробуйте повторить попытку.</string>
+    <string name="records_count">Количество записей: %s</string>
     <string name="records_more">Загрузить ещё&#8230;</string>
     <string name="record_date_format">dd MMMM yyyy</string>
     <string name="record_duration">Продолжительность: %s</string>

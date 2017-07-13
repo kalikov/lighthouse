@@ -2,8 +2,6 @@ package ru.radiomayak.podcasts;
 
 import android.support.annotation.Nullable;
 
-import org.jsoup.nodes.Document;
-import org.jsoup.parser.Parser;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -27,19 +25,61 @@ final class LayoutUtils {
     private LayoutUtils() {
     }
 
-    static Document parse(ByteBuffer buffer, String charsetName, String baseUri) {
-        // look for BOM - overrides any other header or input
-        charsetName = detectCharsetFromBom(buffer, charsetName);
-        if (charsetName == null) {
-            charsetName = detectCharsetFromMeta(buffer);
-            buffer.rewind();
+    @Nullable
+    static String clean(@Nullable String string) {
+        if (string == null) {
+            return null;
         }
-        StringUtils.requireNonEmpty(charsetName);
-        String string = Charset.forName(charsetName).decode(buffer).toString();
-        Parser parser = Parser.htmlParser();
-        Document doc = parser.parseInput(string, baseUri);
-        doc.outputSettings().charset(charsetName);
-        return doc;
+        try {
+            XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+            factory.setNamespaceAware(true);
+            factory.setValidating(false);
+
+            XmlPullParser xpp = factory.newPullParser();
+            xpp.setInput(new ByteArrayInputStream(string.getBytes()), null);
+
+            String cleaned = null;
+
+            int eventType = xpp.getEventType();
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                if (eventType == XmlPullParser.TEXT || eventType == XmlPullParser.ENTITY_REF || eventType == XmlPullParser.IGNORABLE_WHITESPACE) {
+                    String text = getText(xpp);
+                    if (cleaned == null) {
+                        cleaned = text;
+                    } else if (text != null) {
+                        cleaned += text;
+                    }
+                }
+                try {
+                    eventType = xpp.nextToken();
+                } catch (XmlPullParserException e) {
+                    eventType = xpp.getEventType();
+                }
+            }
+            return StringUtils.normalize(cleaned);
+        } catch (IOException | XmlPullParserException e) {
+            return string;
+        }
+    }
+
+    static String getText(XmlPullParser xpp) {
+        try {
+            if (xpp.getEventType() != XmlPullParser.ENTITY_REF) {
+                return xpp.getText();
+            }
+        } catch (XmlPullParserException e) {
+            return xpp.getText();
+        }
+        String text = xpp.getText();
+        if (text != null) {
+            return text;
+        }
+        switch (xpp.getName()) {
+            case "nbsp":
+                return "\u00A0";
+            default:
+                return null;
+        }
     }
 
     @Nullable
@@ -152,6 +192,10 @@ final class LayoutUtils {
         return "img".equalsIgnoreCase(tag);
     }
 
+    static boolean isInput(String tag) {
+        return "input".equalsIgnoreCase(tag);
+    }
+
     static boolean hasClass(String attribute, String className) {
         if (attribute == null || attribute.isEmpty()) {
             return false;
@@ -199,24 +243,6 @@ final class LayoutUtils {
         boolean isEmpty() {
             return elements.isEmpty();
         }
-
-        boolean isUnder(String tag, String tagClass) {
-            for (StackElement element : elements) {
-                if (matches(element, tag, tagClass)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        boolean is(String tag, String tagClass) {
-            StackElement element = elements.peek();
-            return matches(element, tag, tagClass);
-        }
-
-        private static boolean matches(StackElement element, String tag, String tagClass) {
-            return (tag == null || tag.equalsIgnoreCase(element.tag)) && (tagClass == null || element.hasClass(tagClass));
-        }
     }
 
     static class StackElement {
@@ -234,6 +260,10 @@ final class LayoutUtils {
 
         boolean hasClass(String className) {
             return LayoutUtils.hasClass(classAttribute, className);
+        }
+
+        String getClassAttribute() {
+            return classAttribute;
         }
     }
 }

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorForeground"
+        android:padding="@dimen/podcast_padding">
+
+        <TextView
+            android:id="@+id/length"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_toEndOf="@android:id/icon"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:paddingEnd="0dp"
+            android:paddingStart="@dimen/record_title_padding"
+            android:text="@string/lorem_ipsum"
+            android:textAppearance="@style/AppTheme.Title"/>
+
+        <ImageView
+            android:id="@android:id/icon"
+            android:layout_width="@dimen/record_icon_size"
+            android:layout_height="@dimen/record_icon_size"
+            android:layout_centerVertical="true"
+            android:src="@drawable/records"
+            tools:ignore="ContentDescription"/>
+
+    </RelativeLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorBackground"
+        android:src="@drawable/record_divider"
+        tools:ignore="contentDescription"/>
+
+</LinearLayout>

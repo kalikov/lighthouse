@@ -9,21 +9,17 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.StringUtils;
 
-class PodcastsLayoutParser {
+class PodcastsLayoutParser extends AbstractLayoutParser {
     private static final String PODCAST_LIST_CLASS = "b-podcast__list";
     private static final String PODCAST_ITEM_CLASS = "b-podcast__item--listed";
     private static final String PODCAST_ANCHOR_CLASS = "b-podcast__block-link";
     private static final String PODCAST_DESCRIPTION_CLASS = "b-podcast__description";
     private static final String PODCAST_IMAGE_CLASS = "b-podcast__pic";
     private static final String PODCAST_LENGTH_CLASS = "b-podcast__number";
-
-    private static final Pattern PODCAST_HREF_PATTERN = Pattern.compile("/podcasts/podcast/id/(\\d+)/");
 
     Podcasts parse(InputStream input, @Nullable String charset, String baseUri) throws IOException {
         try {
@@ -48,30 +44,6 @@ class PodcastsLayoutParser {
         } catch (XmlPullParserException e) {
             throw new IOException(e);
         }
-    }
-
-    private static int lenientNext(XmlPullParser xpp) throws IOException, XmlPullParserException {
-        try {
-            return xpp.next();
-        } catch (XmlPullParserException e) {
-            return xpp.getEventType();
-        }
-    }
-
-    private static int lenientNextToken(XmlPullParser xpp) throws IOException, XmlPullParserException {
-        try {
-            return xpp.nextToken();
-        } catch (XmlPullParserException e) {
-            return xpp.getEventType();
-        }
-    }
-
-    private static void push(LayoutUtils.Stack stack, XmlPullParser xpp) {
-        stack.push(xpp.getName(), xpp.getAttributeValue(null, "class"));
-    }
-
-    private static void pop(LayoutUtils.Stack stack, XmlPullParser xpp) {
-        stack.pop(xpp.getName());
     }
 
     private static Podcasts parsePodcasts(XmlPullParser xpp, @Nullable URI uri) throws IOException, XmlPullParserException {
@@ -127,7 +99,7 @@ class PodcastsLayoutParser {
                 push(path, xpp);
                 if (!failure) {
                     if (LayoutUtils.isAnchor(tag) && hasClass(xpp, PODCAST_ANCHOR_CLASS)) {
-                        id = parseIdentifier(xpp.getAttributeValue(null, "href"));
+                        id = parsePodcastIdentifier(xpp.getAttributeValue(null, "href"));
                         if (id == 0) {
                             failure = true;
                         } else {
@@ -142,25 +114,16 @@ class PodcastsLayoutParser {
                     } else if (isDescriptionTag(tag) && isUnderDescription) {
                         descriptionNesting++;
                     } else if (LayoutUtils.isBlock(tag) && hasClass(xpp, PODCAST_LENGTH_CLASS)) {
-                        length = parseLength(xpp);
+                        length = parsePodcastLength(xpp);
+                        eventType = xpp.getEventType();
                         continue;
                     }
                 }
             } else if (!failure && (eventType == XmlPullParser.TEXT || eventType == XmlPullParser.ENTITY_REF)) {
                 if (nameNesting > 0) {
-                    String text = xpp.getText();
-                    if (name == null) {
-                        name = text;
-                    } else if (text != null) {
-                        name += text;
-                    }
+                    name = appendText(xpp, name);
                 } else if (descriptionNesting > 0) {
-                    String text = xpp.getText();
-                    if (description == null) {
-                        description = text;
-                    } else if (text != null) {
-                        description += text;
-                    }
+                    description = appendText(xpp, description);
                 }
             } else if (eventType == XmlPullParser.END_TAG) {
                 LayoutUtils.StackElement element;
@@ -204,32 +167,5 @@ class PodcastsLayoutParser {
 
     private static boolean isDescriptionTag(String tag) {
         return "p".equalsIgnoreCase(tag);
-    }
-
-    private static long parseIdentifier(String href) {
-        if (href == null || href.isEmpty()) {
-            return 0;
-        }
-        Matcher matcher = PODCAST_HREF_PATTERN.matcher(href);
-        if (!matcher.find()) {
-            return 0;
-        }
-        return StringUtils.parseLong(matcher.group(1), 0);
-    }
-
-    private static int parseLength(XmlPullParser xpp) throws IOException, XmlPullParserException {
-        int eventType = lenientNext(xpp);
-        if (eventType == XmlPullParser.TEXT) {
-            String text = StringUtils.nonEmptyTrimmed(xpp.getText());
-            int length = StringUtils.parseInt(text, 0);
-            lenientNext(xpp);
-            return length;
-        }
-        return 0;
-    }
-
-    private static boolean hasClass(XmlPullParser parser, String name) {
-        String attr = parser.getAttributeValue(null, "class");
-        return LayoutUtils.hasClass(attr, name);
     }
 }

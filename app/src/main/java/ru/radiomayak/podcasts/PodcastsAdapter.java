@@ -17,6 +17,7 @@ import java.util.List;
 
 import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.R;
+import ru.radiomayak.graphics.BitmapInfo;
 
 class PodcastsAdapter extends BaseAdapter {
     private final LighthouseApplication application;
@@ -95,8 +96,8 @@ class PodcastsAdapter extends BaseAdapter {
         ImageView iconView = getIconView(convertView);
         iconView.setContentDescription(podcast.getName());
 
-        Bitmap iconBitmap = PodcastImageCache.getInstance().getIcon(podcast.getId());
-        setCircularImageBitmap(iconView, iconBitmap == null ? micBitmap : iconBitmap);
+        BitmapInfo bitmapInfo = PodcastImageCache.getInstance().getIcon(podcast.getId());
+        setCircularImageBitmap(iconView, bitmapInfo == null ? micBitmap : bitmapInfo.getBitmap());
 
         TextView descriptionView = getDescriptionView(convertView);
         if (podcast.getDescription() != null) {

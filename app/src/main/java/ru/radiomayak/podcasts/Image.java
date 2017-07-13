@@ -4,7 +4,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.annotation.Nullable;
 
-import com.google.gson.JsonObject;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.net.URI;
 
@@ -12,8 +13,6 @@ import ru.radiomayak.JsonUtils;
 import ru.radiomayak.StringUtils;
 
 public class Image implements Parcelable {
-    private static final int VERSION = 1;
-
     private static final String PROP_URL = "url";
     private static final String PROP_COLORS = "colors";
     private static final String PROP_PRIMARY_COLOR = "primary";
@@ -36,7 +35,6 @@ public class Image implements Parcelable {
     private int secondaryColor;
 
     protected Image(Parcel in) {
-        @SuppressWarnings("unused") int version = in.readInt();
         url = in.readString();
         primaryColor = in.readInt();
         secondaryColor = in.readInt();
@@ -63,7 +61,6 @@ public class Image implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel out, int flags) {
-        out.writeInt(VERSION);
         out.writeString(url);
         out.writeInt(primaryColor);
         out.writeInt(secondaryColor);
@@ -94,29 +91,36 @@ public class Image implements Parcelable {
         this.secondaryColor = secondaryColor;
     }
 
-    public JsonObject toJson() {
-        JsonObject json = new JsonObject();
-        json.addProperty(PROP_URL, url);
-        if (primaryColor != 0) {
-            JsonObject colors = new JsonObject();
-            colors.addProperty(PROP_PRIMARY_COLOR, primaryColor);
-            colors.addProperty(PROP_SECONDARY_COLOR, secondaryColor);
-            json.add(PROP_COLORS, colors);
+    public JSONObject toJson() {
+        JSONObject json = new JSONObject();
+        try {
+            json.put(PROP_URL, url);
+            if (primaryColor != 0) {
+                JSONObject colors = new JSONObject();
+                colors.put(PROP_PRIMARY_COLOR, primaryColor);
+                colors.put(PROP_SECONDARY_COLOR, secondaryColor);
+                json.put(PROP_COLORS, colors);
+            }
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
         }
         return json;
     }
 
     @Nullable
-    public static Image fromJson(JsonObject json) {
+    public static Image fromJson(JSONObject json) {
         String url = JsonUtils.getOptString(json, PROP_URL);
         if (url == null || url.isEmpty()) {
             return null;
         }
-        if (json.has(PROP_COLORS) && json.get(PROP_COLORS).isJsonObject()) {
-            JsonObject colors = json.getAsJsonObject(PROP_COLORS);
-            int primaryColor = JsonUtils.getOptInt(colors, PROP_PRIMARY_COLOR, 0);
-            int secondaryColor = JsonUtils.getOptInt(colors, PROP_SECONDARY_COLOR, 0);
-            return new Image(url, primaryColor, secondaryColor);
+        try {
+            if (json.has(PROP_COLORS) && json.get(PROP_COLORS) instanceof JSONObject) {
+                JSONObject colors = json.getJSONObject(PROP_COLORS);
+                int primaryColor = JsonUtils.getOptInt(colors, PROP_PRIMARY_COLOR, 0);
+                int secondaryColor = JsonUtils.getOptInt(colors, PROP_SECONDARY_COLOR, 0);
+                return new Image(url, primaryColor, secondaryColor);
+            }
+        } catch (JSONException ignored) {
         }
         return new Image(url);
     }

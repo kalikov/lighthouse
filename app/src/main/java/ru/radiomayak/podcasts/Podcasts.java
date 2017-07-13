@@ -4,8 +4,9 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.LongSparseArray;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,8 +17,6 @@ import ru.radiomayak.JsonUtils;
 import ru.radiomayak.Jsonable;
 
 public class Podcasts implements Parcelable, Jsonable {
-    private static final int VERSION = 1;
-
     public static final Creator<Podcasts> CREATOR = new Creator<Podcasts>() {
         @Override
         public Podcasts createFromParcel(Parcel in) {
@@ -36,7 +35,6 @@ public class Podcasts implements Parcelable, Jsonable {
     private final LongSparseArray<Podcast> podcastsMap;
 
     protected Podcasts(Parcel in) {
-        int version = in.readInt();
         podcasts = in.createTypedArrayList(Podcast.CREATOR);
         podcastsMap = new LongSparseArray<>(podcasts.size());
         for (Podcast podcast : podcasts) {
@@ -106,22 +104,28 @@ public class Podcasts implements Parcelable, Jsonable {
 
     @Override
     public void writeToParcel(Parcel out, int flags) {
-        out.writeInt(VERSION);
         out.writeTypedList(podcasts);
     }
 
     @Override
-    public JsonArray toJson() {
+    public JSONArray toJson() {
         return JsonUtils.toJsonArray(podcasts);
     }
 
-    public static Podcasts fromJson(JsonArray array) {
-        Podcasts podcasts = new Podcasts(array.size());
-        for (JsonElement item : array) {
-            if (!item.isJsonObject()) {
+    public static Podcasts fromJson(JSONArray array) {
+        int n = array.length();
+        Podcasts podcasts = new Podcasts(n);
+        for (int i = 0; i < n; i++) {
+            Object item;
+            try {
+                item = array.get(i);
+            } catch (JSONException e) {
                 continue;
             }
-            Podcast podcast = Podcast.fromJson(item.getAsJsonObject());
+            if (!(item instanceof JSONObject)) {
+                continue;
+            }
+            Podcast podcast = Podcast.fromJson((JSONObject) item);
             if (podcast != null) {
                 podcasts.add(podcast);
             }

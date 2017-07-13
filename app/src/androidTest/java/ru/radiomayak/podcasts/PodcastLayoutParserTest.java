@@ -26,7 +26,7 @@ public class PodcastLayoutParserTest {
     public void shouldGetRecords() throws IOException {
         Records records;
         try (InputStream stream = getResource("podcasts/podcast-1.html")) {
-            PodcastLayoutContent content = parser.parse(stream, "UTF-8", RESPONSE_URL);
+            PodcastLayoutContent content = parser.parse(0, stream, "UTF-8", RESPONSE_URL);
             records = content.getRecords();
         }
         try (InputStream resource = getResource("podcasts/podcast-1.records.json")) {
@@ -39,7 +39,7 @@ public class PodcastLayoutParserTest {
     public void shouldGetPodcast() throws IOException {
         Podcast podcast;
         try (InputStream stream = getResource("podcasts/podcast-1.html")) {
-            PodcastLayoutContent content = parser.parse(stream, "UTF-8", RESPONSE_URL);
+            PodcastLayoutContent content = parser.parse(0, stream, "UTF-8", RESPONSE_URL);
             podcast = content.getPodcast();
         }
         Assert.assertNotNull(podcast);

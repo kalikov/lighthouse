@@ -35,6 +35,8 @@ import ru.radiomayak.widget.ToolbarCompat;
 public class PodcastsActivity extends LighthouseActivity {
     private static final String STATE_LOADING = PodcastsActivity.class.getName() + "$loading";
 
+    private static final String FRAGMENT_TAG = PodcastsActivity.class.getName() + "$data";
+
     private static final int DEFAULT_IMAGES_CAPACITY = 100;
 
     private static final LoaderManager<Podcasts> podcastsLoaderManager = new LoaderManager<>();
@@ -91,7 +93,7 @@ public class PodcastsActivity extends LighthouseActivity {
             loading = state.getBoolean(STATE_LOADING, true);
             if (!loading) {
                 FragmentManager fragmentManager = getFragmentManager();
-                PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag("data");
+                PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
                 podcasts = dataFragment.getPodcasts();
             }
         }
@@ -238,10 +240,10 @@ public class PodcastsActivity extends LighthouseActivity {
     public void onSaveInstanceState(Bundle state) {
         if (podcasts != null && !podcasts.list().isEmpty()) {
             FragmentManager fragmentManager = getFragmentManager();
-            PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag("data");
+            PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
             if (dataFragment == null) {
                 dataFragment = new PodcastsDataFragment();
-                fragmentManager.beginTransaction().add(dataFragment, "data").commit();
+                fragmentManager.beginTransaction().add(dataFragment, FRAGMENT_TAG).commit();
             }
             dataFragment.setPodcasts(podcasts);
         }
@@ -397,7 +399,7 @@ public class PodcastsActivity extends LighthouseActivity {
             return;
         }
         if (bitmapInfo != null) {
-            PodcastImageCache.getInstance().putIcon(id, bitmapInfo.getBitmap());
+            PodcastImageCache.getInstance().putIcon(id, bitmapInfo);
             Podcast podcast = podcasts.get(id);
             if (bitmapInfo.getPrimaryColor() != 0) {
                 Image icon = Objects.requireNonNull(podcast.getIcon());

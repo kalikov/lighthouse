@@ -4,7 +4,8 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.annotation.Nullable;
 
-import com.google.gson.JsonObject;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.net.URI;
 
@@ -161,20 +162,24 @@ public class Record implements Parcelable, Jsonable {
     }
 
     @Override
-    public JsonObject toJson() {
-        JsonObject json = new JsonObject();
-        json.addProperty(PROP_ID, id);
-        json.addProperty(PROP_NAME, name);
-        json.addProperty(PROP_URL, url);
-        json.addProperty(PROP_DESC, description);
-        json.addProperty(PROP_DATE, date);
-        json.addProperty(PROP_DURATION, duration);
-        json.addProperty(PROP_PLAYED, isPlayed);
+    public JSONObject toJson() {
+        JSONObject json = new JSONObject();
+        try {
+            json.put(PROP_ID, id);
+            json.put(PROP_NAME, name);
+            json.put(PROP_URL, url);
+            json.put(PROP_DESC, description);
+            json.put(PROP_DATE, date);
+            json.put(PROP_DURATION, duration);
+            json.put(PROP_PLAYED, isPlayed);
+        } catch (JSONException e) {
+            throw new RuntimeException(e);
+        }
         return json;
     }
 
     @Nullable
-    public static Record fromJson(JsonObject json) {
+    public static Record fromJson(JSONObject json) {
         long id = JsonUtils.getOptLong(json, PROP_ID, 0);
         if (id <= 0) {
             return null;

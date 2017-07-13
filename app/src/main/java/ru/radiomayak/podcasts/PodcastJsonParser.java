@@ -1,11 +1,8 @@
 package ru.radiomayak.podcasts;
 
 import android.support.annotation.Nullable;
-
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import android.util.JsonReader;
+import android.util.JsonToken;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -13,7 +10,6 @@ import java.net.URI;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import ru.radiomayak.JsonUtils;
 import ru.radiomayak.StringUtils;
 
 class PodcastJsonParser {
@@ -37,88 +33,129 @@ class PodcastJsonParser {
     private static final Pattern JSON_DURATION_PATTERN = Pattern.compile("((\\d{2}\\:)?\\d{2}\\:\\d{2})");
     private static final Pattern HTML_DURATION_PATTERN = Pattern.compile("\\:[\\u00A0\\s]*((\\d{2}\\:)?\\d{2}\\:\\d{2})");
 
-    private static final JsonParser parser = new JsonParser();
-
     PodcastLayoutContent parse(Reader reader, URI uri) throws IOException {
-        JsonElement responseElement = parser.parse(reader);
-        if (!responseElement.isJsonObject()) {
-            throw new UnsupportedFormatException();
+        JsonReader parser = new JsonReader(reader);
+
+        long id = 0;
+        String name = null;
+
+        long nextPage = 0;
+
+        Records records = null;
+
+        parser.beginObject();
+        while (parser.hasNext()) {
+            String prop = parser.nextName();
+            if (ID_PROPERTY.equals(prop)) {
+                id = parser.nextLong();
+            } else if (TITLE_PROPERTY.equals(prop)) {
+                name = StringUtils.nonEmpty(parser.nextString());
+            } else if (NEXT_PAGE_PROPERTY.equals(prop)) {
+                if (parser.peek() == JsonToken.NUMBER) {
+                    nextPage = parser.nextLong();
+                } else {
+                    parser.skipValue();
+                }
+            } else if (RECORDS_PROPERTY.equals(prop)) {
+                records = parseRecords(parser, uri);
+            } else {
+                parser.skipValue();
+            }
         }
-        JsonObject json = responseElement.getAsJsonObject();
-        Podcast podcast = parsePodcast(json);
-        Records records = parseRecords(json.getAsJsonArray(RECORDS_PROPERTY), uri);
-        return new PodcastLayoutContent(podcast, records, JsonUtils.getOptLong(json, NEXT_PAGE_PROPERTY, 0));
+        parser.endObject();
+
+        Podcast podcast = null;
+        if (id != 0 && name != null) {
+            podcast = new Podcast(id, name);
+        }
+        return new PodcastLayoutContent(podcast, records == null ? new Records() : records, nextPage);
     }
 
-    private static Podcast parsePodcast(JsonObject json) {
-        long id = JsonUtils.getOptLong(json, ID_PROPERTY, 0);
-        if (id == 0) {
-            return null;
-        }
-        String name = StringUtils.nonEmpty(JsonUtils.getOptString(json, TITLE_PROPERTY));
-        if (name == null) {
-            return null;
-        }
-        return new Podcast(id, name);
-    }
-
-    private static Records parseRecords(JsonArray array, @Nullable URI uri) {
-        Records records = new Records(array.size());
-        for (JsonElement item : array) {
-            Record record = parseRecord(item.getAsJsonObject(), uri);
+    private static Records parseRecords(JsonReader parser, @Nullable URI uri) throws IOException {
+        Records records = new Records();
+        parser.beginArray();
+        while (parser.hasNext()) {
+            Record record = parseRecord(parser, uri);
             if (record != null) {
                 records.add(record);
             }
         }
+        parser.endArray();
         return records;
     }
 
     @Nullable
-    private static Record parseRecord(JsonObject item, @Nullable URI uri) {
-        JsonObject audio = getAudio(item);
-        if (audio == null || !audio.has(SOURCES_PROPERTY) || !audio.get(SOURCES_PROPERTY).isJsonObject()) {
+    private static Record parseRecord(JsonReader parser, @Nullable URI uri) throws IOException {
+        long id = 0;
+        String url = null;
+        String name = null;
+        String description = null;
+        String date = null;
+        String duration = null;
+
+        parser.beginObject();
+        while (parser.hasNext()) {
+            String prop = parser.nextName();
+            if (AUDIO_PROPERTY.equals(prop)) {
+                parser.beginArray();
+                if (parser.hasNext()) {
+                    parser.beginObject();
+                    while (parser.hasNext()) {
+                        String audioProp = parser.nextName();
+                        if (SOURCES_PROPERTY.equals(audioProp)) {
+                            parser.beginObject();
+                            while (parser.hasNext()) {
+                                String sourcesProp = parser.nextName();
+                                if (URL_PROPERTY.equals(sourcesProp)) {
+                                    url = StringUtils.nonEmpty(parser.nextString());
+                                } else {
+                                    parser.skipValue();
+                                }
+                            }
+                            parser.endObject();
+                        } else if (ID_PROPERTY.equals(audioProp)) {
+                            id = parser.nextLong();
+                        } else if (DATE_PROPERTY.equals(audioProp)) {
+                            date = extractDate(parser.nextString());
+                        } else if (DURATION_PROPERTY.equals(audioProp)) {
+                            duration = extractDuration(parser.nextString());
+                        } else {
+                            parser.skipValue();
+                        }
+                    }
+                    parser.endObject();
+                }
+                while (parser.hasNext()) {
+                    parser.skipValue();
+                }
+                parser.endArray();
+            } else if (NAME_PROPERTY.equals(prop)) {
+                name = StringUtils.nonEmpty(parser.nextString());
+            } else if (DESCRIPTION_PROPERTY.equals(prop)) {
+                description = StringUtils.nonEmpty(parser.nextString());
+                if (description != null) {
+                    description = LayoutUtils.clean(description);
+                }
+            } else {
+                parser.skipValue();
+            }
+        }
+        parser.endObject();
+
+        if (url == null || name == null) {
             return null;
         }
-        JsonObject sources = audio.getAsJsonObject(SOURCES_PROPERTY);
-        String url = JsonUtils.getOptString(sources, URL_PROPERTY);
-        if (url == null || url.isEmpty()) {
-            return null;
-        }
-        long id = extractId(audio, url);
         if (id == 0) {
-            return null;
+            id = StringUtils.parseLong(extractId(url), 0);
+            if (id == 0) {
+                return null;
+            }
         }
-
-        String name = JsonUtils.getOptString(item, NAME_PROPERTY);
-        if (name == null || name.isEmpty()) {
-            return null;
-        }
-
         Record record = new Record(id, name, url, uri);
-        record.setDescription(JsonUtils.getOptString(item, DESCRIPTION_PROPERTY));
-        record.setDate(extractDate(JsonUtils.getOptString(audio, DATE_PROPERTY)));
-        record.setDuration(extractDuration(JsonUtils.getOptString(audio, DURATION_PROPERTY)));
+        record.setDescription(description);
+        record.setDate(date);
+        record.setDuration(duration);
         return record;
-    }
-
-    @Nullable
-    private static JsonObject getAudio(JsonObject object) {
-        if (!object.has(AUDIO_PROPERTY) || !object.get(AUDIO_PROPERTY).isJsonArray()) {
-            return null;
-        }
-        JsonArray audio = object.getAsJsonArray(AUDIO_PROPERTY);
-        if (audio.size() == 0 || !audio.get(0).isJsonObject()) {
-            return null;
-        }
-        return audio.get(0).getAsJsonObject();
-    }
-
-    private static long extractId(JsonObject object, String url) {
-        JsonElement id = object.get(ID_PROPERTY);
-        if (id.isJsonPrimitive() && id.getAsJsonPrimitive().isNumber()) {
-            return id.getAsLong();
-        }
-        return StringUtils.parseLong(extractId(url), 0);
     }
 
     private static String extractId(String url) {

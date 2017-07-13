@@ -80,7 +80,6 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
     }
 
     private PodcastLayoutContent requestContent(long id) throws IOException, HttpException {
-        long start = System.currentTimeMillis();
         URL url = new URL(String.format(PODCAST_URL, String.valueOf(id)));
         HttpRequest request = new BasicHttpRequest("GET", url.getPath(), HttpVersion.HTTP_1_1);
         request.setHeader(HttpHeaders.ACCEPT, "text/html,*/*");
@@ -93,11 +92,8 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
                 return null;
             }
             try (InputStream input = HttpUtils.getContent(response.getEntity())) {
-                return parser.parse(IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
+                return parser.parse(id, IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
             }
-        } finally {
-            long parsing = System.currentTimeMillis() - start;
-            System.out.println(parsing);
         }
     }
 }

@@ -44,11 +44,15 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
                     podcasts = requestPodcasts(PODCASTS_URL);
                     if (podcasts != null && !podcasts.list().isEmpty()) {
                         for (Podcast podcast : podcasts.list()) {
-                            Podcast loopbackPodcast = loopbackPodcasts.get(podcast.getId());
-                            if (loopbackPodcast != null) {
-                                podcast.setSeen(loopbackPodcast.getSeen());
-                                setColors(podcast.getIcon(), loopbackPodcast.getIcon());
-                                setColors(podcast.getSplash(), loopbackPodcast.getSplash());
+                            if (loopbackPodcasts.list().isEmpty()) {
+                                podcast.setSeen(podcast.getLength());
+                            } else {
+                                Podcast loopbackPodcast = loopbackPodcasts.get(podcast.getId());
+                                if (loopbackPodcast != null) {
+                                    podcast.setSeen(loopbackPodcast.getSeen());
+                                    setColors(podcast.getIcon(), loopbackPodcast.getIcon());
+                                    setColors(podcast.getSplash(), loopbackPodcast.getSplash());
+                                }
                             }
                         }
                         return podcasts;
@@ -76,7 +80,6 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
     }
 
     private Podcasts requestPodcasts(String spec) throws IOException, HttpException {
-        long start = System.currentTimeMillis();
         URL url = new URL(spec);
         HttpRequest request = new BasicHttpRequest("GET", url.getPath(), HttpVersion.HTTP_1_1);
         request.setHeader(HttpHeaders.ACCEPT, "text/html,*/*");
@@ -89,10 +92,7 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
                 return null;
             }
             try (InputStream input = HttpUtils.getContent(response.getEntity())) {
-                Podcasts p = parser.parse(IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
-                long parsing = System.currentTimeMillis() - start;
-                System.out.println(parsing);
-                return p;
+                return parser.parse(IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
             }
         }
     }

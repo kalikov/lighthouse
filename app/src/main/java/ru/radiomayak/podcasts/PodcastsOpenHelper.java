@@ -87,6 +87,7 @@ class PodcastsOpenHelper extends SQLiteOpenHelper {
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion <= 1) {
             db.execSQL(ALTER_PODCASTS_SEEN_SQL);
+            db.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH);
         }
     }
 }
