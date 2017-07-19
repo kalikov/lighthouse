@@ -33,7 +33,7 @@ import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.widget.ToolbarCompat;
 
 public class PodcastsActivity extends LighthouseActivity {
-    private static final String STATE_LOADING = PodcastsActivity.class.getName() + "$loading";
+    private static final String STATE_CONTENT_VIEW = PodcastsActivity.class.getName() + "$contentView";
 
     private static final String FRAGMENT_TAG = PodcastsActivity.class.getName() + "$data";
 
@@ -88,13 +88,16 @@ public class PodcastsActivity extends LighthouseActivity {
         filter.addAction(RecordsActivity.ACTION_VIEW);
         registerReceiver(viewReceiver, filter);
 
-        boolean loading = true;
+        boolean requestList = true;
         if (state != null) {
-            loading = state.getBoolean(STATE_LOADING, true);
-            if (!loading) {
+            boolean isContentView = state.getBoolean(STATE_CONTENT_VIEW, true);
+            if (isContentView) {
                 FragmentManager fragmentManager = getFragmentManager();
                 PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
-                podcasts = dataFragment.getPodcasts();
+                if (dataFragment != null) {
+                    podcasts = dataFragment.getPodcasts();
+                    requestList = podcasts == null || podcasts.list().isEmpty();
+                }
             }
         }
         if (podcasts == null) {
@@ -102,16 +105,9 @@ public class PodcastsActivity extends LighthouseActivity {
         }
 
         adapter = new PodcastsAdapter(getLighthouseApplication(), podcasts.list());
-        adapter.setOnDisplayListener(new PodcastsAdapter.OnDisplayListener() {
-            @Override
-            public void onDisplay(int position) {
-                onPodcastDisplay(adapter.getItem(position));
-            }
-        });
-
         initializeView();
 
-        if (loading) {
+        if (requestList) {
             requestList();
         } else {
             showContentView();
@@ -182,6 +178,9 @@ public class PodcastsActivity extends LighthouseActivity {
             }
         });
         list.setOnScrollListener(new AbsListView.OnScrollListener() {
+            private int firstVisibleItem;
+            private int visibleItemCount;
+
             @Override
             public void onScrollStateChanged(AbsListView view, int scrollState) {
             }
@@ -189,6 +188,11 @@ public class PodcastsActivity extends LighthouseActivity {
             @Override
             public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
                 getRefreshView().setEnabled(isRefreshViewEnabled());
+                if (visibleItemCount > 0 && (visibleItemCount != this.visibleItemCount || firstVisibleItem != this.firstVisibleItem)) {
+                    this.firstVisibleItem = firstVisibleItem;
+                    this.visibleItemCount = visibleItemCount;
+                    requestIcons(firstVisibleItem, visibleItemCount);
+                }
             }
         });
     }
@@ -238,7 +242,10 @@ public class PodcastsActivity extends LighthouseActivity {
 
     @Override
     public void onSaveInstanceState(Bundle state) {
-        if (podcasts != null && !podcasts.list().isEmpty()) {
+        if (podcasts.list().isEmpty()) {
+            state.putBoolean(STATE_CONTENT_VIEW, getErrorView().getVisibility() == View.VISIBLE);
+        } else {
+            state.putBoolean(STATE_CONTENT_VIEW, true);
             FragmentManager fragmentManager = getFragmentManager();
             PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
             if (dataFragment == null) {
@@ -247,7 +254,6 @@ public class PodcastsActivity extends LighthouseActivity {
             }
             dataFragment.setPodcasts(podcasts);
         }
-        state.putBoolean(STATE_LOADING, getLoadingView().getVisibility() == View.VISIBLE);
         super.onSaveInstanceState(state);
     }
 
@@ -361,16 +367,19 @@ public class PodcastsActivity extends LighthouseActivity {
         }
     }
 
-    private void onPodcastDisplay(final Podcast podcast) {
-        getListView().post(new Runnable() {
-            @Override
-            public void run() {
-                requestPodcastIcon(podcast);
-            }
-        });
+    private void requestIcons(int firstVisiblePosition, int visibleItemsCount) {
+        int count = adapter.getCount();
+        int first = Math.max(0, firstVisiblePosition - visibleItemsCount / 2);
+        int last = Math.min(count - 1, firstVisiblePosition + visibleItemsCount - 1 + visibleItemsCount / 2);
+        for (int i = firstVisiblePosition; i <= last; i++) {
+            requestIcon(adapter.getItem(i));
+        }
+        for (int i = first; i < firstVisiblePosition; i++) {
+            requestIcon(adapter.getItem(i));
+        }
     }
 
-    private void requestPodcastIcon(final Podcast podcast) {
+    private void requestIcon(final Podcast podcast) {
         Image image = podcast.getIcon();
         if (image == null) {
             return;
@@ -384,7 +393,7 @@ public class PodcastsActivity extends LighthouseActivity {
     }
 
     public void onIconLoadStarted(long id) {
-        if (getPodcastRow(id) < 0) {
+        if (!isRowInIconLoadingRange(id)) {
             Future<BitmapInfo> future = futures.get(id);
             if (future != null) {
                 future.cancel(true);
@@ -409,20 +418,20 @@ public class PodcastsActivity extends LighthouseActivity {
         }
     }
 
-    private int getPodcastRow(Podcast podcast) {
-        return getPodcastRow(podcast.getId());
-    }
-
-    private int getPodcastRow(long id) {
+    private boolean isRowInIconLoadingRange(long id) {
         ListView list = getListView();
+        int count = adapter.getCount();
         int first = list.getFirstVisiblePosition();
         int last = list.getLastVisiblePosition();
-        for (int i = first; i <= last; i++) {
-            if (id == list.getItemIdAtPosition(i)) {
-                return i - first;
+        int visible = last - first + 1;
+        int start = Math.max(0, first - visible / 2);
+        int end = Math.min(count - 1, last + visible / 2);
+        for (int i = start; i <= end; i++) {
+            if (id == adapter.getItemId(i)) {
+                return true;
             }
         }
-        return -1;
+        return false;
     }
 
     private void updatePodcastRow(Podcast podcast) {
