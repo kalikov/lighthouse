@@ -14,8 +14,6 @@ import ru.radiomayak.Jsonable;
 import ru.radiomayak.StringUtils;
 
 public class Record implements Parcelable, Jsonable {
-    private static final int VERSION = 1;
-
     private static final String PROP_ID = "id";
     private static final String PROP_NAME = "name";
     private static final String PROP_URL = "url";
@@ -45,7 +43,6 @@ public class Record implements Parcelable, Jsonable {
     private boolean isPlayed;
 
     protected Record(Parcel in) {
-        int version = in.readInt();
         id = in.readLong();
         name = in.readString();
         url = in.readString();
@@ -72,7 +69,6 @@ public class Record implements Parcelable, Jsonable {
 
     @Override
     public void writeToParcel(Parcel out, int flags) {
-        out.writeInt(VERSION);
         out.writeLong(id);
         out.writeString(name);
         out.writeString(url);

@@ -8,6 +8,7 @@ import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
@@ -30,13 +31,13 @@ final class LayoutUtils {
         if (string == null) {
             return null;
         }
-        try {
+        try (InputStream stream = new ByteArrayInputStream(string.getBytes())) {
             XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
             factory.setNamespaceAware(true);
             factory.setValidating(false);
 
             XmlPullParser xpp = factory.newPullParser();
-            xpp.setInput(new ByteArrayInputStream(string.getBytes()), null);
+            xpp.setInput(stream, Charset.defaultCharset().name());
 
             String cleaned = null;
 
