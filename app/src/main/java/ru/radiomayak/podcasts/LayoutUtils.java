@@ -23,6 +23,8 @@ import ru.radiomayak.StringUtils;
 final class LayoutUtils {
     private static final Pattern CHARSET_PATTERN = Pattern.compile("(?i)\\bcharset=\\s*(?:\"|')?([^\\s,;\"']*)");
 
+    private static final Pattern BR_PATTERN = Pattern.compile("\\s*(<br>)+\\s*");
+
     private LayoutUtils() {
     }
 
@@ -50,6 +52,10 @@ final class LayoutUtils {
                     } else if (text != null) {
                         cleaned += text;
                     }
+                } else if (eventType == XmlPullParser.START_TAG) {
+                    if ("br".equalsIgnoreCase(xpp.getName())) {
+                        cleaned += "<br>";
+                    }
                 }
                 try {
                     eventType = xpp.nextToken();
@@ -57,10 +63,18 @@ final class LayoutUtils {
                     eventType = xpp.getEventType();
                 }
             }
-            return StringUtils.normalize(cleaned);
+            return LayoutUtils.br2nl(StringUtils.normalize(cleaned));
         } catch (IOException | XmlPullParserException e) {
             return string;
         }
+    }
+
+    @Nullable
+    static String br2nl(@Nullable String string) {
+        if (string == null || string.isEmpty()) {
+            return string;
+        }
+        return BR_PATTERN.matcher(string).replaceAll("\n");
     }
 
     static String getText(XmlPullParser xpp) {

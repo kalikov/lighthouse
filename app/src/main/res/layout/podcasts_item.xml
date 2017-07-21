@@ -8,12 +8,28 @@
     android:padding="@dimen/podcast_padding"
     tools:context="ru.radiomayak.podcasts.PodcastsActivity">
 
-    <ImageView
-        android:id="@android:id/icon"
+    <RelativeLayout
         android:layout_width="@dimen/podcast_icon_size"
         android:layout_height="@dimen/podcast_icon_size"
-        android:layout_gravity="center_vertical"
-        tools:ignore="contentDescription"/>
+        android:layout_gravity="center_vertical">
+
+        <ImageView
+            android:id="@android:id/icon"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            tools:ignore="contentDescription"/>
+
+        <ImageView
+            android:id="@android:id/progress"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="center"
+            android:src="@drawable/equalizer"
+            android:tint="@color/colorPrimary"
+            android:background="@color/colorForegroundTransparent"
+            android:visibility="gone"
+            tools:ignore="contentDescription"/>
+    </RelativeLayout>
 
     <LinearLayout
         android:layout_width="fill_parent"
@@ -41,14 +57,14 @@
                 android:layout_height="wrap_content"
                 android:layout_alignBaseline="@id/name"
                 android:layout_alignParentEnd="true"
+                android:background="@drawable/length_background"
                 android:maxLines="1"
                 android:paddingEnd="@dimen/podcast_length_padding"
                 android:paddingStart="@dimen/podcast_length_padding"
                 android:text="@string/zero"
-                android:textColor="@color/titleTextColor"
                 android:textAppearance="@style/AppTheme.Text.Small"
+                android:textColor="@color/titleTextColor"
                 android:textSize="@dimen/text_ultra_small_size"
-                android:background="@drawable/length_background"
                 app:layout_constraintEnd_toEndOf="parent"/>
         </RelativeLayout>
 

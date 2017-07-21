@@ -52,6 +52,7 @@ class LoaderManagerAsyncTask<T> extends AsyncTask<Void, Void, T> {
     @MainThread
     protected void onPostExecute(T response) {
         manager.remove(loader);
+        loader.endLoading(response);
         synchronized (listeners) {
             for (Loader.OnLoadListener<T> listener : listeners) {
                 listener.onLoadComplete(loader, response);

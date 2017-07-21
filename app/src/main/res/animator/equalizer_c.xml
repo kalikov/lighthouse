@@ -1,0 +1,18 @@
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+     android:ordering="sequentially">
+
+    <objectAnimator
+        android:duration="400"
+        android:interpolator="@android:anim/linear_interpolator"
+        android:propertyName="scaleY"
+        android:valueTo="2"/>
+
+    <objectAnimator
+        android:duration="400"
+        android:interpolator="@android:anim/linear_interpolator"
+        android:propertyName="scaleY"
+        android:repeatCount="infinite"
+        android:repeatMode="reverse"
+        android:valueFrom="2"
+        android:valueTo="3"/>
+</set>

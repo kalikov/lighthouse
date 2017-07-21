@@ -1,5 +1,6 @@
 package ru.radiomayak;
 
+import android.animation.ValueAnimator;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -12,7 +13,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
-import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -21,6 +21,7 @@ import android.widget.Toast;
 import java.io.IOException;
 import java.util.Locale;
 
+import ru.radiomayak.animation.Interpolators;
 import ru.radiomayak.media.MediaNotificationManager;
 import ru.radiomayak.media.MediaPlayerObserver;
 import ru.radiomayak.podcasts.PodcastsUtils;
@@ -29,7 +30,39 @@ import ru.radiomayak.podcasts.Record;
 public class LighthouseActivity extends AppCompatActivity implements MediaPlayerObserver {
     private static final String ZERO_TIME_TEXT = "00:00";
 
+    private static final long ANIMATION_DURATION = 300;
+
+    private final ValueAnimator.AnimatorUpdateListener openUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
+        @Override
+        public void onAnimationUpdate(ValueAnimator animation) {
+            playerHeight = (int) animation.getAnimatedValue();
+            getPlayerContainerView().getLayoutParams().height = playerHeight;
+            if (playerHeight > 0) {
+                getPlayerView().setVisibility(View.VISIBLE);
+                getPlayerContainerView().setVisibility(View.VISIBLE);
+            }
+            getPlayerContainerView().requestLayout();
+        }
+    };
+
+    private final ValueAnimator.AnimatorUpdateListener closeUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
+        @Override
+        public void onAnimationUpdate(ValueAnimator animation) {
+            playerHeight = (int) animation.getAnimatedValue();
+            getPlayerContainerView().getLayoutParams().height = playerHeight;
+            if (playerHeight <= 0) {
+                getPlayerView().setVisibility(View.GONE);
+                getPlayerContainerView().setVisibility(View.GONE);
+            }
+            getPlayerContainerView().requestLayout();
+        }
+    };
+
     private boolean isTracking;
+
+    private int playerMaxHeight;
+    private int playerHeight;
+    private ValueAnimator valueAnimator;
 
     private final Runnable showProgressRunnable = new Runnable() {
         @Override
@@ -54,29 +87,34 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
 
+        playerMaxHeight = getResources().getDimensionPixelSize(R.dimen.player_height);
+    }
+
+    @Override
+    protected void onResume() {
+        updatePlayerView(false);
+
         IntentFilter filter = new IntentFilter();
         filter.addAction(MediaNotificationManager.ACTION_PAUSE);
         filter.addAction(MediaNotificationManager.ACTION_PLAY);
         filter.addAction(MediaNotificationManager.ACTION_STOP);
         registerReceiver(broadcastReceiver, filter);
+
+        super.onResume();
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-    }
-
-    @Override
-    protected void onDestroy() {
+    protected void onPause() {
         if (getLighthouseApplication().containsObserver(this)) {
             getLighthouseApplication().unregisterObserver(this);
         }
         unregisterReceiver(broadcastReceiver);
+        super.onPause();
+    }
+
+    @Override
+    protected void onDestroy() {
+
         super.onDestroy();
     }
 
@@ -130,15 +168,32 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         getSongPositionView().setTypeface(getLighthouseApplication().getFontLight());
         getSongDurationView().setTypeface(getLighthouseApplication().getFontLight());
 
-        updatePlayerView();
+        updatePlayerView(false);
     }
 
-    protected void updatePlayerView() {
+    protected void updatePlayerView(boolean animate) {
         LighthouseTrack track = getTrack();
 
-        View playerView = getPlayerView();
+        final View containerView = getPlayerContainerView();
+        final View playerView = getPlayerView();
         if (track == null) {
-            playerView.setVisibility(View.GONE);
+            if (valueAnimator != null) {
+                valueAnimator.cancel();
+                valueAnimator = null;
+            }
+            if (!animate || playerHeight <= 0) {
+                playerHeight = 0;
+                playerView.setVisibility(View.GONE);
+                containerView.setVisibility(View.GONE);
+                containerView.getLayoutParams().height = 0;
+                containerView.requestLayout();
+                return;
+            }
+            valueAnimator = ValueAnimator.ofInt(playerHeight, 0);
+            valueAnimator.setInterpolator(Interpolators.ACCELERATE);
+            valueAnimator.addUpdateListener(closeUpdateListener);
+            valueAnimator.setDuration(ANIMATION_DURATION);
+            valueAnimator.start();
             return;
         }
         Record record = track.getRecord();
@@ -164,13 +219,29 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
 
             playerView.post(showProgressRunnable);
         }
-        playerView.setVisibility(View.VISIBLE);
+        if (valueAnimator != null) {
+            valueAnimator.cancel();
+            valueAnimator = null;
+        }
+        if (!animate || playerHeight >= playerMaxHeight) {
+            playerHeight = playerMaxHeight;
+            playerView.setVisibility(View.VISIBLE);
+            containerView.setVisibility(View.VISIBLE);
+            containerView.getLayoutParams().height = playerMaxHeight;
+            containerView.requestLayout();
+            return;
+        }
+        valueAnimator = ValueAnimator.ofInt(playerHeight, playerMaxHeight);
+        valueAnimator.setInterpolator(Interpolators.DECELERATE);
+        valueAnimator.addUpdateListener(openUpdateListener);
+        valueAnimator.setDuration(ANIMATION_DURATION);
+        valueAnimator.start();
     }
 
     private void updatePlayPauseButton() {
         if (isPreparing()) {
             Animation animation = AnimationUtils.loadAnimation(this, R.anim.rotation);
-            animation.setInterpolator(new LinearInterpolator());
+            animation.setInterpolator(Interpolators.LINEAR);
             getPlayPauseButton().setImageResource(R.drawable.player_progress);
             getPlayPauseButton().setContentDescription(getString(R.string.loading));
             getPlayPauseButton().startAnimation(animation);
@@ -237,6 +308,10 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         return findViewById(R.id.player);
     }
 
+    public View getPlayerContainerView() {
+        return findViewById(R.id.player_container);
+    }
+
     public TextView getSongPositionView() {
         return (TextView) getPlayerView().findViewById(R.id.offset);
     }
@@ -287,13 +362,13 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         } else {
             play();
         }
-        updatePlayerView();
+        updatePlayerView(false);
     }
 
     private void closePlayer() {
         resetTrack();
 
-        updatePlayerView();
+        updatePlayerView(true);
     }
 
     protected long setProgress() {
@@ -321,7 +396,7 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
     @Override
     public void onPrepared() {
         play();
-        updatePlayerView();
+        updatePlayerView(false);
 
         LighthouseTrack track = getTrack();
         if (track != null && !track.getRecord().isPlayed()) {
@@ -333,14 +408,14 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
     @Override
     public void onFailed() {
         getLighthouseApplication().unregisterObserver(this);
-        updatePlayerView();
+        updatePlayerView(false);
         Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();
     }
 
     @Override
     public void onCompleted() {
         getLighthouseApplication().unregisterObserver(this);
-        updatePlayerView();
+        updatePlayerView(false);
     }
 
     public void onReceive(Context context, Intent intent) {
@@ -352,6 +427,6 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         } else if (MediaNotificationManager.ACTION_STOP.equals(action)) {
             resetTrack();
         }
-        updatePlayerView();
+        updatePlayerView(true);
     }
 }

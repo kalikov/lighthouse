@@ -18,7 +18,6 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
-import android.view.animation.LinearInterpolator;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -34,17 +33,18 @@ import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.R;
 import ru.radiomayak.StringUtils;
+import ru.radiomayak.animation.Interpolators;
 import ru.radiomayak.content.Loader;
 import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.widget.ToolbarCompat;
 
-public class RecordsActivity extends LighthouseActivity
-        implements PodcastAsyncTask.Listener, PageAsyncTask.Listener, RecordsPlayer {
+public class RecordsActivity extends LighthouseActivity implements PodcastAsyncTask.Listener, PageAsyncTask.Listener, RecordsPlayer {
 
     public static final String ACTION_VIEW = RecordsActivity.class.getPackage().getName() + ".view";
 
     public static final String EXTRA_PODCAST = RecordsActivity.class.getPackage().getName() + ".PODCAST";
     public static final String EXTRA_PODCAST_ID = RecordsActivity.class.getPackage().getName() + ".PODCAST_ID";
+    public static final String EXTRA_SEEN = RecordsActivity.class.getPackage().getName() + ".SEEN";
 
     private static final String STATE_LOADING = RecordsActivity.class.getName() + "$loading";
     private static final String STATE_FOOTER = RecordsActivity.class.getName() + "$footer";
@@ -630,7 +630,7 @@ public class RecordsActivity extends LighthouseActivity
             return;
         }
         alphaAnimator = ValueAnimator.ofFloat(-1.0f, 1.0f);
-        alphaAnimator.setInterpolator(new LinearInterpolator());
+        alphaAnimator.setInterpolator(Interpolators.LINEAR);
         alphaAnimator.setDuration(800);
         alphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
@@ -652,7 +652,7 @@ public class RecordsActivity extends LighthouseActivity
             } else {
                 play();
             }
-            updatePlayerView();
+            updatePlayerView(true);
             return;
         }
 
@@ -662,12 +662,31 @@ public class RecordsActivity extends LighthouseActivity
             Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();
         }
 
-        updatePlayerView();
+        updatePlayerView(true);
     }
 
     @Override
     public void loadMore() {
         adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
         requestNextPage();
+    }
+
+    @Override
+    protected void updatePlayerView(boolean animate) {
+        super.updatePlayerView(animate);
+
+        adapter.updateEqualizerAnimation();
+        updateRecordsRows();
+    }
+
+    private void updateRecordsRows() {
+        RecyclerView recyclerView = getRecyclerView();
+        for (int i = 0, n = recyclerView.getChildCount(); i < n; i++) {
+            View view = recyclerView.getChildAt(i);
+            RecyclerView.ViewHolder holder = recyclerView.getChildViewHolder(view);
+            if (holder != null && holder.getItemViewType() == RecordsAdapter.ITEM_VIEW_TYPE) {
+                ((RecordsAdapter.ItemViewHolder) holder).updatePlayPauseState();
+            }
+        }
     }
 }

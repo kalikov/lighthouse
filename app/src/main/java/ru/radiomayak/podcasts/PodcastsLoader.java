@@ -8,7 +8,9 @@ import org.apache.commons.io.IOUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.http.DefaultHttpClientConnectionFactory;
 import ru.radiomayak.http.HttpClientConnection;
@@ -28,6 +30,7 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
     private final PodcastsLayoutParser parser = new PodcastsLayoutParser();
 
     private final boolean loopback;
+    private final AtomicBoolean requested = new AtomicBoolean();
 
     PodcastsLoader(Context context, boolean loopback) {
         super(context);
@@ -55,6 +58,7 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
                                 }
                             }
                         }
+                        requested.set(true);
                         return podcasts;
                     }
                 } catch (IOException | HttpException ignored) {
@@ -70,6 +74,13 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
             }
         }
         return podcasts;
+    }
+
+    @Override
+    protected void onEndLoading(Podcasts podcasts) {
+        if (!podcasts.list().isEmpty() && requested.get()) {
+            new PodcastsStoreAsyncTask(getContext()).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcasts);
+        }
     }
 
     private static void setColors(Image target, Image source) {

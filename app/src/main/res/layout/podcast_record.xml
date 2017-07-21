@@ -35,8 +35,9 @@
                 android:layout_width="@dimen/record_icon_size"
                 android:layout_height="@dimen/record_icon_size"
                 android:layout_centerVertical="true"
-                android:contentDescription="@string/play"
-                android:src="@drawable/record_play"/>
+                android:src="@drawable/record_play"
+                android:tint="#000"
+                tools:ignore="ContentDescription"/>
 
         </RelativeLayout>
 

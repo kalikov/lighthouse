@@ -3,6 +3,8 @@ package ru.radiomayak.podcasts;
 import android.support.test.runner.AndroidJUnit4;
 
 import org.apache.commons.io.IOUtils;
+import org.json.JSONArray;
+import org.json.JSONException;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,28 +31,35 @@ public class PodcastsLayoutParserTest {
     }
 
     @Test
-    public void shouldGetPodcasts() throws IOException {
+    public void shouldGetPodcasts() throws IOException, JSONException {
         testResource("podcasts/podcasts-1");
     }
 
     @Test
-    public void shouldSkipBrokenPodcasts() throws IOException {
+    public void shouldSkipBrokenPodcasts() throws IOException, JSONException {
         testResource("podcasts/podcasts-2");
     }
 
     @Test
-    public void shouldHandleHtmlEntities() throws IOException {
+    public void shouldHandleHtmlEntities() throws IOException, JSONException {
         testResource("podcasts/podcasts-3");
     }
 
-    private void testResource(String resourceName) throws IOException {
+    private void testResource(String resourceName) throws IOException, JSONException {
         Podcasts podcasts;
         try (InputStream stream = getResource(resourceName + ".html")) {
             podcasts = parser.parse(stream, "UTF-8", RESPONSE_URL);
         }
         try (InputStream resource = getResource(resourceName + ".json")) {
             String json = IOUtils.toString(resource, "UTF-8");
-            Assert.assertEquals(json, podcasts.toJson().toString());
+            assertEquals(new JSONArray(json), podcasts.toJson());
+        }
+    }
+
+    private static void assertEquals(JSONArray expected, JSONArray actual) throws JSONException {
+        Assert.assertEquals(expected.length(), actual.length());
+        for (int i = 0; i < expected.length(); i++) {
+            Assert.assertEquals(expected.get(i).toString(), actual.get(i).toString());
         }
     }
 

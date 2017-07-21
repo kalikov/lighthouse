@@ -49,7 +49,7 @@ class PodcastLayoutParser extends AbstractLayoutParser {
             XmlPullParser xpp = factory.newPullParser();
             xpp.setInput(input, charset);
 
-            LayoutUtils.Stack stack = new LayoutUtils.Stack(10);
+            LayoutUtils.Stack stack = new LayoutUtils.Stack(15);
 
             boolean isUnderLogo = false;
             boolean isUnderPodcast = false;
@@ -60,7 +60,7 @@ class PodcastLayoutParser extends AbstractLayoutParser {
             String splash = null;
             int length = 0;
 
-            Records records = new Records();
+            Records records = null;
             long nextPage = 0;
 
             URI uri = NetworkUtils.toOptURI(baseUri);
@@ -70,22 +70,22 @@ class PodcastLayoutParser extends AbstractLayoutParser {
                 if (eventType == XmlPullParser.START_TAG) {
                     push(stack, xpp);
                     String tag = xpp.getName();
-                    if (LayoutUtils.isDiv(tag) && hasClass(xpp, RECORDS_LIST_CLASS)) {
+                    if (records == null && LayoutUtils.isDiv(tag) && hasClass(xpp, RECORDS_LIST_CLASS)) {
                         records = parseRecords(xpp, uri);
-                    } else if (LayoutUtils.isInput(tag) && PODCAST_ID.equals(xpp.getAttributeValue(null, "id"))) {
+                    } else if (id == 0 && LayoutUtils.isInput(tag) && PODCAST_ID.equals(xpp.getAttributeValue(null, "id"))) {
                         id = StringUtils.parseLong(xpp.getAttributeValue(null, "value"), id);
-                    } else if (isLogoTag(tag, getClass(xpp))) {
+                    } else if (!isUnderLogo && isLogoTag(tag, getClass(xpp))) {
                         isUnderLogo = true;
-                    } else if (LayoutUtils.isImage(tag) && hasClass(xpp, PODCAST_SPLASH_CLASS) && isUnderLogo) {
+                    } else if (isUnderLogo && LayoutUtils.isImage(tag) && hasClass(xpp, PODCAST_SPLASH_CLASS)) {
                         splash = xpp.getAttributeValue(null, "src");
                         name = StringUtils.nonEmpty(xpp.getAttributeValue(null, "title"));
-                    } else if (LayoutUtils.isAnchor(tag) && hasClass(xpp, PODCAST_NEXT_PAGE_CLASS)) {
+                    } else if (nextPage == 0 && LayoutUtils.isAnchor(tag) && hasClass(xpp, PODCAST_NEXT_PAGE_CLASS)) {
                         nextPage = StringUtils.parseLong(xpp.getAttributeValue(null, "data-page"), 0);
                         if (id == 0) {
                             // no need to search for podcast length as target podcast is unknown
                             break;
                         }
-                    } else if (isPodcastTag(tag, getClass(xpp))) {
+                    } else if (!isUnderPodcast && isPodcastTag(tag, getClass(xpp))) {
                         isUnderPodcast = true;
                     } else if (isUnderPodcast && LayoutUtils.isAnchor(tag) && hasClass(xpp, PODCAST_ANCHOR_CLASS)) {
                         long item = parsePodcastIdentifier(xpp.getAttributeValue(null, "href"));
@@ -124,7 +124,7 @@ class PodcastLayoutParser extends AbstractLayoutParser {
                 podcast.setLength(length);
             }
 
-            return new PodcastLayoutContent(podcast, records, nextPage);
+            return new PodcastLayoutContent(podcast, records == null ? new Records() : records, nextPage);
         } catch (XmlPullParserException e) {
             throw new IOException(e);
         }
@@ -161,7 +161,7 @@ class PodcastLayoutParser extends AbstractLayoutParser {
 
     @Nullable
     private static Record parseRecord(XmlPullParser xpp, @Nullable URI uri) throws IOException, XmlPullParserException {
-        LayoutUtils.Stack path = new LayoutUtils.Stack(5);
+        LayoutUtils.Stack path = new LayoutUtils.Stack(10);
         push(path, xpp);
 
         int nameNesting = 0;
@@ -184,7 +184,7 @@ class PodcastLayoutParser extends AbstractLayoutParser {
                 String tag = xpp.getName();
                 push(path, xpp);
                 if (!failure) {
-                    if (LayoutUtils.isAnchor(tag) && hasClass(xpp, RECORD_ANCHOR_CLASS)) {
+                    if (id == 0 && LayoutUtils.isAnchor(tag) && hasClass(xpp, RECORD_ANCHOR_CLASS)) {
                         url = xpp.getAttributeValue(null, "data-url");
                         if (url == null || url.isEmpty()) {
                             failure = true;
@@ -212,15 +212,17 @@ class PodcastLayoutParser extends AbstractLayoutParser {
                         duration = parseDuration(xpp);
                         eventType = xpp.getEventType();
                         continue;
+                    } else if (nameNesting == 0 && descriptionNesting > 0 && "br".equalsIgnoreCase(tag)) {
+                        description = appendText(description, "<br>");
                     }
                 }
             } else if (!failure && nesting > 0 && (eventType == XmlPullParser.TEXT || eventType == XmlPullParser.ENTITY_REF)) {
                 if (nameNesting > 0) {
-                    name = appendText(xpp, name);
+                    name = appendText(name, xpp);
                 } else if (descriptionNesting > 0) {
-                    description = appendText(xpp, description);
+                    description = appendText(description, xpp);
                 } else if (dateNesting > 0) {
-                    date = appendText(xpp, date);
+                    date = appendText(date, xpp);
                 }
             } else if (eventType == XmlPullParser.END_TAG) {
                 LayoutUtils.StackElement element;
@@ -243,19 +245,21 @@ class PodcastLayoutParser extends AbstractLayoutParser {
                     break;
                 }
             }
-            if (nesting > 0) {
+            if (!failure && nesting > 0) {
                 eventType = lenientNextToken(xpp);
             } else {
                 eventType = lenientNext(xpp);
             }
         }
-
+        if (failure) {
+            return null;
+        }
         name = StringUtils.nonEmptyNormalized(name);
         if (id == 0 || name == null && anchorName == null || url == null) {
             return null;
         }
         Record record = new Record(id, name == null ? anchorName : name, url, uri);
-        record.setDescription(StringUtils.nonEmptyNormalized(description));
+        record.setDescription(LayoutUtils.br2nl(StringUtils.nonEmptyNormalized(description)));
         record.setDate(parseDate(date));
         record.setDuration(duration);
         return record;

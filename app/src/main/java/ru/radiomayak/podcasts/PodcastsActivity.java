@@ -24,7 +24,6 @@ import java.util.Objects;
 import java.util.concurrent.Future;
 
 import ru.radiomayak.LighthouseActivity;
-import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.R;
 import ru.radiomayak.content.Loader;
@@ -56,8 +55,11 @@ public class PodcastsActivity extends LighthouseActivity {
             long id = intent.getLongExtra(RecordsActivity.EXTRA_PODCAST_ID, 0);
             Podcast podcast = podcasts.get(id);
             if (podcast != null) {
-                podcast.setSeen(podcast.getLength());
-                updatePodcastRow(id);
+                int seen = intent.getIntExtra(RecordsActivity.EXTRA_SEEN, 0);
+                if (seen > 0) {
+                    podcast.setSeen(seen);
+                    updatePodcastRow(id);
+                }
             }
         }
     };
@@ -123,15 +125,6 @@ public class PodcastsActivity extends LighthouseActivity {
             podcastsFuture = null;
         }
         super.onDestroy();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        updatePlayerView();
-
-        updatePodcastRows();
     }
 
     private void initializeView() {
@@ -321,14 +314,13 @@ public class PodcastsActivity extends LighthouseActivity {
         startActivity(intent);
     }
 
-    public void onPodcastsLoadComplete(@Nullable Podcasts podcasts) {
+    public void onPodcastsLoadComplete(@Nullable Podcasts data) {
         podcastsFuture = null;
         if (!isDestroyed()) {
-            if ((podcasts == null || podcasts.list().isEmpty()) && !adapter.isEmpty()) {
+            if ((data == null || data.list().isEmpty()) && !adapter.isEmpty()) {
                 Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
-            } else if (podcasts != null && !podcasts.list().isEmpty()) {
-                updatePodcasts(podcasts.list());
-                new PodcastsStoreAsyncTask(getBaseContext()).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcasts);
+            } else if (data != null && !data.list().isEmpty()) {
+                updatePodcasts(data.list());
             }
         }
         showContentView();
@@ -459,5 +451,13 @@ public class PodcastsActivity extends LighthouseActivity {
             View view = list.getChildAt(i - first);
             list.getAdapter().getView(i, view, list);
         }
+    }
+
+    @Override
+    protected void updatePlayerView(boolean animate) {
+        super.updatePlayerView(animate);
+
+        adapter.updateEqualizerAnimation();
+        updatePodcastRows();
     }
 }

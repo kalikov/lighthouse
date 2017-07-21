@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
+import android.support.graphics.drawable.AnimatedVectorDrawableCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawable;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawableFactory;
@@ -18,6 +19,7 @@ import android.widget.TextView;
 import java.util.List;
 
 import ru.radiomayak.LighthouseApplication;
+import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.R;
 import ru.radiomayak.graphics.BitmapInfo;
 
@@ -26,6 +28,7 @@ class PodcastsAdapter extends BaseAdapter {
     private final List<Podcast> podcasts;
     private final RoundedBitmapDrawable micDrawable;
     private final LongSparseArray<Drawable> icons = new LongSparseArray<>();
+    private final AnimatedVectorDrawableCompat equalizerDrawable;
 
     PodcastsAdapter(LighthouseApplication application, List<Podcast> podcasts) {
         this.application = application;
@@ -36,6 +39,8 @@ class PodcastsAdapter extends BaseAdapter {
         Bitmap micBitmap = createBitmap(micResourceDrawable, size);
         micDrawable = RoundedBitmapDrawableFactory.create(application.getResources(), micBitmap);
         micDrawable.setCircular(true);
+
+        equalizerDrawable = AnimatedVectorDrawableCompat.create(application, R.drawable.equalizer_animated);
     }
 
     private static Bitmap createBitmap(Drawable drawable, int size) {
@@ -44,6 +49,12 @@ class PodcastsAdapter extends BaseAdapter {
         drawable.setBounds(0, 0, drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight());
         drawable.draw(canvas);
         return bitmap;
+    }
+
+    void updateEqualizerAnimation() {
+        if (equalizerDrawable != null && equalizerDrawable.isRunning() && !application.getMediaPlayer().isPlaying()) {
+            equalizerDrawable.stop();
+        }
     }
 
     @Override
@@ -92,6 +103,22 @@ class PodcastsAdapter extends BaseAdapter {
         iconView.setContentDescription(podcast.getName());
         setIcon(iconView, podcast.getId());
 
+        if (equalizerDrawable != null) {
+            ImageView equalizerView = getEqualizerView(convertView);
+            LighthouseTrack track = application.getTrack();
+            if (track == null || track.getPodcast().getId() != podcast.getId()) {
+                equalizerView.setVisibility(View.GONE);
+            } else if (application.getMediaPlayer().isPlaying()) {
+                equalizerView.setImageDrawable(equalizerDrawable);
+                equalizerView.setVisibility(View.VISIBLE);
+                equalizerDrawable.start();
+            } else {
+                equalizerView.setImageResource(R.drawable.equalizer);
+                equalizerView.setVisibility(View.VISIBLE);
+                equalizerDrawable.stop();
+            }
+        }
+
         TextView descriptionView = getDescriptionView(convertView);
         if (podcast.getDescription() != null) {
             descriptionView.setVisibility(View.VISIBLE);
@@ -132,6 +159,7 @@ class PodcastsAdapter extends BaseAdapter {
             drawable = transitionDrawable;
         }
         view.setImageDrawable(drawable);
+
         icons.put(id, drawable);
     }
 
@@ -149,5 +177,9 @@ class PodcastsAdapter extends BaseAdapter {
 
     private static ImageView getIconView(View view) {
         return (ImageView) view.findViewById(android.R.id.icon);
+    }
+
+    private static ImageView getEqualizerView(View view) {
+        return (ImageView) view.findViewById(android.R.id.progress);
     }
 }

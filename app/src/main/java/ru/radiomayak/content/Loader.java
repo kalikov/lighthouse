@@ -36,6 +36,10 @@ public abstract class Loader<T> {
         return null;
     }
 
+    @MainThread
+    protected void onEndLoading(T data) {
+    }
+
     protected boolean isCancelled() {
         return task != null && task.isCancelled();
     }
@@ -48,5 +52,10 @@ public abstract class Loader<T> {
     @WorkerThread
     T execute() {
         return onExecute();
+    }
+
+    @MainThread
+    void endLoading(T data) {
+        onEndLoading(data);
     }
 }

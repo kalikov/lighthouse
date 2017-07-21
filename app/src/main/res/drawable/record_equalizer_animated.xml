@@ -1,0 +1,17 @@
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@xml/record_equalizer">
+
+    <target
+        android:name="a"
+        android:animation="@animator/equalizer_a"/>
+
+    <target
+        android:name="b"
+        android:animation="@animator/equalizer_b"/>
+
+    <target
+        android:name="c"
+        android:animation="@animator/equalizer_c"/>
+
+</animated-vector>

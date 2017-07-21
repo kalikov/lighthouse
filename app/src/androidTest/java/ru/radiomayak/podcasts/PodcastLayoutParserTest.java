@@ -3,6 +3,9 @@ package ru.radiomayak.podcasts;
 import android.support.test.runner.AndroidJUnit4;
 
 import org.apache.commons.io.IOUtils;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,7 +26,7 @@ public class PodcastLayoutParserTest {
     }
 
     @Test
-    public void shouldGetRecords() throws IOException {
+    public void shouldGetRecords() throws IOException, JSONException {
         Records records;
         try (InputStream stream = getResource("podcasts/podcast-1.html")) {
             PodcastLayoutContent content = parser.parse(0, stream, "UTF-8", RESPONSE_URL);
@@ -31,12 +34,12 @@ public class PodcastLayoutParserTest {
         }
         try (InputStream resource = getResource("podcasts/podcast-1.records.json")) {
             String json = IOUtils.toString(resource, "UTF-8");
-            Assert.assertEquals(json, records.toJson().toString());
+            assertEquals(new JSONArray(json), records.toJson());
         }
     }
 
     @Test
-    public void shouldGetPodcast() throws IOException {
+    public void shouldGetPodcast() throws IOException, JSONException {
         Podcast podcast;
         try (InputStream stream = getResource("podcasts/podcast-1.html")) {
             PodcastLayoutContent content = parser.parse(0, stream, "UTF-8", RESPONSE_URL);
@@ -45,8 +48,19 @@ public class PodcastLayoutParserTest {
         Assert.assertNotNull(podcast);
         try (InputStream resource = getResource("podcasts/podcast-1.podcast.json")) {
             String json = IOUtils.toString(resource, "UTF-8");
-            Assert.assertEquals(json, podcast.toJson().toString());
+            assertEquals(new JSONObject(json), podcast.toJson());
         }
+    }
+
+    private static void assertEquals(JSONArray expected, JSONArray actual) throws JSONException {
+        Assert.assertEquals(expected.length(), actual.length());
+        for (int i = 0; i < expected.length(); i++) {
+            Assert.assertEquals(expected.get(i).toString(), actual.get(i).toString());
+        }
+    }
+
+    private static void assertEquals(JSONObject expected, JSONObject actual) throws JSONException {
+        Assert.assertEquals(expected.toString(), actual.toString());
     }
 
     private static InputStream getResource(String name) {

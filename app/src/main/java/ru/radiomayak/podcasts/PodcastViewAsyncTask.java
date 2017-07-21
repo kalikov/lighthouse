@@ -14,10 +14,12 @@ class PodcastViewAsyncTask extends AsyncTask<Podcast, Void, Void> {
     @Override
     protected Void doInBackground(Podcast... podcasts) {
         if (podcasts.length > 0) {
-            PodcastsUtils.storePodcastSeen(context, podcasts[0].getId());
+            Podcast podcast = podcasts[0];
+            PodcastsUtils.storePodcastSeen(context, podcast.getId(), podcast.getLength());
             Intent intent = new Intent(RecordsActivity.ACTION_VIEW)
                     .setPackage(context.getPackageName())
-                    .putExtra(RecordsActivity.EXTRA_PODCAST_ID, podcasts[0].getId());
+                    .putExtra(RecordsActivity.EXTRA_PODCAST_ID, podcast.getId())
+                    .putExtra(RecordsActivity.EXTRA_SEEN, podcast.getLength());
             context.sendBroadcast(intent);
         }
         return null;

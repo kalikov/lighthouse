@@ -103,37 +103,48 @@ public final class PodcastsUtils {
     static void storePodcasts(Context context, Podcasts podcasts) {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
         try (SQLiteDatabase database = helper.getWritableDatabase()) {
-            ContentValues resetValues = new ContentValues();
-            resetValues.put(PODCAST_ORD, 0);
-            int updated = database.update(PodcastsOpenHelper.PODCASTS, resetValues, null, null);
-            int index = podcasts.list().size();
-            for (Podcast podcast : podcasts.list()) {
-                ContentValues values = new ContentValues();
-                values.put(PODCAST_ID, podcast.getId());
-                values.put(PODCAST_NAME, podcast.getName());
-                if (podcast.getDescription() != null) {
-                    values.put(PODCAST_DESC, podcast.getDescription());
+            database.beginTransaction();
+            try {
+                ContentValues resetValues = new ContentValues();
+                resetValues.put(PODCAST_ORD, 0);
+                int updated = database.update(PodcastsOpenHelper.PODCASTS, resetValues, null, null);
+                int index = podcasts.list().size();
+                for (Podcast podcast : podcasts.list()) {
+                    ContentValues values = new ContentValues();
+                    values.put(PODCAST_NAME, podcast.getName());
+                    if (podcast.getDescription() != null) {
+                        values.put(PODCAST_DESC, podcast.getDescription());
+                    }
+                    values.put(PODCAST_LENGTH, podcast.getLength());
+                    values.put(PODCAST_ORD, index);
+
+                    if (database.update(PodcastsOpenHelper.PODCASTS, values, PODCAST_ID + " = ?", args(podcast.getId())) == 1) {
+                        index--;
+                        continue;
+                    }
+                    values.put(PODCAST_ID, podcast.getId());
+                    values.put(PODCAST_SEEN, updated > 0 || podcast.getSeen() > 0 ? podcast.getSeen() : podcast.getLength());
+                    Cursor cursor = null;
+                    try {
+                        if (podcast.getIcon() != null) {
+                            cursor = updateColors(database, null, podcast, podcast.getIcon(), 0);
+                        }
+                        putColors(values, podcast.getIcon(), PODCAST_ICON_URL, PODCAST_ICON_RGB, PODCAST_ICON_RGB2);
+                        if (podcast.getSplash() != null) {
+                            cursor = updateColors(database, cursor, podcast, podcast.getSplash(), 3);
+                        }
+                        putColors(values, podcast.getSplash(), PODCAST_SPLASH_URL, PODCAST_SPLASH_RGB, PODCAST_SPLASH_RGB2);
+                    } finally {
+                        if (cursor != null) {
+                            IOUtils.closeQuietly(cursor);
+                        }
+                    }
+                    database.insertWithOnConflict(PodcastsOpenHelper.PODCASTS, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+                    index--;
                 }
-                values.put(PODCAST_LENGTH, podcast.getLength());
-                values.put(PODCAST_SEEN, updated > 0 || podcast.getSeen() > 0 ? podcast.getSeen() : podcast.getLength());
-                Cursor cursor = null;
-                try {
-                    if (podcast.getIcon() != null) {
-                        cursor = updateColors(database, null, podcast, podcast.getIcon(), 0);
-                    }
-                    putColors(values, podcast.getIcon(), PODCAST_ICON_URL, PODCAST_ICON_RGB, PODCAST_ICON_RGB2);
-                    if (podcast.getSplash() != null) {
-                        cursor = updateColors(database, cursor, podcast, podcast.getSplash(), 3);
-                    }
-                    putColors(values, podcast.getSplash(), PODCAST_SPLASH_URL, PODCAST_SPLASH_RGB, PODCAST_SPLASH_RGB2);
-                } finally {
-                    if (cursor != null) {
-                        IOUtils.closeQuietly(cursor);
-                    }
-                }
-                values.put(PODCAST_ORD, index);
-                database.insertWithOnConflict(PodcastsOpenHelper.PODCASTS, null, values, SQLiteDatabase.CONFLICT_REPLACE);
-                index--;
+                database.setTransactionSuccessful();
+            } finally {
+                database.endTransaction();
             }
         }
     }
@@ -211,11 +222,11 @@ public final class PodcastsUtils {
         }
     }
 
-    static void storePodcastSeen(Context context, long id) {
+    static void storePodcastSeen(Context context, long id, int seen) {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
         try (SQLiteDatabase database = helper.getWritableDatabase()) {
-            database.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH +
-                    " WHERE " + PODCAST_ID + " = ?", args(id));
+            String[] args = args(id, seen);
+            database.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = ? WHERE " + PODCAST_ID + " = ?", args);
         }
     }
 

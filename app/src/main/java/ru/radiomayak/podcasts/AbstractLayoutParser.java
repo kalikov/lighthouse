@@ -48,8 +48,12 @@ abstract class AbstractLayoutParser {
     }
 
     @Nullable
-    static String appendText(XmlPullParser xpp, @Nullable String string) {
-        String text = LayoutUtils.getText(xpp);
+    static String appendText(@Nullable String string, XmlPullParser xpp) {
+        return appendText(string, LayoutUtils.getText(xpp));
+    }
+
+    @Nullable
+    static String appendText(@Nullable String string, @Nullable String text) {
         if (string == null) {
             return text;
         } else if (text != null) {

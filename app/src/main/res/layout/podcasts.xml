@@ -15,9 +15,8 @@
         android:id="@+id/refresh"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@id/player"
-        android:layout_below="@id/toolbar"
-        android:layout_marginBottom="@dimen/player_shadow_margin">
+        android:layout_above="@id/player_container"
+        android:layout_below="@id/toolbar">
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -50,10 +49,22 @@
 
     </android.support.v4.widget.SwipeRefreshLayout>
 
-    <include
-        layout="@layout/podcast_player"
+    <LinearLayout
+        android:id="@+id/player_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"/>
+        android:layout_height="0dp"
+        android:layout_alignParentBottom="true"
+        android:layout_marginTop="@dimen/player_shadow_margin"
+        android:orientation="vertical">
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:src="@drawable/player_shadow"
+            tools:ignore="contentDescription"/>
+
+        <include layout="@layout/podcast_player"/>
+
+    </LinearLayout>
 
 </RelativeLayout>

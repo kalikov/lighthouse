@@ -1,9 +1,12 @@
 package ru.radiomayak.podcasts;
 
+import android.support.annotation.Nullable;
+import android.support.graphics.drawable.AnimatedVectorDrawableCompat;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -16,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 
 import ru.radiomayak.LighthouseApplication;
+import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.R;
 
 class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
@@ -26,11 +30,13 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
     private final LighthouseApplication application;
     private final Podcast podcast;
     private final List<Record> records;
-    private FooterMode footerMode;
+    private final AnimatedVectorDrawableCompat equalizerDrawable;
 
     private final RecordsPlayer player;
 
     private final String[] months;
+
+    private FooterMode footerMode;
 
     enum FooterMode {
         HIDDEN,
@@ -47,6 +53,14 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         setHasStableIds(true);
 
         months = application.getString(R.string.months).split(",");
+
+        equalizerDrawable = AnimatedVectorDrawableCompat.create(application, R.drawable.record_equalizer_animated);
+    }
+
+    void updateEqualizerAnimation() {
+        if (equalizerDrawable != null && equalizerDrawable.isRunning() && !application.getMediaPlayer().isPlaying()) {
+            equalizerDrawable.stop();
+        }
     }
 
     @Override
@@ -119,6 +133,18 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         }
     }
 
+    @Nullable
+    Record getItem(int position) {
+        int index = position;
+        if (podcast.getLength() > 0) {
+            if (position == 0) {
+                return null;
+            }
+            index--;
+        }
+        return index < records.size() ? records.get(index) : null;
+    }
+
     @Override
     public long getItemId(int position) {
         int index = position;
@@ -145,6 +171,10 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
     private static TextView getDurationView(View view) {
         return (TextView) view.findViewById(R.id.duration);
+    }
+
+    private static ImageView getIconView(View view) {
+        return (ImageView) view.findViewById(android.R.id.icon);
     }
 
     static abstract class ViewHolder extends RecyclerView.ViewHolder {
@@ -198,6 +228,8 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             }
             durationView.setTypeface(application.getFontLight());
 
+            updatePlayPauseState();
+
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
@@ -210,6 +242,24 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                     return true;
                 }
             });
+        }
+
+        void updatePlayPauseState() {
+            if (equalizerDrawable == null) {
+                return;
+            }
+            LighthouseTrack track = application.getTrack();
+            ImageView iconView = getIconView(itemView);
+            Record record = getItem(getAdapterPosition());
+            if (record == null || track == null || track.getPodcast().getId() != podcast.getId() || track.getRecord().getId() != record.getId()) {
+                iconView.setImageResource(R.drawable.record_play);
+            } else if (application.getMediaPlayer().isPlaying()) {
+                iconView.setImageDrawable(equalizerDrawable);
+                equalizerDrawable.start();
+            } else {
+                iconView.setImageResource(R.drawable.record_equalizer);
+                equalizerDrawable.stop();
+            }
         }
     }
 
