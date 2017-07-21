@@ -679,6 +679,20 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
         updateRecordsRows();
     }
 
+    @Override
+    public void onPrepared() {
+        if (getTrack() == null) {
+            super.onPrepared();
+            return;
+        }
+        Record record = getTrack().getRecord();
+        boolean isPlayed = record.isPlayed();
+        super.onPrepared();
+        if (isPlayed != record.isPlayed()) {
+            updateRecordRow(record);
+        }
+    }
+
     private void updateRecordsRows() {
         RecyclerView recyclerView = getRecyclerView();
         for (int i = 0, n = recyclerView.getChildCount(); i < n; i++) {

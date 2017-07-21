@@ -62,15 +62,35 @@
             android:textAppearance="@style/AppTheme.Text.Small"
             android:textColor="@color/textColor"/>
 
-        <TextView
-            android:id="@+id/duration"
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:lines="1"
-            android:paddingTop="@dimen/podcast_padding"
-            android:text="@string/lorem_ipsum"
-            android:textAlignment="textEnd"
-            android:textAppearance="@style/AppTheme.Text.Small"/>
+            android:layout_marginTop="@dimen/podcast_padding">
+
+            <ImageView
+                android:id="@android:id/icon1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toStartOf="@id/duration"
+                android:layout_alignTop="@id/duration"
+                android:layout_alignBottom="@id/duration"
+                android:src="@drawable/record_played"
+                tools:ignore="ContentDescription"/>
+
+            <TextView
+                android:id="@+id/duration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerInParent="true"
+                android:lines="1"
+                android:text="@string/lorem_ipsum"
+                android:textAlignment="textEnd"
+                android:textAppearance="@style/AppTheme.Text.Small"/>
+
+
+        </RelativeLayout>
+
 
     </LinearLayout>
 

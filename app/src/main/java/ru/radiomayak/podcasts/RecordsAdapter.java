@@ -157,26 +157,6 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         return index < records.size() ? records.get(index).getId() : -1;
     }
 
-    private static TextView getNameView(View view) {
-        return (TextView) view.findViewById(R.id.name);
-    }
-
-    private static TextView getDescriptionView(View view) {
-        return (TextView) view.findViewById(R.id.description);
-    }
-
-    private static TextView getDateView(View view) {
-        return (TextView) view.findViewById(R.id.date);
-    }
-
-    private static TextView getDurationView(View view) {
-        return (TextView) view.findViewById(R.id.duration);
-    }
-
-    private static ImageView getIconView(View view) {
-        return (ImageView) view.findViewById(android.R.id.icon);
-    }
-
     static abstract class ViewHolder extends RecyclerView.ViewHolder {
         ViewHolder(View itemView) {
             super(itemView);
@@ -260,6 +240,31 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                 iconView.setImageResource(R.drawable.record_equalizer);
                 equalizerDrawable.stop();
             }
+            getDoneIconView(itemView).setVisibility(record == null || !record.isPlayed() ? View.INVISIBLE : View.VISIBLE);
+        }
+
+        private TextView getNameView(View view) {
+            return (TextView) view.findViewById(R.id.name);
+        }
+
+        private TextView getDescriptionView(View view) {
+            return (TextView) view.findViewById(R.id.description);
+        }
+
+        private TextView getDateView(View view) {
+            return (TextView) view.findViewById(R.id.date);
+        }
+
+        private TextView getDurationView(View view) {
+            return (TextView) view.findViewById(R.id.duration);
+        }
+
+        private ImageView getIconView(View view) {
+            return (ImageView) view.findViewById(android.R.id.icon);
+        }
+
+        private ImageView getDoneIconView(View view) {
+            return (ImageView) view.findViewById(android.R.id.icon1);
         }
     }
 
