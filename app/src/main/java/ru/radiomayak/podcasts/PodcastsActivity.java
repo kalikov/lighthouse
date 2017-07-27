@@ -106,7 +106,7 @@ public class PodcastsActivity extends LighthouseActivity {
             podcasts = new Podcasts();
         }
 
-        adapter = new PodcastsAdapter(getLighthouseApplication(), podcasts.list());
+        adapter = new PodcastsAdapter(this, podcasts.list());
         initializeView();
 
         if (requestList) {

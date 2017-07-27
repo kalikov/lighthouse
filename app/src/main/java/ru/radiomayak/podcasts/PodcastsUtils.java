@@ -10,6 +10,7 @@ import org.apache.commons.io.IOUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import ru.radiomayak.StringUtils;
 
@@ -63,7 +64,23 @@ public final class PodcastsUtils {
     private static final ThreadLocal<String[]> IDENTITY_LEN_ARRAY = new ThreadLocal<>();
     private static final ThreadLocal<String[]> DOUBLE_LEN_ARRAY = new ThreadLocal<>();
 
+    private static final String ZERO_TIME_TEXT = "00:00";
+
     private PodcastsUtils() {
+    }
+
+    public static String formatTime(int time) {
+        if (time <= 0) {
+            return ZERO_TIME_TEXT;
+        }
+        int totalSecs = time / 1000;
+        int secs = totalSecs % 60;
+        int mins = (totalSecs / 60) % 60;
+        int hours = totalSecs / 3600;
+        if (hours > 0) {
+            return String.format(Locale.ROOT, "%d:%02d:%02d", hours, mins, secs);
+        }
+        return String.format(Locale.ROOT, "%02d:%02d", mins, secs);
     }
 
     static Podcasts loadPodcasts(Context context) {

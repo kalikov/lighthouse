@@ -18,29 +18,29 @@ import android.widget.TextView;
 
 import java.util.List;
 
-import ru.radiomayak.LighthouseApplication;
+import ru.radiomayak.LighthouseActivity;
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.R;
 import ru.radiomayak.graphics.BitmapInfo;
 
 class PodcastsAdapter extends BaseAdapter {
-    private final LighthouseApplication application;
+    private final LighthouseActivity activity;
     private final List<Podcast> podcasts;
     private final RoundedBitmapDrawable micDrawable;
     private final LongSparseArray<Drawable> icons = new LongSparseArray<>();
     private final AnimatedVectorDrawableCompat equalizerDrawable;
 
-    PodcastsAdapter(LighthouseApplication application, List<Podcast> podcasts) {
-        this.application = application;
+    PodcastsAdapter(LighthouseActivity activity, List<Podcast> podcasts) {
+        this.activity = activity;
         this.podcasts = podcasts;
 
-        int size = application.getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
-        Drawable micResourceDrawable = ResourcesCompat.getDrawable(application.getResources(), R.drawable.mic, application.getTheme());
+        int size = activity.getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
+        Drawable micResourceDrawable = ResourcesCompat.getDrawable(activity.getResources(), R.drawable.mic, activity.getTheme());
         Bitmap micBitmap = createBitmap(micResourceDrawable, size);
-        micDrawable = RoundedBitmapDrawableFactory.create(application.getResources(), micBitmap);
+        micDrawable = RoundedBitmapDrawableFactory.create(activity.getResources(), micBitmap);
         micDrawable.setCircular(true);
 
-        equalizerDrawable = AnimatedVectorDrawableCompat.create(application, R.drawable.equalizer_animated);
+        equalizerDrawable = AnimatedVectorDrawableCompat.create(activity, R.drawable.equalizer_animated);
     }
 
     private static Bitmap createBitmap(Drawable drawable, int size) {
@@ -52,7 +52,7 @@ class PodcastsAdapter extends BaseAdapter {
     }
 
     void updateEqualizerAnimation() {
-        if (equalizerDrawable != null && equalizerDrawable.isRunning() && !application.getMediaPlayer().isPlaying()) {
+        if (equalizerDrawable != null && equalizerDrawable.isRunning() && !activity.isPlaying()) {
             equalizerDrawable.stop();
         }
     }
@@ -80,13 +80,13 @@ class PodcastsAdapter extends BaseAdapter {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         if (convertView == null) {
-            convertView = LayoutInflater.from(application).inflate(R.layout.podcasts_item, parent, false);
+            convertView = LayoutInflater.from(activity).inflate(R.layout.podcasts_item, parent, false);
         }
         Podcast podcast = getItem(position);
 
         TextView nameView = getNameView(convertView);
         nameView.setText(podcast.getName());
-        nameView.setTypeface(application.getFontBold());
+        nameView.setTypeface(activity.getLighthouseApplication().getFontBold());
 
         TextView lengthView = getLengthView(convertView);
         int length = podcast.getLength();
@@ -94,7 +94,7 @@ class PodcastsAdapter extends BaseAdapter {
         if (length > seen) {
             lengthView.setVisibility(View.VISIBLE);
             lengthView.setText(String.valueOf(length - seen));
-            lengthView.setTypeface(application.getFontLight());
+            lengthView.setTypeface(activity.getLighthouseApplication().getFontLight());
         } else {
             lengthView.setVisibility(View.GONE);
         }
@@ -105,10 +105,10 @@ class PodcastsAdapter extends BaseAdapter {
 
         if (equalizerDrawable != null) {
             ImageView equalizerView = getEqualizerView(convertView);
-            LighthouseTrack track = application.getTrack();
+            LighthouseTrack track = activity.getTrack();
             if (track == null || track.getPodcast().getId() != podcast.getId()) {
                 equalizerView.setVisibility(View.GONE);
-            } else if (application.getMediaPlayer().isPlaying()) {
+            } else if (activity.isPlaying()) {
                 equalizerView.setImageDrawable(equalizerDrawable);
                 equalizerView.setVisibility(View.VISIBLE);
                 equalizerDrawable.start();
@@ -123,7 +123,7 @@ class PodcastsAdapter extends BaseAdapter {
         if (podcast.getDescription() != null) {
             descriptionView.setVisibility(View.VISIBLE);
             descriptionView.setText(podcast.getDescription());
-            descriptionView.setTypeface(application.getFontNormal());
+            descriptionView.setTypeface(activity.getLighthouseApplication().getFontNormal());
         } else {
             descriptionView.setVisibility(View.GONE);
         }
@@ -146,11 +146,11 @@ class PodcastsAdapter extends BaseAdapter {
         if (icon == null && bitmapInfo == null) {
             drawable = micDrawable;
         } else if (icon == null) {
-            RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(application.getResources(), bitmapInfo.getBitmap());
+            RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(activity.getResources(), bitmapInfo.getBitmap());
             rounded.setCircular(true);
             drawable = rounded;
         } else {
-            RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(application.getResources(), bitmapInfo.getBitmap());
+            RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(activity.getResources(), bitmapInfo.getBitmap());
             rounded.setCircular(true);
 
             Drawable[] layers = new Drawable[]{icon, rounded};

@@ -1,0 +1,4 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="false" android:drawable="@drawable/notification_pause"/>
+    <item android:state_pressed="true" android:drawable="@drawable/notification_pause_pressed"/>
+</selector>

@@ -10,6 +10,8 @@
 
     <dimen name="progress_bar_size">40dp</dimen>
 
+    <dimen name="notification_padding">10dp</dimen>
+
     <dimen name="player_height">100dp</dimen>
     <dimen name="player_padding">6dp</dimen>
     <dimen name="player_text_padding">13dp</dimen>

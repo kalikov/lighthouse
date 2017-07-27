@@ -5,10 +5,17 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.RemoteException;
 import android.support.annotation.Nullable;
+import android.support.v4.media.MediaBrowserCompat;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaControllerCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.Animation;
@@ -19,18 +26,20 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
-import java.util.Locale;
 
 import ru.radiomayak.animation.Interpolators;
-import ru.radiomayak.media.MediaNotificationManager;
-import ru.radiomayak.media.MediaPlayerObserver;
+import ru.radiomayak.podcasts.Podcast;
 import ru.radiomayak.podcasts.PodcastsUtils;
 import ru.radiomayak.podcasts.Record;
 
-public class LighthouseActivity extends AppCompatActivity implements MediaPlayerObserver {
+public class LighthouseActivity extends AppCompatActivity {
+    static final String ACTION_UPDATE = LighthouseActivity.class.getPackage().getName() + ".MEDIA_UPDATE";
+
     private static final String ZERO_TIME_TEXT = "00:00";
 
     private static final long ANIMATION_DURATION = 300;
+
+    protected final String TAG = getClass().getSimpleName();
 
     private final ValueAnimator.AnimatorUpdateListener openUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
         @Override
@@ -58,23 +67,42 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         }
     };
 
+    private final MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
+        @Override
+        public void onMetadataChanged(MediaMetadataCompat metadata) {
+        }
+
+        @Override
+        public void onPlaybackStateChanged(PlaybackStateCompat state) {
+            playbackState = state;
+            if (extras != state.getExtras()) {
+                extras = state.getExtras();
+                updateTrackFromExtras();
+            }
+            if (state.getState() == PlaybackStateCompat.STATE_ERROR) {
+                isSeeking = false;
+                onFailed();
+            } else if (state.getState() == PlaybackStateCompat.STATE_PLAYING) {
+                isSeeking = false;
+                updateRecordPlayedState();
+                updatePlayerView(false);
+            } else if (state.getState() != PlaybackStateCompat.STATE_REWINDING) {
+                isSeeking = false;
+                updatePlayerView(true);
+            }
+        }
+    };
+
     private boolean isTracking;
+    private boolean isSeeking;
 
     private int playerMaxHeight;
     private int playerHeight;
     private ValueAnimator valueAnimator;
 
-    private final Runnable showProgressRunnable = new Runnable() {
-        @Override
-        public void run() {
-            long pos = setProgress();
-            if (!isTracking && isPlaying()) {
-                getPlayerView().postDelayed(showProgressRunnable, 1000 - (pos % 1000));
-            } else if (!isTracking) {
-                updatePlayPauseButton();
-            }
-        }
-    };
+    private PlaybackStateCompat playbackState;
+    private Bundle extras;
+    private LighthouseTrack track;
 
     private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
@@ -88,32 +116,31 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         super.onCreate(state);
 
         playerMaxHeight = getResources().getDimensionPixelSize(R.dimen.player_height);
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ACTION_UPDATE);
+        registerReceiver(broadcastReceiver, filter);
     }
 
     @Override
     protected void onResume() {
-        updatePlayerView(false);
+        updateMediaController();
 
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(MediaNotificationManager.ACTION_PAUSE);
-        filter.addAction(MediaNotificationManager.ACTION_PLAY);
-        filter.addAction(MediaNotificationManager.ACTION_STOP);
-        registerReceiver(broadcastReceiver, filter);
+        updatePlayerView(false);
 
         super.onResume();
     }
 
     @Override
     protected void onPause() {
-        if (getLighthouseApplication().containsObserver(this)) {
-            getLighthouseApplication().unregisterObserver(this);
-        }
-        unregisterReceiver(broadcastReceiver);
+        unsetMediaController();
+
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
+        unregisterReceiver(broadcastReceiver);
 
         super.onDestroy();
     }
@@ -138,10 +165,10 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
                 if (!fromUser) {
                     return;
                 }
-                int duration = getMediaPlayer().getDuration();
+                int duration = getDuration();
                 int position = (int) ((long) progress * duration / 1000);
-                getSongPositionView().setText(formatTime(position));
-                getMediaPlayer().seekTo(position);
+                getSongPositionView().setText(PodcastsUtils.formatTime(position));
+                seekTo(position);
             }
 
             @Override
@@ -152,8 +179,6 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 isTracking = false;
-                setProgress();
-                getPlayerView().post(showProgressRunnable);
             }
         });
 
@@ -200,10 +225,6 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
 
         updatePlayPauseButton();
 
-        if ((isPreparing() || isPlaying()) && !getLighthouseApplication().containsObserver(this)) {
-            getLighthouseApplication().registerObserver(this);
-        }
-
         getSongNameView().setText(record.getName());
         if (isPreparing() || isError()) {
             getSeekBar().setEnabled(false);
@@ -213,11 +234,9 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
             getSongDurationView().setText(ZERO_TIME_TEXT);
         } else {
             getSeekBar().setEnabled(true);
-            getSongPositionView().setText(formatTime(getMediaPlayer().getCurrentPosition()));
-            getSongDurationView().setText(formatTime(getMediaPlayer().getDuration()));
-            setProgress();
-
-            playerView.post(showProgressRunnable);
+            getSongPositionView().setText(PodcastsUtils.formatTime(getCurrentPosition()));
+            getSongDurationView().setText(PodcastsUtils.formatTime(getDuration()));
+            updateProgress();
         }
         if (valueAnimator != null) {
             valueAnimator.cancel();
@@ -239,7 +258,8 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
     }
 
     private void updatePlayPauseButton() {
-        if (isPreparing()) {
+        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
+        if (mediaController == null || isPreparing()) {
             Animation animation = AnimationUtils.loadAnimation(this, R.anim.rotation);
             animation.setInterpolator(Interpolators.LINEAR);
             getPlayPauseButton().setImageResource(R.drawable.player_progress);
@@ -252,56 +272,92 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         }
     }
 
-    protected final LighthouseApplication getLighthouseApplication() {
+    public final LighthouseApplication getLighthouseApplication() {
         return ((LighthouseApplication) getApplication());
     }
 
-    public MediaPlayer getMediaPlayer() {
-        return getLighthouseApplication().getMediaPlayer();
+    private void updateTrackFromExtras() {
+        if (extras == null) {
+            track = null;
+        } else {
+            extras.setClassLoader(Record.class.getClassLoader());
+            Record record = extras.getParcelable(Record.class.getName());
+            Podcast podcast = extras.getParcelable(Podcast.class.getName());
+            if (record == null || podcast == null) {
+                track = null;
+            } else {
+                track = new LighthouseTrack(podcast, record);
+            }
+        }
     }
 
     public LighthouseTrack getTrack() {
-        return getLighthouseApplication().getTrack();
+        return track;
     }
 
     public void setTrack(LighthouseTrack track) throws IOException {
-        resetTrack();
-        if (!getLighthouseApplication().containsObserver(this)) {
-            getLighthouseApplication().registerObserver(this);
-        }
-        getLighthouseApplication().setTrack(track);
+        Record record = track.getRecord();
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(Record.class.getName(), record);
+        bundle.putParcelable(Podcast.class.getName(), track.getPodcast());
+        extras = bundle;
+        this.track = track;
+        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
+        mediaController.getTransportControls().playFromUri(Uri.parse(record.getUrl()), bundle);
     }
 
-    public void resetTrack() {
-        if (getLighthouseApplication().containsObserver(this)) {
-            getLighthouseApplication().unregisterObserver(this);
-        }
-        getLighthouseApplication().resetTrack();
+    public int getCurrentPosition() {
+        return playbackState != null ? (int) playbackState.getPosition() : 0;
     }
 
+    public int getDuration() {
+        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
+        if (mediaController == null) {
+            return 0;
+        }
+        return mediaController.getMetadata() != null ? (int) mediaController.getMetadata().getLong(MediaMetadataCompat.METADATA_KEY_DURATION) : 0;
+    }
 
     public int getBufferPercentage() {
-        return getLighthouseApplication().getBufferPercentage();
+        return playbackState != null ? (int) playbackState.getBufferedPosition() : 0;
     }
 
     public boolean isPreparing() {
-        return getLighthouseApplication().isPreparing();
+        return playbackState != null && playbackState.getState() == PlaybackStateCompat.STATE_CONNECTING;
+    }
+
+    public boolean isRewinding() {
+        return isSeeking || playbackState != null && playbackState.getState() == PlaybackStateCompat.STATE_REWINDING;
     }
 
     public boolean isPlaying() {
-        return getMediaPlayer().isPlaying();
+        return playbackState != null && playbackState.getState() == PlaybackStateCompat.STATE_PLAYING;
     }
 
     public boolean isError() {
-        return getLighthouseApplication().isError();
+        return playbackState != null && playbackState.getState() == PlaybackStateCompat.STATE_ERROR;
     }
 
     public void pause() {
-        getLighthouseApplication().pause();
+        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
+        if (mediaController != null) {
+            mediaController.getTransportControls().pause();
+        }
     }
 
     public void play() {
-        getLighthouseApplication().play();
+        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
+        if (mediaController != null) {
+            mediaController.getTransportControls().play();
+        }
+    }
+
+    public void seekTo(int position) {
+        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
+        if (mediaController != null) {
+            isSeeking = true;
+            mediaController.getTransportControls().seekTo(position);
+        }
     }
 
     public View getPlayerView() {
@@ -336,20 +392,6 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         return (ImageView) getPlayerView().findViewById(android.R.id.closeButton);
     }
 
-    private static String formatTime(int time) {
-        if (time <= 0) {
-            return ZERO_TIME_TEXT;
-        }
-        int totalSecs = time / 1000;
-        int secs = totalSecs % 60;
-        int mins = (totalSecs / 60) % 60;
-        int hours = totalSecs / 3600;
-        if (hours > 0) {
-            return String.format(Locale.ROOT, "%d:%02d:%02d", hours, mins, secs);
-        }
-        return String.format(Locale.ROOT, "%02d:%02d", mins, secs);
-    }
-
     private void togglePlayer() {
         if (isPlaying()) {
             pause();
@@ -362,22 +404,21 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         } else {
             play();
         }
-        updatePlayerView(false);
     }
 
     private void closePlayer() {
-        resetTrack();
-
-        updatePlayerView(true);
+        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
+        if (mediaController != null) {
+            mediaController.getTransportControls().sendCustomAction("reset", null);
+        }
     }
 
-    protected long setProgress() {
-        if (isTracking || isPreparing()) {
+    protected long updateProgress() {
+        if (isTracking || isPreparing() || isRewinding()) {
             return 0;
         }
-        MediaPlayer player = getMediaPlayer();
-        int position = player.getCurrentPosition();
-        int duration = player.getDuration();
+        int position = getCurrentPosition();
+        int duration = getDuration();
         if (duration > 0) {
             long progress = (long) position * 1000 / duration;
             getSeekBar().setProgress((int) progress);
@@ -387,46 +428,67 @@ public class LighthouseActivity extends AppCompatActivity implements MediaPlayer
         int percent = getBufferPercentage();
         getSeekBar().setSecondaryProgress(percent * 10);
 
-        getSongDurationView().setText(formatTime(duration));
-        getSongPositionView().setText(formatTime(position));
+        getSongDurationView().setText(PodcastsUtils.formatTime(duration));
+        getSongPositionView().setText(PodcastsUtils.formatTime(position));
 
         return position;
     }
 
-    @Override
-    public void onPrepared() {
-        play();
-        updatePlayerView(false);
-
+    private void updateRecordPlayedState() {
         LighthouseTrack track = getTrack();
         if (track != null && !track.getRecord().isPlayed()) {
-            track.getRecord().setPlayed(true);
-            PodcastsUtils.storeRecordPlayedProperty(this, track.getPodcast().getId(), track.getRecord());
+            updateRecordPlayedState(track.getPodcast(), track.getRecord());
         }
     }
 
-    @Override
-    public void onFailed() {
-        getLighthouseApplication().unregisterObserver(this);
+    protected void updateRecordPlayedState(Podcast podcast, Record record) {
+        record.setPlayed(true);
+        PodcastsUtils.storeRecordPlayedProperty(this, podcast.getId(), record);
+    }
+
+    private void onFailed() {
         updatePlayerView(false);
         Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();
     }
 
-    @Override
-    public void onCompleted() {
-        getLighthouseApplication().unregisterObserver(this);
-        updatePlayerView(false);
+    private void unsetMediaController() {
+        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
+        if (mediaController != null) {
+            mediaController.unregisterCallback(controllerCallback);
+            MediaControllerCompat.setMediaController(this, null);
+        }
+    }
+
+    private void updateMediaController() {
+        MediaBrowserCompat mediaBrowser = getLighthouseApplication().getMediaBrowser();
+        if (!mediaBrowser.isConnected()) {
+            unsetMediaController();
+            return;
+        }
+        MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
+
+        MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
+        if (mediaController == null) {
+            try {
+                mediaController = new MediaControllerCompat(this, token);
+            } catch (RemoteException e) {
+                Log.e(TAG, e.getMessage(), e);
+                return;
+            }
+            MediaControllerCompat.setMediaController(this, mediaController);
+            mediaController.registerCallback(controllerCallback);
+        }
+        playbackState = mediaController.getPlaybackState();
+        extras = playbackState.getExtras();
+        updateTrackFromExtras();
     }
 
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
-        if (MediaNotificationManager.ACTION_PAUSE.equals(action)) {
-            getMediaPlayer().pause();
-        } else if (MediaNotificationManager.ACTION_PLAY.equals(action)) {
-            getMediaPlayer().start();
-        } else if (MediaNotificationManager.ACTION_STOP.equals(action)) {
-            resetTrack();
+        if (ACTION_UPDATE.equals(action)) {
+            updateMediaController();
+
+            updatePlayerView(true);
         }
-        updatePlayerView(true);
     }
 }

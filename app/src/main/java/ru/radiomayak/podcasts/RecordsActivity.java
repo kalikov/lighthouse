@@ -38,7 +38,7 @@ import ru.radiomayak.content.Loader;
 import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.widget.ToolbarCompat;
 
-public class RecordsActivity extends LighthouseActivity implements PodcastAsyncTask.Listener, PageAsyncTask.Listener, RecordsPlayer {
+public class RecordsActivity extends LighthouseActivity implements PodcastAsyncTask.Listener, PageAsyncTask.Listener {
 
     public static final String ACTION_VIEW = RecordsActivity.class.getPackage().getName() + ".view";
 
@@ -46,7 +46,7 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
     public static final String EXTRA_PODCAST_ID = RecordsActivity.class.getPackage().getName() + ".PODCAST_ID";
     public static final String EXTRA_SEEN = RecordsActivity.class.getPackage().getName() + ".SEEN";
 
-    private static final String STATE_LOADING = RecordsActivity.class.getName() + "$loading";
+    private static final String STATE_CONTENT_VIEW = PodcastsActivity.class.getName() + "$contentView";
     private static final String STATE_FOOTER = RecordsActivity.class.getName() + "$footer";
 
     private static final String FRAGMENT_TAG = RecordsActivity.class.getName() + "$data";
@@ -78,19 +78,22 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
 
-        boolean loading = true;
+        boolean requestList = true;
 
         RecordsAdapter.FooterMode footerMode = null;
         if (state != null) {
-            loading = state.getBoolean(STATE_LOADING, true);
-            if (!loading) {
-                podcast = state.getParcelable(Podcast.class.getName());
+            boolean isContentView = state.getBoolean(STATE_CONTENT_VIEW, true);
+            if (isContentView) {
                 FragmentManager fragmentManager = getFragmentManager();
                 RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
-                records = dataFragment.getRecords();
-                paginator = dataFragment.getPaginator();
-                footerMode = paginator != null && paginator.hasNext() ? RecordsAdapter.FooterMode.LOADING : RecordsAdapter.FooterMode.HIDDEN;
-                footerMode = RecordsAdapter.FooterMode.values()[state.getInt(STATE_FOOTER, footerMode.ordinal())];
+                if (dataFragment != null) {
+                    podcast = state.getParcelable(Podcast.class.getName());
+                    records = dataFragment.getRecords();
+                    paginator = dataFragment.getPaginator();
+                    requestList = records == null || records.list().isEmpty();
+                    footerMode = paginator != null && paginator.hasNext() ? RecordsAdapter.FooterMode.LOADING : RecordsAdapter.FooterMode.HIDDEN;
+                    footerMode = RecordsAdapter.FooterMode.values()[state.getInt(STATE_FOOTER, footerMode.ordinal())];
+                }
             }
         }
         if (podcast == null) {
@@ -105,14 +108,14 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
             records = new Records();
         }
 
-        adapter = new RecordsAdapter(getLighthouseApplication(), podcast, records.list(), this);
+        adapter = new RecordsAdapter(this, podcast, records.list());
         if (footerMode != null) {
             adapter.setFooterMode(footerMode);
         }
 
         initializeView();
 
-        if (loading) {
+        if (requestList) {
             requestPodcast();
         } else {
             showContentView();
@@ -390,20 +393,22 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
 
     @Override
     public void onSaveInstanceState(Bundle state) {
-        state.putParcelable(Podcast.class.getName(), podcast);
+        if (records.list().isEmpty()) {
+            state.putBoolean(STATE_CONTENT_VIEW, getErrorView().getVisibility() == View.VISIBLE);
+        } else {
+            state.putBoolean(STATE_CONTENT_VIEW, true);
+            state.putParcelable(Podcast.class.getName(), podcast);
 
-        FragmentManager fragmentManager = getFragmentManager();
-        RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
-        if (dataFragment == null) {
-            dataFragment = new RecordsDataFragment();
-            fragmentManager.beginTransaction().add(dataFragment, FRAGMENT_TAG).commit();
+            FragmentManager fragmentManager = getFragmentManager();
+            RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
+            if (dataFragment == null) {
+                dataFragment = new RecordsDataFragment();
+                fragmentManager.beginTransaction().add(dataFragment, FRAGMENT_TAG).commit();
+            }
+            dataFragment.setRecords(records);
+            dataFragment.setPaginator(paginator);
+            state.putInt(STATE_FOOTER, adapter.getFooterMode().ordinal());
         }
-        dataFragment.setRecords(records);
-        dataFragment.setPaginator(paginator);
-
-        state.putBoolean(STATE_LOADING, getLoadingView().getVisibility() == View.VISIBLE);
-        state.putInt(STATE_FOOTER, adapter.getFooterMode().ordinal());
-
         super.onSaveInstanceState(state);
     }
 
@@ -643,8 +648,7 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
         alphaAnimator.start();
     }
 
-    @Override
-    public void playRecord(Record record) {
+    void playRecord(Record record) {
         LighthouseTrack track = getTrack();
         if (track != null && track.getRecord().getId() == record.getId()) {
             if (isPlaying()) {
@@ -652,7 +656,6 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
             } else {
                 play();
             }
-            updatePlayerView(true);
             return;
         }
 
@@ -661,12 +664,9 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
         } catch (Exception e) {
             Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();
         }
-
-        updatePlayerView(true);
     }
 
-    @Override
-    public void loadMore() {
+    void loadMore() {
         adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
         requestNextPage();
     }
@@ -680,15 +680,13 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
     }
 
     @Override
-    public void onPrepared() {
-        if (getTrack() == null) {
-            super.onPrepared();
-            return;
-        }
-        Record record = getTrack().getRecord();
-        boolean isPlayed = record.isPlayed();
-        super.onPrepared();
-        if (isPlayed != record.isPlayed()) {
+    protected void updateRecordPlayedState(Podcast podcast, Record record) {
+        super.updateRecordPlayedState(podcast, record);
+        if (this.podcast != null && this.podcast.getId() == podcast.getId()) {
+            Record adapterRecord = records.get(record.getId());
+            if (adapterRecord != null && adapterRecord != record) {
+                adapterRecord.setPlayed(record.isPlayed());
+            }
             updateRecordRow(record);
         }
     }
@@ -699,7 +697,8 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
             View view = recyclerView.getChildAt(i);
             RecyclerView.ViewHolder holder = recyclerView.getChildViewHolder(view);
             if (holder != null && holder.getItemViewType() == RecordsAdapter.ITEM_VIEW_TYPE) {
-                ((RecordsAdapter.ItemViewHolder) holder).updatePlayPauseState();
+                Record record = adapter.getItem(holder.getAdapterPosition());
+                ((RecordsAdapter.ItemViewHolder) holder).updatePlayPauseState(record);
             }
         }
     }

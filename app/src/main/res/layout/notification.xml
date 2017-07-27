@@ -1,0 +1,93 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+    <ImageView
+        android:id="@android:id/icon"
+        android:layout_width="@android:dimen/notification_large_icon_width"
+        android:layout_height="@android:dimen/notification_large_icon_height"
+        android:src="@drawable/mic"
+        tools:ignore="ContentDescription"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingEnd="@dimen/abc_control_padding_material"
+            android:paddingStart="@dimen/notification_padding"
+            android:paddingTop="@dimen/abc_control_padding_material">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@android:id/title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center_vertical"
+                    android:maxLines="1"
+                    android:text="@string/lorem_ipsum"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Notification.Title"/>
+
+            </LinearLayout>
+
+            <Button
+                android:id="@android:id/button1"
+                android:layout_width="@dimen/notification_action_icon_size"
+                android:layout_height="@dimen/notification_action_icon_size"
+                android:layout_marginStart="@dimen/notification_content_margin_start"
+                android:background="@drawable/notification_play_selector"
+                android:backgroundTint="@color/notification_action_color_filter"
+                android:backgroundTintMode="multiply"/>
+
+            <Button
+                android:id="@android:id/button2"
+                android:layout_width="@dimen/notification_action_icon_size"
+                android:layout_height="@dimen/notification_action_icon_size"
+                android:layout_marginStart="@dimen/notification_content_margin_start"
+                android:background="@drawable/notification_pause_selector"
+                android:backgroundTint="@color/notification_action_color_filter"
+                android:backgroundTintMode="multiply"
+                android:visibility="gone"/>
+
+            <Button
+                android:id="@android:id/button3"
+                android:layout_width="@dimen/notification_action_icon_size"
+                android:layout_height="@dimen/notification_action_icon_size"
+                android:layout_marginStart="@dimen/notification_content_margin_start"
+                android:background="@drawable/notification_close_selector"
+                android:backgroundTint="@color/notification_action_color_filter"
+                android:backgroundTintMode="multiply"/>
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@android:id/text1"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            android:paddingBottom="@dimen/notification_padding"
+            android:paddingEnd="@dimen/notification_padding"
+            android:paddingStart="@dimen/notification_padding"
+            android:text="@string/lorem_ipsum_large"
+            android:textAppearance="@style/TextAppearance.AppCompat.Notification"/>
+
+    </LinearLayout>
+
+</LinearLayout>

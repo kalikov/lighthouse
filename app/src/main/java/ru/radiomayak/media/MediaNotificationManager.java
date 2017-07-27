@@ -7,13 +7,18 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.support.v4.app.NotificationManagerCompat;
+import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.NotificationCompat;
 import android.util.Log;
+import android.view.View;
+import android.widget.RemoteViews;
 
-import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.R;
+import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.podcasts.Podcast;
+import ru.radiomayak.podcasts.PodcastImageCache;
+import ru.radiomayak.podcasts.PodcastsUtils;
 import ru.radiomayak.podcasts.Record;
 import ru.radiomayak.podcasts.RecordsActivity;
 
@@ -28,38 +33,37 @@ public class MediaNotificationManager extends BroadcastReceiver {
     public static final String ACTION_STOP = MediaNotificationManager.class.getPackage().getName() + ".stop";
 
     private final NotificationManagerCompat notificationManager;
-    private final LighthouseApplication application;
+    private final MediaPlayerService service;
 
     private final PendingIntent pauseIntent;
     private final PendingIntent playIntent;
     private final PendingIntent stopIntent;
 
     private NotificationCompat.Builder notificationBuilder;
-    private NotificationCompat.Action playPauseAction;
 
-    public MediaNotificationManager(LighthouseApplication application) {
-        this.application = application;
+    public MediaNotificationManager(MediaPlayerService service) {
+        this.service = service;
 
-        notificationManager = NotificationManagerCompat.from(application);
+        notificationManager = NotificationManagerCompat.from(service);
 
-        String pkg = application.getPackageName();
-        pauseIntent = PendingIntent.getBroadcast(application, REQUEST_CODE, new Intent(ACTION_PAUSE).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
-        playIntent = PendingIntent.getBroadcast(application, REQUEST_CODE, new Intent(ACTION_PLAY).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
-        stopIntent = PendingIntent.getBroadcast(application, REQUEST_CODE, new Intent(ACTION_STOP).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
+        String pkg = service.getPackageName();
+        pauseIntent = PendingIntent.getBroadcast(service, REQUEST_CODE, new Intent(ACTION_PAUSE).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
+        playIntent = PendingIntent.getBroadcast(service, REQUEST_CODE, new Intent(ACTION_PLAY).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
+        stopIntent = PendingIntent.getBroadcast(service, REQUEST_CODE, new Intent(ACTION_STOP).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
         notificationManager.cancelAll();
     }
 
     public boolean startNotification() {
         if (notificationBuilder == null) {
-            notificationBuilder = new NotificationCompat.Builder(application);
+            notificationBuilder = new NotificationCompat.Builder(service);
             Notification notification = createNotification();
             IntentFilter filter = new IntentFilter();
             filter.addAction(ACTION_PAUSE);
             filter.addAction(ACTION_PLAY);
             filter.addAction(ACTION_STOP);
-            application.registerReceiver(this, filter);
+            service.registerReceiver(this, filter);
 
-            notificationManager.notify(NOTIFICATION_ID, notification);
+            service.startForeground(NOTIFICATION_ID, notification);
             return true;
         }
         return false;
@@ -68,19 +72,16 @@ public class MediaNotificationManager extends BroadcastReceiver {
     public void updateNotification() {
         if (notificationBuilder != null) {
             Notification notification = createNotification();
-            if (notification != null) {
-                notificationManager.notify(NOTIFICATION_ID, notification);
-            }
+            notificationManager.notify(NOTIFICATION_ID, notification);
         }
     }
 
     public void stopNotification() {
         if (notificationBuilder != null) {
             notificationBuilder = null;
-            playPauseAction = null;
             try {
-                notificationManager.cancel(NOTIFICATION_ID);
-                application.unregisterReceiver(this);
+                service.stopForeground(true);
+                service.unregisterReceiver(this);
             } catch (IllegalArgumentException ignored) {
             }
         }
@@ -91,76 +92,80 @@ public class MediaNotificationManager extends BroadcastReceiver {
         String action = intent.getAction();
         Log.d(TAG, "Received intent with action " + action);
         if (ACTION_PAUSE.equals(action)) {
-            application.pause();
+            service.pause();
         } else if (ACTION_PLAY.equals(action)) {
-            application.play();
+            service.play();
         } else if (ACTION_STOP.equals(action)) {
-            application.resetTrack();
+            service.resetTrack();
         } else {
             Log.w(TAG, "Unknown intent ignored. Action=" + action);
         }
     }
 
     private PendingIntent createContentIntent(Podcast podcast, Record record) {
-        Intent intent = new Intent(application, RecordsActivity.class);
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(service.getApplicationContext());
+        stackBuilder.addParentStack(RecordsActivity.class);
+
+        Intent intent = new Intent(service.getApplicationContext(), RecordsActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         intent.putExtra(RecordsActivity.EXTRA_PODCAST, podcast);
-        return PendingIntent.getActivity(application, REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        stackBuilder.addNextIntent(intent);
+        return stackBuilder.getPendingIntent(REQUEST_CODE, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     private Notification createNotification() {
-        addPlayPauseAction(notificationBuilder);
-
-        LighthouseTrack track = application.getTrack();
+        LighthouseTrack track = service.getTrack();
         Podcast podcast = track.getPodcast();
         Record record = track.getRecord();
 
-        notificationBuilder.setSmallIcon(R.drawable.notification_play)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setUsesChronometer(true)
-                .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
-                .setDeleteIntent(stopIntent)
-                .setContentIntent(createContentIntent(podcast, record))
-                .setContentTitle(podcast.getName())
-                .setContentText(record.getName());
+        RemoteViews remoteViews = new RemoteViews(service.getPackageName(), R.layout.notification);
+        RemoteViews bigRemoteViews = new RemoteViews(service.getPackageName(), R.layout.notification_big);
 
-        setNotificationPlaybackState(notificationBuilder);
+        notificationBuilder.setSmallIcon(R.drawable.notification_icon)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentTitle(podcast.getName())
+                .setContent(remoteViews)
+                .setCustomBigContentView(bigRemoteViews)
+                .setContentIntent(createContentIntent(podcast, record));
+
+        setRecordState(remoteViews, podcast, record);
+        setRecordState(bigRemoteViews, podcast, record);
+
+        setPlayPauseState(remoteViews);
+        setPlayPauseState(bigRemoteViews);
+
+        setNotificationPlaybackState(bigRemoteViews);
 
         return notificationBuilder.build();
     }
 
-    private void addPlayPauseAction(NotificationCompat.Builder builder) {
-        Log.d(TAG, "updatePlayPauseAction");
-        String label;
-        int icon;
-        PendingIntent intent;
-        if (application.getMediaPlayer().isPlaying()) {
-            label = application.getString(R.string.pause);
-            icon = R.drawable.notification_pause;
-            intent = pauseIntent;
-        } else {
-            label = application.getString(R.string.play);
-            icon = R.drawable.notification_play;
-            intent = playIntent;
-        }
-        if (playPauseAction == null) {
-            playPauseAction = new NotificationCompat.Action(icon, label, intent);
-            builder.addAction(playPauseAction);
-        } else {
-            playPauseAction.icon = icon;
-            playPauseAction.title = label;
-            playPauseAction.actionIntent = intent;
+    private void setRecordState(RemoteViews remoteViews, Podcast podcast, Record record) {
+        remoteViews.setTextViewText(android.R.id.title, podcast.getName());
+        remoteViews.setTextViewText(android.R.id.text1, record.getName());
+
+        BitmapInfo bitmapInfo = PodcastImageCache.getInstance().getIcon(podcast.getId());
+        if (bitmapInfo != null) {
+            remoteViews.setImageViewBitmap(android.R.id.icon, bitmapInfo.getBitmap());
         }
     }
 
-    private void setNotificationPlaybackState(NotificationCompat.Builder builder) {
-        if (application.getMediaPlayer().getCurrentPosition() >= 0) {
-            int duration = application.getMediaPlayer().getDuration();
-            long progress = application.getMediaPlayer().getCurrentPosition();
-            builder.setProgress(100, (int) (progress * 100 / duration), false);
+    private void setPlayPauseState(RemoteViews remoteViews) {
+        remoteViews.setOnClickPendingIntent(android.R.id.button1, playIntent);
+        remoteViews.setOnClickPendingIntent(android.R.id.button2, pauseIntent);
+        remoteViews.setOnClickPendingIntent(android.R.id.button3, stopIntent);
+
+        if (service.getMediaPlayer().isPlaying()) {
+            remoteViews.setViewVisibility(android.R.id.button1, View.GONE);
+            remoteViews.setViewVisibility(android.R.id.button2, View.VISIBLE);
         } else {
-            builder.setProgress(0, 0, false);
+            remoteViews.setViewVisibility(android.R.id.button1, View.VISIBLE);
+            remoteViews.setViewVisibility(android.R.id.button2, View.GONE);
         }
-        builder.setWhen(0).setShowWhen(false).setUsesChronometer(false);
+    }
+
+    private void setNotificationPlaybackState(RemoteViews remoteViews) {
+        int pos = service.getMediaPlayer().getCurrentPosition();
+        int duration = service.getMediaPlayer().getDuration();
+        remoteViews.setTextViewText(android.R.id.text2, PodcastsUtils.formatTime(pos) + '/' + PodcastsUtils.formatTime(duration));
     }
 }
