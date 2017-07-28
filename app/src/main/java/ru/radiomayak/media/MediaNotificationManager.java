@@ -154,7 +154,7 @@ public class MediaNotificationManager extends BroadcastReceiver {
         remoteViews.setOnClickPendingIntent(android.R.id.button2, pauseIntent);
         remoteViews.setOnClickPendingIntent(android.R.id.button3, stopIntent);
 
-        if (service.getMediaPlayer().isPlaying()) {
+        if (service.isPlaying()) {
             remoteViews.setViewVisibility(android.R.id.button1, View.GONE);
             remoteViews.setViewVisibility(android.R.id.button2, View.VISIBLE);
         } else {
@@ -164,8 +164,8 @@ public class MediaNotificationManager extends BroadcastReceiver {
     }
 
     private void setNotificationPlaybackState(RemoteViews remoteViews) {
-        int pos = service.getMediaPlayer().getCurrentPosition();
-        int duration = service.getMediaPlayer().getDuration();
+        long pos = service.getCurrentPosition();
+        long duration = service.getDuration();
         remoteViews.setTextViewText(android.R.id.text2, PodcastsUtils.formatTime(pos) + '/' + PodcastsUtils.formatTime(duration));
     }
 }

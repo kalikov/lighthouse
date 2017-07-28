@@ -69,14 +69,14 @@ public final class PodcastsUtils {
     private PodcastsUtils() {
     }
 
-    public static String formatTime(int time) {
+    public static String formatTime(long time) {
         if (time <= 0) {
             return ZERO_TIME_TEXT;
         }
-        int totalSecs = time / 1000;
-        int secs = totalSecs % 60;
-        int mins = (totalSecs / 60) % 60;
-        int hours = totalSecs / 3600;
+        long totalSecs = time / 1000;
+        long secs = totalSecs % 60;
+        long mins = (totalSecs / 60) % 60;
+        long hours = totalSecs / 3600;
         if (hours > 0) {
             return String.format(Locale.ROOT, "%d:%02d:%02d", hours, mins, secs);
         }

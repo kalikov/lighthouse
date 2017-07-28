@@ -1,9 +1,7 @@
 package ru.radiomayak.media;
 
 import android.content.Context;
-import android.content.Intent;
 import android.media.AudioManager;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
@@ -15,7 +13,19 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 
-import java.io.IOException;
+import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.ExoPlayer;
+import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.PlaybackParameters;
+import com.google.android.exoplayer2.Timeline;
+import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
+import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.TrackGroupArray;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
+import com.google.android.exoplayer2.upstream.DataSource;
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
+
 import java.util.List;
 
 import ru.radiomayak.LighthouseTrack;
@@ -30,84 +40,99 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     private final Runnable progressRunnable = new Runnable() {
         @Override
         public void run() {
-            if (mediaPlayer.isPlaying()) {
-                int pos = mediaPlayer.getCurrentPosition();
-                int duration = mediaPlayer.getDuration();
-                if (!seeking && duration > 0) {
+            int state = mediaPlayer.getPlaybackState();
+            if (state == ExoPlayer.STATE_READY) {
+                long pos = mediaPlayer.getCurrentPosition();
+                float speed = mediaPlayer.getPlaybackParameters().speed;
+
+                if (!notificationManager.startNotification()) {
                     notificationManager.updateNotification();
-                    mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PLAYING, pos, 1).build());
                 }
-                progressHandler.postDelayed(progressRunnable, 1000 - (pos % 1000));
+                stateBuilder.setBufferedPosition(mediaPlayer.getBufferedPercentage());
+                int sessionState = mediaPlayer.getPlayWhenReady() ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+                mediaSession.setPlaybackState(stateBuilder.setState(sessionState, pos, speed).build());
+                if (mediaPlayer.getPlayWhenReady()) {
+                    progressHandler.postDelayed(progressRunnable, 1000 - (pos % 1000));
+                }
             }
         }
     };
 
-    private MediaPlayer mediaPlayer;
+    private ExoPlayer mediaPlayer;
     private WifiManager.WifiLock wifiLock;
 
     private MediaNotificationManager notificationManager;
 
     private MediaSessionCompat mediaSession;
     private PlaybackStateCompat.Builder stateBuilder;
+    private MediaMetadataCompat metadata;
 
     private LighthouseTrack track;
 
     private boolean restorePlay;
-    private boolean seeking;
 
     @Override
     public void onCreate() {
         super.onCreate();
 
-        mediaPlayer = new MediaPlayer();
-        mediaPlayer.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
+        mediaPlayer = ExoPlayerFactory.newSimpleInstance(this, new DefaultTrackSelector());
+        mediaPlayer.setPlayWhenReady(true);
+        mediaPlayer.addListener(new ExoPlayer.EventListener() {
             @Override
-            public void onPrepared(MediaPlayer mp) {
-                mediaSession.setActive(true);
-                startService(new Intent(getApplicationContext(), MediaPlayerService.class));
-                play();
-                mediaSession.setMetadata(new MediaMetadataCompat.Builder()
-                        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, mp.getDuration())
-                        .build());
+            public void onTimelineChanged(Timeline timeline, Object manifest) {
             }
-        });
-        mediaPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+
             @Override
-            public boolean onError(MediaPlayer mp, int what, int extra) {
+            public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+            }
+
+            @Override
+            public void onLoadingChanged(boolean isLoading) {
+                updateSessionActiveState();
+                updateMetadata();
+            }
+
+            @Override
+            public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+                switch (playbackState) {
+                    case ExoPlayer.STATE_IDLE:
+                        mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_NONE, 0, 0).build());
+                        break;
+                    case ExoPlayer.STATE_BUFFERING:
+                        updateSessionActiveState();
+                        updateMetadata();
+
+                        long pos = mediaPlayer.getCurrentPosition();
+                        float speed = mediaPlayer.getPlaybackParameters().speed;
+                        stateBuilder.setBufferedPosition(mediaPlayer.getBufferedPercentage());
+                        mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_BUFFERING, pos, speed).build());
+                        break;
+                    case ExoPlayer.STATE_READY:
+                        updateSessionActiveState();
+                        updateMetadata();
+                        progressRunnable.run();
+                        break;
+                    case ExoPlayer.STATE_ENDED:
+                        stop(PlaybackStateCompat.STATE_STOPPED);
+                        break;
+                }
+            }
+
+            @Override
+            public void onPlayerError(ExoPlaybackException error) {
                 mediaSession.setActive(false);
                 stop(PlaybackStateCompat.STATE_ERROR);
-                return true;
             }
-        });
-        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-            @Override
-            public void onCompletion(MediaPlayer mp) {
-                stop(PlaybackStateCompat.STATE_STOPPED);
-            }
-        });
-        mediaPlayer.setOnBufferingUpdateListener(new MediaPlayer.OnBufferingUpdateListener() {
-            @Override
-            public void onBufferingUpdate(MediaPlayer mp, int percent) {
-                if (percent == 100) {
-                    releaseWifiLockIfHeld();
-                }
-                if (!seeking) {
-                    mediaSession.setPlaybackState(stateBuilder.setBufferedPosition(percent).build());
-                }
-            }
-        });
-        mediaPlayer.setOnSeekCompleteListener(new MediaPlayer.OnSeekCompleteListener() {
-            @Override
-            public void onSeekComplete(MediaPlayer mp) {
-                seeking = false;
-                if (mp.isPlaying()) {
-                    progressRunnable.run();
-                } else {
-                    mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PAUSED, mp.getCurrentPosition(), 0).build());
-                }
-            }
-        });
 
+            @Override
+            public void onPositionDiscontinuity() {
+
+            }
+
+            @Override
+            public void onPlaybackParametersChanged(PlaybackParameters parameters) {
+            }
+        });
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
 
@@ -135,23 +160,17 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
                     return;
                 }
                 track = new LighthouseTrack(podcast, record);
+                acquireWifiLockIfNotHeld();
                 stateBuilder.setExtras(extras);
-                try {
-                    mediaPlayer.setDataSource(MediaPlayerService.this, uri);
-                    mediaPlayer.prepareAsync();
-                    mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_CONNECTING, 0, 0).build());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_ERROR, 0, 0).build());
-                }
+                DataSource.Factory dataSourceFactory = new DefaultHttpDataSourceFactory("ru.radiomayak");
+                mediaPlayer.prepare(new ExtractorMediaSource(uri, dataSourceFactory, new DefaultExtractorsFactory(), null, null));
             }
 
             @Override
             public void onSeekTo(long pos) {
-                seeking = true;
                 mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_REWINDING, pos, 0).build());
                 progressHandler.removeMessages(0);
-                mediaPlayer.seekTo((int) pos);
+                mediaPlayer.seekTo(pos);
             }
 
             @Override
@@ -200,10 +219,6 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         result.sendResult(null);
     }
 
-    MediaPlayer getMediaPlayer() {
-        return mediaPlayer;
-    }
-
     private void releaseWifiLockIfHeld() {
         if (wifiLock.isHeld()) {
             wifiLock.release();
@@ -216,23 +231,46 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         }
     }
 
-    public void play() {
-        if (!mediaSession.isActive()) {
-            return;
+    private void updateSessionActiveState() {
+        boolean isActive = mediaPlayer.getPlaybackState() != ExoPlayer.STATE_IDLE;
+        if (mediaSession.isActive() != isActive) {
+            mediaSession.setActive(isActive);
         }
-        getMediaPlayer().start();
-        progressRunnable.run();
+    }
+
+    private void updateMetadata() {
+        if (metadata == null) {
+            long duration = mediaPlayer.getDuration();
+            if (duration > 0) {
+                metadata = new MediaMetadataCompat.Builder().putLong(MediaMetadataCompat.METADATA_KEY_DURATION, duration).build();
+                mediaSession.setMetadata(metadata);
+            }
+        }
+    }
+
+    public long getCurrentPosition() {
+        return mediaPlayer.getCurrentPosition();
+    }
+
+    public long getDuration() {
+        return mediaPlayer.getDuration();
+    }
+
+    public boolean isPlaying() {
+        return mediaPlayer.getPlayWhenReady();
+    }
+
+    public void play() {
+        mediaPlayer.setPlayWhenReady(true);
         acquireWifiLockIfNotHeld();
         if (!notificationManager.startNotification()) {
             notificationManager.updateNotification();
         }
-        mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PLAYING, getMediaPlayer().getCurrentPosition(), 1).build());
     }
 
     public void pause() {
-        getMediaPlayer().pause();
+        mediaPlayer.setPlayWhenReady(false);
         notificationManager.updateNotification();
-        mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_PAUSED, getMediaPlayer().getCurrentPosition(), 0).build());
     }
 
     public void stop() {
@@ -242,7 +280,8 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     private void stop(int state) {
         releaseWifiLockIfHeld();
         notificationManager.stopNotification();
-        if (mediaPlayer.isPlaying()) {
+        mediaPlayer.seekToDefaultPosition();
+        if (mediaPlayer.getPlaybackState() != ExoPlayer.STATE_IDLE && mediaPlayer.getPlaybackState() != ExoPlayer.STATE_ENDED) {
             mediaPlayer.stop();
         }
         stopSelf();
@@ -256,22 +295,22 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
 
     public void resetTrack() {
         stateBuilder.setExtras(null);
+        stateBuilder.setBufferedPosition(0);
+
         mediaSession.setActive(false);
         mediaSession.setMetadata(null);
-        stop(PlaybackStateCompat.STATE_NONE);
+        metadata = null;
 
-        mediaPlayer.reset();
+        stop(PlaybackStateCompat.STATE_NONE);
         this.track = null;
     }
 
     @Override
     public void onAudioFocusChange(int focusChange) {
-        if (focusChange <= 0) {
-            if (getMediaPlayer().isPlaying()) {
-                pause();
-                restorePlay = true;
-            }
-        } else if (restorePlay) {
+        if (focusChange <= 0 && mediaPlayer.getPlayWhenReady()) {
+            restorePlay = true;
+            pause();
+        } else if (focusChange > 0 && restorePlay) {
             restorePlay = false;
             play();
         }

@@ -226,14 +226,14 @@ public class LighthouseActivity extends AppCompatActivity {
         updatePlayPauseButton();
 
         getSongNameView().setText(record.getName());
-        if (isPreparing() || isError()) {
+        if (isError()) {
             getSeekBar().setEnabled(false);
             getSeekBar().setProgress(0);
             getSeekBar().setSecondaryProgress(0);
             getSongPositionView().setText(ZERO_TIME_TEXT);
             getSongDurationView().setText(ZERO_TIME_TEXT);
         } else {
-            getSeekBar().setEnabled(true);
+            getSeekBar().setEnabled(getDuration() > 0);
             getSongPositionView().setText(PodcastsUtils.formatTime(getCurrentPosition()));
             getSongDurationView().setText(PodcastsUtils.formatTime(getDuration()));
             updateProgress();
@@ -323,7 +323,8 @@ public class LighthouseActivity extends AppCompatActivity {
     }
 
     public boolean isPreparing() {
-        return playbackState != null && playbackState.getState() == PlaybackStateCompat.STATE_CONNECTING;
+        return playbackState != null && (playbackState.getState() == PlaybackStateCompat.STATE_CONNECTING
+                || playbackState.getState() == PlaybackStateCompat.STATE_BUFFERING);
     }
 
     public boolean isRewinding() {
