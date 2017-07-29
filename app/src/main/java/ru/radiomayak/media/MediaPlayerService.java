@@ -262,6 +262,9 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
 
     public void play() {
         mediaPlayer.setPlayWhenReady(true);
+        if (mediaPlayer.getPlaybackState() == ExoPlayer.STATE_ENDED) {
+            mediaPlayer.seekToDefaultPosition();
+        }
         acquireWifiLockIfNotHeld();
         if (!notificationManager.startNotification()) {
             notificationManager.updateNotification();
@@ -280,13 +283,13 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     private void stop(int state) {
         releaseWifiLockIfHeld();
         notificationManager.stopNotification();
-        mediaPlayer.seekToDefaultPosition();
         if (mediaPlayer.getPlaybackState() != ExoPlayer.STATE_IDLE && mediaPlayer.getPlaybackState() != ExoPlayer.STATE_ENDED) {
             mediaPlayer.stop();
         }
         stopSelf();
         restorePlay = false;
-        mediaSession.setPlaybackState(stateBuilder.setState(state, 0, 0).build());
+        stateBuilder.setBufferedPosition(0);
+        mediaSession.setPlaybackState(stateBuilder.setState(state, 0, mediaPlayer.getPlaybackParameters().speed).build());
     }
 
     public LighthouseTrack getTrack() {
