@@ -7,7 +7,7 @@ android {
         applicationId "ru.radiomayak"
         minSdkVersion 19
         targetSdkVersion 25
-        versionCode 12
+        versionCode 13
         versionName "1.1"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
