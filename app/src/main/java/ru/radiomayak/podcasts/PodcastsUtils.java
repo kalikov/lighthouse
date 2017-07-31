@@ -15,7 +15,7 @@ import java.util.Locale;
 import ru.radiomayak.StringUtils;
 
 public final class PodcastsUtils {
-    private static final String PODCASTS_DATABASE_NAME = "podcasts";
+    static final String PODCASTS_DATABASE_NAME = "podcasts";
 
     private static final String PODCAST_ICON_FILE = "icon-%s";
     private static final String PODCAST_SPLASH_FILE = "splash-%s";
@@ -242,7 +242,7 @@ public final class PodcastsUtils {
     static void storePodcastSeen(Context context, long id, int seen) {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
         try (SQLiteDatabase database = helper.getWritableDatabase()) {
-            String[] args = args(id, seen);
+            String[] args = args(seen, id);
             database.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = ? WHERE " + PODCAST_ID + " = ?", args);
         }
     }

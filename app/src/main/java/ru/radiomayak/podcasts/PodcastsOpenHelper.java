@@ -6,7 +6,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
 class PodcastsOpenHelper extends SQLiteOpenHelper {
-    private static final int VERSION = 2;
+    private static final int VERSION = 3;
 
     static final String PODCASTS = "podcasts";
 
@@ -88,6 +88,10 @@ class PodcastsOpenHelper extends SQLiteOpenHelper {
         if (oldVersion <= 1) {
             db.execSQL(ALTER_PODCASTS_SEEN_SQL);
             db.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH);
+        }
+        if (oldVersion <= 2) {
+            db.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH +
+                    " WHERE "+ PODCAST_SEEN + " > " + PODCAST_LENGTH);
         }
     }
 }
