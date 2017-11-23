@@ -5,6 +5,7 @@
         android:duration="400"
         android:interpolator="@android:anim/linear_interpolator"
         android:propertyName="scaleY"
+        android:valueFrom="1"
         android:valueTo="2"/>
 
     <objectAnimator

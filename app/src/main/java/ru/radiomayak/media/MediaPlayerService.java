@@ -13,10 +13,12 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 
+import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlaybackException;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.ExoPlayerFactory;
 import com.google.android.exoplayer2.PlaybackParameters;
+import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
 import com.google.android.exoplayer2.source.ExtractorMediaSource;
@@ -27,6 +29,7 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 
 import java.util.List;
+import java.util.Objects;
 
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.podcasts.Podcast;
@@ -41,7 +44,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         @Override
         public void run() {
             int state = mediaPlayer.getPlaybackState();
-            if (state == ExoPlayer.STATE_READY) {
+            if (state == Player.STATE_READY) {
                 long pos = mediaPlayer.getCurrentPosition();
                 float speed = mediaPlayer.getPlaybackParameters().speed;
 
@@ -51,7 +54,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
                 stateBuilder.setBufferedPosition(mediaPlayer.getBufferedPercentage());
                 int sessionState = mediaPlayer.getPlayWhenReady() ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
                 mediaSession.setPlaybackState(stateBuilder.setState(sessionState, pos, speed).build());
-                if (mediaPlayer.getPlayWhenReady()) {
+                if (mediaPlayer.getPlayWhenReady() || mediaPlayer.isLoading()) {
                     progressHandler.postDelayed(progressRunnable, 1000 - (pos % 1000));
                 }
             }
@@ -59,6 +62,8 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     };
 
     private ExoPlayer mediaPlayer;
+    private MediaLoadControl loadControl;
+
     private WifiManager.WifiLock wifiLock;
 
     private MediaNotificationManager notificationManager;
@@ -75,9 +80,11 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     public void onCreate() {
         super.onCreate();
 
-        mediaPlayer = ExoPlayerFactory.newSimpleInstance(this, new DefaultTrackSelector());
+        loadControl = new MediaLoadControl(this);
+        loadControl.setAlwaysContinueLoading(true);
+        mediaPlayer = ExoPlayerFactory.newSimpleInstance(new DefaultRenderersFactory(this), new DefaultTrackSelector(), loadControl);
         mediaPlayer.setPlayWhenReady(true);
-        mediaPlayer.addListener(new ExoPlayer.EventListener() {
+        mediaPlayer.addListener(new Player.EventListener() {
             @Override
             public void onTimelineChanged(Timeline timeline, Object manifest) {
             }
@@ -95,10 +102,10 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
             @Override
             public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
                 switch (playbackState) {
-                    case ExoPlayer.STATE_IDLE:
+                    case Player.STATE_IDLE:
                         mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_NONE, 0, 0).build());
                         break;
-                    case ExoPlayer.STATE_BUFFERING:
+                    case Player.STATE_BUFFERING:
                         updateSessionActiveState();
                         updateMetadata();
 
@@ -107,15 +114,19 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
                         stateBuilder.setBufferedPosition(mediaPlayer.getBufferedPercentage());
                         mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_BUFFERING, pos, speed).build());
                         break;
-                    case ExoPlayer.STATE_READY:
+                    case Player.STATE_READY:
                         updateSessionActiveState();
                         updateMetadata();
                         progressRunnable.run();
                         break;
-                    case ExoPlayer.STATE_ENDED:
+                    case Player.STATE_ENDED:
                         stop(PlaybackStateCompat.STATE_STOPPED);
                         break;
                 }
+            }
+
+            @Override
+            public void onRepeatModeChanged(int repeatMode) {
             }
 
             @Override
@@ -126,17 +137,18 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
 
             @Override
             public void onPositionDiscontinuity() {
-
             }
 
             @Override
             public void onPlaybackParametersChanged(PlaybackParameters parameters) {
             }
         });
-        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        AudioManager audioManager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+        Objects.requireNonNull(audioManager, "Failed to obtain AudioManager");
         audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
 
         WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        Objects.requireNonNull(wifiManager, "Failed to obtain WifiManager");
         wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, TAG);
 
         notificationManager = new MediaNotificationManager(this);
@@ -163,7 +175,9 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
                 acquireWifiLockIfNotHeld();
                 stateBuilder.setExtras(extras);
                 DataSource.Factory dataSourceFactory = new DefaultHttpDataSourceFactory("ru.radiomayak");
+                setPlayWhenReady(true);
                 mediaPlayer.prepare(new ExtractorMediaSource(uri, dataSourceFactory, new DefaultExtractorsFactory(), null, null));
+                mediaPlayer.seekToDefaultPosition();
             }
 
             @Override
@@ -203,6 +217,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
+            loadControl = null;
         }
         releaseWifiLockIfHeld();
         notificationManager.stopNotification();
@@ -232,7 +247,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     }
 
     private void updateSessionActiveState() {
-        boolean isActive = mediaPlayer.getPlaybackState() != ExoPlayer.STATE_IDLE;
+        boolean isActive = mediaPlayer.getPlaybackState() != Player.STATE_IDLE;
         if (mediaSession.isActive() != isActive) {
             mediaSession.setActive(isActive);
         }
@@ -248,6 +263,11 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         }
     }
 
+    private void setPlayWhenReady(boolean playWhenReady) {
+        mediaPlayer.setPlayWhenReady(playWhenReady);
+        loadControl.setAlwaysContinueLoading(playWhenReady);
+    }
+
     public long getCurrentPosition() {
         return mediaPlayer.getCurrentPosition();
     }
@@ -261,8 +281,8 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     }
 
     public void play() {
-        mediaPlayer.setPlayWhenReady(true);
-        if (mediaPlayer.getPlaybackState() == ExoPlayer.STATE_ENDED) {
+        setPlayWhenReady(true);
+        if (mediaPlayer.getPlaybackState() == Player.STATE_ENDED) {
             mediaPlayer.seekToDefaultPosition();
         }
         acquireWifiLockIfNotHeld();
@@ -272,7 +292,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     }
 
     public void pause() {
-        mediaPlayer.setPlayWhenReady(false);
+        setPlayWhenReady(false);
         notificationManager.updateNotification();
     }
 
@@ -283,7 +303,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     private void stop(int state) {
         releaseWifiLockIfHeld();
         notificationManager.stopNotification();
-        if (mediaPlayer.getPlaybackState() != ExoPlayer.STATE_IDLE && mediaPlayer.getPlaybackState() != ExoPlayer.STATE_ENDED) {
+        if (mediaPlayer.getPlaybackState() != Player.STATE_IDLE && mediaPlayer.getPlaybackState() != Player.STATE_ENDED) {
             mediaPlayer.stop();
         }
         stopSelf();

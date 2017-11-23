@@ -2,6 +2,10 @@ package ru.radiomayak.podcasts;
 
 import android.animation.ValueAnimator;
 import android.app.FragmentManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
@@ -17,6 +21,10 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.view.ContextMenu;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -41,10 +49,14 @@ import ru.radiomayak.widget.ToolbarCompat;
 public class RecordsActivity extends LighthouseActivity implements PodcastAsyncTask.Listener, PageAsyncTask.Listener {
 
     public static final String ACTION_VIEW = RecordsActivity.class.getPackage().getName() + ".view";
+    public static final String ACTION_UPDATE = RecordsActivity.class.getPackage().getName() + ".update";
 
     public static final String EXTRA_PODCAST = RecordsActivity.class.getPackage().getName() + ".PODCAST";
     public static final String EXTRA_PODCAST_ID = RecordsActivity.class.getPackage().getName() + ".PODCAST_ID";
+    public static final String EXTRA_RECORD_ID = RecordsActivity.class.getPackage().getName() + ".RECORD_ID";
     public static final String EXTRA_SEEN = RecordsActivity.class.getPackage().getName() + ".SEEN";
+    public static final String EXTRA_CACHE_SIZE = RecordsActivity.class.getPackage().getName() + ".CACHE_SIZE";
+    public static final String EXTRA_CACHE_PARTIAL = RecordsActivity.class.getPackage().getName() + ".CACHE_PARTIAL";
 
     private static final String STATE_CONTENT_VIEW = PodcastsActivity.class.getName() + "$contentView";
     private static final String STATE_FOOTER = RecordsActivity.class.getName() + "$footer";
@@ -55,6 +67,21 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
         @Override
         public void onLoadComplete(Loader<BitmapInfo> loader, BitmapInfo data) {
             onSplashLoadComplete(data);
+        }
+    };
+
+    private final BroadcastReceiver updateReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            long id = intent.getLongExtra(RecordsActivity.EXTRA_PODCAST_ID, 0);
+            if (podcast != null && podcast.getId() == id) {
+                long recordId = intent.getLongExtra(RecordsActivity.EXTRA_RECORD_ID, 0);
+                Record record = records.get(recordId);
+                if (record != null) {
+                    record.setCacheSize(intent.getIntExtra(RecordsActivity.EXTRA_CACHE_SIZE, 0));
+                    updateRecordCacheState(record);
+                }
+            }
         }
     };
 
@@ -77,6 +104,10 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
     @Override
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(RecordsActivity.ACTION_UPDATE);
+        registerReceiver(updateReceiver, filter);
 
         boolean requestList = true;
 
@@ -128,7 +159,26 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
     }
 
     @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.podcast_menu, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.clear_cache:
+
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
+        }
+    }
+
+    @Override
     protected void onDestroy() {
+        unregisterReceiver(updateReceiver);
         if (alphaAnimator != null) {
             alphaAnimator.cancel();
         }
@@ -423,7 +473,7 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
             return;
         }
         if (adapter.isEmpty() || NetworkUtils.isConnected(this)) {
-            podcastAsyncTask = new PodcastAsyncTask(this, this);
+            podcastAsyncTask = new PodcastAsyncTask(getLighthouseApplication(), this);
             if (adapter.isEmpty()) {
                 podcastAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcast.getId(), PodcastAsyncTask.LOOPBACK);
                 showLoadingView();
@@ -440,7 +490,7 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
         if (paginator == null || pageAsyncTask != null) {
             return;
         }
-        pageAsyncTask = new PageAsyncTask(this, this);
+        pageAsyncTask = new PageAsyncTask(getLighthouseApplication(), this);
         pageAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, paginator);
     }
 
@@ -691,6 +741,14 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
         }
     }
 
+    private void updateRecordCacheState(Record record) {
+        RecyclerView view = getRecyclerView();
+        RecyclerView.ViewHolder viewHolder = view.findViewHolderForItemId(record.getId());
+        if (viewHolder != null && viewHolder instanceof RecordsAdapter.ItemViewHolder) {
+            ((RecordsAdapter.ItemViewHolder) viewHolder).updateCacheState(record);
+        }
+    }
+
     private void updateRecordsRows() {
         RecyclerView recyclerView = getRecyclerView();
         for (int i = 0, n = recyclerView.getChildCount(); i < n; i++) {
@@ -701,5 +759,12 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
                 ((RecordsAdapter.ItemViewHolder) holder).updatePlayPauseState(record);
             }
         }
+    }
+
+    @Override
+    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+        menu.setHeaderTitle("Select The Action");
+        menu.add(0, v.getId(), 0, "Call");//groupId, itemId, order, title
+        menu.add(0, v.getId(), 0, "SMS");
     }
 }

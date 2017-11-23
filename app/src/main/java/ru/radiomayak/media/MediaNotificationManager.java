@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.app.TaskStackBuilder;
 import android.support.v7.app.NotificationCompat;
@@ -57,6 +58,10 @@ public class MediaNotificationManager extends BroadcastReceiver {
         if (notificationBuilder == null) {
             notificationBuilder = new NotificationCompat.Builder(service);
             Notification notification = createNotification();
+            if (notification == null) {
+                notificationBuilder = null;
+                return false;
+            }
             IntentFilter filter = new IntentFilter();
             filter.addAction(ACTION_PAUSE);
             filter.addAction(ACTION_PLAY);
@@ -72,7 +77,11 @@ public class MediaNotificationManager extends BroadcastReceiver {
     public void updateNotification() {
         if (notificationBuilder != null) {
             Notification notification = createNotification();
-            notificationManager.notify(NOTIFICATION_ID, notification);
+            if (notification == null) {
+                stopNotification();
+            } else {
+                notificationManager.notify(NOTIFICATION_ID, notification);
+            }
         }
     }
 
@@ -113,8 +122,12 @@ public class MediaNotificationManager extends BroadcastReceiver {
         return stackBuilder.getPendingIntent(REQUEST_CODE, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
+    @Nullable
     private Notification createNotification() {
         LighthouseTrack track = service.getTrack();
+        if (track == null) {
+            return null;
+        }
         Podcast podcast = track.getPodcast();
         Record record = track.getRecord();
 

@@ -205,6 +205,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             durationView.setTypeface(activity.getLighthouseApplication().getFontLight());
 
             updatePlayPauseState(record);
+            updateCacheState(record);
 
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -215,9 +216,33 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             itemView.setOnLongClickListener(new View.OnLongClickListener() {
                 @Override
                 public boolean onLongClick(View view) {
+                    view.showContextMenu();
                     return true;
                 }
             });
+            itemView.setOnCreateContextMenuListener(activity);
+        }
+
+        void updateCacheState(Record record) {
+            TextView cacheView = getCacheView(itemView);
+            ImageView cacheIconView = getCacheIconView(itemView);
+            if (record.getCacheSize() == 0) {
+                cacheView.setVisibility(View.GONE);
+                cacheIconView.setVisibility(View.GONE);
+            } else {
+                cacheView.setVisibility(View.VISIBLE);
+                cacheView.setText(formatSize(record.getCacheSize()));
+                cacheIconView.setVisibility(View.VISIBLE);
+            }
+        }
+
+        private String formatSize(int size) {
+            int kbytes = size / 1024;
+            int mbytes = kbytes / 1024;
+            if (mbytes > 0) {
+                return mbytes + " MB";
+            }
+            return kbytes + " KB";
         }
 
         void updatePlayPauseState(Record record) {
@@ -260,6 +285,14 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
         private ImageView getDoneIconView(View view) {
             return (ImageView) view.findViewById(android.R.id.icon1);
+        }
+
+        private ImageView getCacheIconView(View view) {
+            return (ImageView) view.findViewById(android.R.id.icon2);
+        }
+
+        private TextView getCacheView(View view) {
+            return (TextView) view.findViewById(R.id.cache);
         }
     }
 

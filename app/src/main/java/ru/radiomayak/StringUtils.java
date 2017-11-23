@@ -47,6 +47,10 @@ public final class StringUtils {
         return WHITESPACE_PATTERN.matcher(string).replaceAll(" ").trim();
     }
 
+    public static boolean isEmpty(String string) {
+        return string == null || string.isEmpty();
+    }
+
     @Nullable
     public static String nonEmpty(@Nullable String string) {
         return string == null || string.isEmpty() ? null : string;

@@ -7,6 +7,8 @@ import android.graphics.Typeface;
 import android.support.annotation.NonNull;
 import android.support.v4.media.MediaBrowserCompat;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -18,11 +20,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import ru.radiomayak.content.LoaderManager;
 import ru.radiomayak.graphics.BitmapInfo;
+import ru.radiomayak.podcasts.PodcastsMediaProxyContext;
 import ru.radiomayak.media.MediaPlayerService;
+import ru.radiomayak.media.DefaultMediaProxyServer;
+import ru.radiomayak.media.MediaProxyServer;
 
 public class LighthouseApplication extends Application {
-    private static final int KEEP_ALIVE_SECONDS = 30;
-
     private static final ThreadFactory threadFactory = new ThreadFactory() {
         private final AtomicInteger counter = new AtomicInteger(1);
 
@@ -31,12 +34,12 @@ public class LighthouseApplication extends Application {
         }
     };
 
-    private static final BlockingQueue<Runnable> executorQueue = new LinkedBlockingQueue<>(128);
+    private static final BlockingQueue<Runnable> executorQueue = new LinkedBlockingQueue<>();
 
     public static final Executor NETWORK_POOL_EXECUTOR;
 
     static {
-        NETWORK_POOL_EXECUTOR = new ThreadPoolExecutor(1, 3, KEEP_ALIVE_SECONDS, TimeUnit.SECONDS, executorQueue, threadFactory);
+        NETWORK_POOL_EXECUTOR = new ThreadPoolExecutor(3, 3, 0, TimeUnit.SECONDS, executorQueue, threadFactory);
     }
 
     public static final Executor NETWORK_SERIAL_EXECUTOR = Executors.newSingleThreadExecutor();
@@ -67,6 +70,9 @@ public class LighthouseApplication extends Application {
     private Typeface fontNormal;
     private Typeface fontLight;
 
+    private PodcastsMediaProxyContext mediaProxyContext;
+    private MediaProxyServer mediaProxy;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -77,11 +83,29 @@ public class LighthouseApplication extends Application {
 
         mediaBrowser = new MediaBrowserCompat(this, new ComponentName(this, MediaPlayerService.class), connectionCallbacks, null);
         mediaBrowser.connect();
+
+        mediaProxyContext = new PodcastsMediaProxyContext(getApplicationContext());
+        mediaProxy = new DefaultMediaProxyServer(mediaProxyContext);
+        try {
+            mediaProxy.start();
+        } catch (IOException ignored) {
+        }
     }
 
     @Override
     public void onTerminate() {
         mediaBrowser.disconnect();
+
+        if (mediaProxy != null) {
+            try {
+                mediaProxy.stop();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                mediaProxy = null;
+            }
+        }
+        mediaProxyContext = null;
 
         super.onTerminate();
     }
@@ -104,6 +128,14 @@ public class LighthouseApplication extends Application {
 
     public MediaBrowserCompat getMediaBrowser() {
         return mediaBrowser;
+    }
+
+    public MediaProxyServer getMediaProxy() {
+        return mediaProxy;
+    }
+
+    public File getCacheDir() {
+        return mediaProxyContext.getCacheDir();
     }
 
     private void broadcastUpdate() {

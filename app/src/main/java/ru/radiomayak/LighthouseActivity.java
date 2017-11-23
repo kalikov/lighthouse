@@ -28,6 +28,7 @@ import android.widget.Toast;
 import java.io.IOException;
 
 import ru.radiomayak.animation.Interpolators;
+import ru.radiomayak.media.MediaProxyServer;
 import ru.radiomayak.podcasts.Podcast;
 import ru.radiomayak.podcasts.PodcastsUtils;
 import ru.radiomayak.podcasts.Record;
@@ -82,7 +83,7 @@ public class LighthouseActivity extends AppCompatActivity {
             if (state.getState() == PlaybackStateCompat.STATE_ERROR) {
                 isSeeking = false;
                 onFailed();
-            } else if (state.getState() == PlaybackStateCompat.STATE_PLAYING) {
+            } else if (state.getState() == PlaybackStateCompat.STATE_PLAYING || state.getState() == PlaybackStateCompat.STATE_PAUSED) {
                 isSeeking = false;
                 updateRecordPlayedState();
                 updatePlayerView(false);
@@ -133,7 +134,7 @@ public class LighthouseActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
-        unsetMediaController();
+//        unsetMediaController();
 
         super.onPause();
     }
@@ -302,8 +303,17 @@ public class LighthouseActivity extends AppCompatActivity {
         bundle.putParcelable(Podcast.class.getName(), track.getPodcast());
         extras = bundle;
         this.track = track;
+
+        Uri uri;
+        MediaProxyServer mediaProxy = getLighthouseApplication().getMediaProxy();
+        if (mediaProxy == null || !mediaProxy.isStarted()) {
+            uri = Uri.parse(record.getUrl());
+        } else {
+            uri = mediaProxy.formatUri(track.getPodcast().getId(), record.getId(), record.getUrl());
+        }
+
         MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
-        mediaController.getTransportControls().playFromUri(Uri.parse(record.getUrl()), bundle);
+        mediaController.getTransportControls().playFromUri(uri, bundle);
     }
 
     public int getCurrentPosition() {
@@ -415,7 +425,7 @@ public class LighthouseActivity extends AppCompatActivity {
     }
 
     protected long updateProgress() {
-        if (isTracking || isPreparing() || isRewinding()) {
+        if (isTracking || isRewinding()) {
             return 0;
         }
         int position = getCurrentPosition();

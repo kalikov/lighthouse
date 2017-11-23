@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URL;
 
+import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.http.DefaultHttpClientConnectionFactory;
 import ru.radiomayak.http.HttpClientConnection;
@@ -78,7 +79,7 @@ class OnlineRecordsPaginator implements RecordsPaginator {
     }
 
     @Override
-    public RecordsPaginator advance(Context context) {
+    public RecordsPaginator advance(LighthouseApplication context) {
         try {
             return requestPage(context, id, nextPage);
         } catch (IOException | HttpException e) {

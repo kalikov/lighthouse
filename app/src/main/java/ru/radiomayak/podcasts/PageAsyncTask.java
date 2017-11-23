@@ -4,17 +4,19 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import ru.radiomayak.LighthouseApplication;
+
 class PageAsyncTask extends AsyncTask<Object, Void, RecordsPaginator> {
     private static final String LOG_TAG = PageAsyncTask.class.getSimpleName();
 
-    private final Context context;
+    private final LighthouseApplication context;
     private final Listener listener;
 
     interface Listener {
         void onPageLoaded(RecordsPaginator response, boolean isCancelled);
     }
 
-    PageAsyncTask(Context context, Listener listener) {
+    PageAsyncTask(LighthouseApplication context, Listener listener) {
         this.context = context;
         this.listener = listener;
     }

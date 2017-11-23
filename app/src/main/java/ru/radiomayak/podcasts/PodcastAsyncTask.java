@@ -1,15 +1,18 @@
 package ru.radiomayak.podcasts;
 
-import android.content.Context;
 import android.util.Log;
 
 import org.apache.commons.io.IOUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.net.URL;
 import java.util.List;
 
+import ru.radiomayak.CacheUtils;
+import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.http.DefaultHttpClientConnectionFactory;
 import ru.radiomayak.http.HttpClientConnection;
@@ -20,6 +23,8 @@ import ru.radiomayak.http.HttpResponse;
 import ru.radiomayak.http.HttpUtils;
 import ru.radiomayak.http.HttpVersion;
 import ru.radiomayak.http.message.BasicHttpRequest;
+import ru.radiomayak.media.ByteMap;
+import ru.radiomayak.media.ByteMapUtils;
 
 class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastResponse> {
     static final Object LOOPBACK = new Object();
@@ -32,15 +37,15 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
 
     private final PodcastLayoutParser parser = new PodcastLayoutParser();
 
-    private final Context context;
+    private final LighthouseApplication application;
     private final Listener listener;
 
     interface Listener {
         void onPodcastLoaded(PodcastResponse response, boolean isCancelled);
     }
 
-    PodcastAsyncTask(Context context, Listener listener) {
-        this.context = context;
+    PodcastAsyncTask(LighthouseApplication application, Listener listener) {
+        this.application = application;
         this.listener = listener;
     }
 
@@ -48,11 +53,19 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
     protected PodcastResponse doInBackground(Object... params) {
         try {
             long id = ((Number) params[0]).longValue();
-            if (NetworkUtils.isConnected(context)) {
+            if (NetworkUtils.isConnected(application)) {
                 try {
                     PodcastLayoutContent response = requestContent(id);
                     if (response != null && !response.getRecords().list().isEmpty()) {
-                        PodcastsUtils.storeRecords(context, id, response.getRecords().list());
+                        PodcastsUtils.storeRecords(application, id, response.getRecords().list());
+                        File cacheDir = application.getCacheDir();
+                        for (Record record : response.getRecords().list()) {
+                            try (RandomAccessFile file = new RandomAccessFile(CacheUtils.getFile(cacheDir, 0, String.valueOf(record.getId())), "r")) {
+                                ByteMap byteMap = ByteMapUtils.readHeader(file);
+                                record.setCacheSize(byteMap.size());
+                            } catch (IOException ignored) {
+                            }
+                        }
                         RecordsPaginator paginator = new OnlineRecordsPaginator(id, response.getRecords(), response.getNextPage());
                         return new PodcastResponse(response.getPodcast(), paginator);
                     }
@@ -60,7 +73,7 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
                 }
             }
             if (params.length > 1 && params[1] == LOOPBACK) {
-                List<Record> records = PodcastsUtils.loadRecords(context, id, 0, OFFLINE_PAGE_SIZE + 1);
+                List<Record> records = PodcastsUtils.loadRecords(application, id, 0, OFFLINE_PAGE_SIZE + 1);
                 return new PodcastResponse(null, new OfflineRecordsPaginator(id, records, OFFLINE_PAGE_SIZE));
             }
         } catch (Throwable e) {

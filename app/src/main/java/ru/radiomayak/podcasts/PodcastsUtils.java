@@ -8,11 +8,19 @@ import android.support.annotation.Nullable;
 
 import org.apache.commons.io.IOUtils;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import ru.radiomayak.CacheUtils;
+import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.StringUtils;
+import ru.radiomayak.media.ByteMap;
+import ru.radiomayak.media.ByteMapUtils;
 
 public final class PodcastsUtils {
     static final String PODCASTS_DATABASE_NAME = "podcasts";
@@ -255,8 +263,8 @@ public final class PodcastsUtils {
         return String.format(PODCAST_SPLASH_FILE, String.valueOf(podcast.getId()));
     }
 
-    static List<Record> loadRecords(Context context, long podcast, long from, int count) {
-        PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
+    static List<Record> loadRecords(LighthouseApplication application, long podcast, long from, int count) {
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(application, PODCASTS_DATABASE_NAME);
         try (SQLiteDatabase database = helper.getReadableDatabase()) {
             String sql = "SELECT " + StringUtils.join(RECORDS_SELECT_FIELDS, ", ") + " FROM " + PodcastsOpenHelper.RECORDS;
             String args[];
@@ -269,6 +277,7 @@ public final class PodcastsUtils {
             }
             sql += " ORDER BY " + RECORD_ID + " DESC LIMIT " + count;
 
+            File cacheDir = application.getCacheDir();
             try (Cursor cursor = database.rawQuery(sql, args)) {
                 List<Record> records = new ArrayList<>(count);
                 while (cursor.moveToNext()) {
@@ -281,6 +290,11 @@ public final class PodcastsUtils {
                     record.setDate(cursor.getString(i++));
                     record.setDuration(cursor.getString(i++));
                     record.setPlayed(cursor.getInt(i) != 0);
+                    try (RandomAccessFile file = new RandomAccessFile(CacheUtils.getFile(cacheDir, 0, String.valueOf(id)), "r")) {
+                        ByteMap byteMap = ByteMapUtils.readHeader(file);
+                        record.setCacheSize(byteMap.size());
+                    } catch (IOException ignored) {
+                    }
                     records.add(record);
                 }
                 return records;

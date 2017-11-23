@@ -4,15 +4,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
-        android:id="@android:id/button1"
-        android:icon="@android:drawable/btn_plus"
-        android:title="@string/lorem_ipsum"
-        app:showAsAction="ifRoom"/>
-
-    <!-- Settings, should always be in the overflow -->
-    <item
-        android:id="@android:id/button2"
-        android:title="@string/lorem_ipsum"
+        android:id="@+id/clear_cache"
+        android:title="@string/records_clear_cache"
         app:showAsAction="never"/>
 
 </menu>

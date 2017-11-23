@@ -21,6 +21,7 @@ public class Record implements Parcelable, Jsonable {
     private static final String PROP_DATE = "date";
     private static final String PROP_DURATION = "duration";
     private static final String PROP_PLAYED = "played";
+    private static final String PROP_CACHE_SIZE = "cache_size";
 
     public static final Creator<Record> CREATOR = new Creator<Record>() {
         @Override
@@ -41,6 +42,7 @@ public class Record implements Parcelable, Jsonable {
     private String date;
     private String duration;
     private boolean isPlayed;
+    private int cacheSize;
 
     protected Record(Parcel in) {
         id = in.readLong();
@@ -50,6 +52,7 @@ public class Record implements Parcelable, Jsonable {
         date = readStringFromParcel(in);
         duration = readStringFromParcel(in);
         isPlayed = in.readByte() != 0;
+        cacheSize = in.readInt();
     }
 
     public Record(long id, String name, String url, @Nullable URI uri) {
@@ -76,6 +79,7 @@ public class Record implements Parcelable, Jsonable {
         writeStringToParcel(out, date);
         writeStringToParcel(out, duration);
         out.writeByte(isPlayed ? (byte) 1 : 0);
+        out.writeInt(cacheSize);
     }
 
     @Nullable
@@ -136,6 +140,14 @@ public class Record implements Parcelable, Jsonable {
         this.isPlayed = isPlayed;
     }
 
+    public int getCacheSize() {
+        return cacheSize;
+    }
+
+    public void setCacheSize(int cacheSize) {
+        this.cacheSize = cacheSize;
+    }
+
     public boolean merge(Record record) {
         boolean updated = false;
         if (record.getDescription() != null) {
@@ -154,6 +166,10 @@ public class Record implements Parcelable, Jsonable {
             updated = true;
             isPlayed = true;
         }
+        if (record.getCacheSize() != cacheSize) {
+            cacheSize = record.getCacheSize();
+            updated = true;
+        }
         return updated;
     }
 
@@ -168,6 +184,9 @@ public class Record implements Parcelable, Jsonable {
             json.put(PROP_DATE, date);
             json.put(PROP_DURATION, duration);
             json.put(PROP_PLAYED, isPlayed);
+            if (cacheSize > 0) {
+                json.put(PROP_CACHE_SIZE, cacheSize);
+            }
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }
@@ -193,6 +212,7 @@ public class Record implements Parcelable, Jsonable {
         record.setDate(StringUtils.nonEmpty(JsonUtils.getOptString(json, PROP_DATE)));
         record.setDuration(StringUtils.nonEmpty(JsonUtils.getOptString(json, PROP_DURATION)));
         record.setPlayed(JsonUtils.getOptBoolean(json, PROP_PLAYED, false));
+        record.setCacheSize(JsonUtils.getOptInt(json, PROP_CACHE_SIZE, 0));
         return record;
     }
 }

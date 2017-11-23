@@ -6,6 +6,8 @@ import android.os.Parcel;
 import java.util.ArrayList;
 import java.util.List;
 
+import ru.radiomayak.LighthouseApplication;
+
 class OfflineRecordsPaginator implements RecordsPaginator {
     public static final Creator<OfflineRecordsPaginator> CREATOR = new Creator<OfflineRecordsPaginator>() {
         @Override
@@ -66,7 +68,7 @@ class OfflineRecordsPaginator implements RecordsPaginator {
     }
 
     @Override
-    public RecordsPaginator advance(Context context) {
+    public RecordsPaginator advance(LighthouseApplication context) {
         long from = records.get(pageSize - 1).getId();
         List<Record> nextRecords = PodcastsUtils.loadRecords(context, podcast, from, pageSize + 1);
         return new OfflineRecordsPaginator(podcast, nextRecords, pageSize);

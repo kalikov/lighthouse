@@ -29,6 +29,14 @@
     <string name="records_error">Не удалось получить список записей.\nПопробуйте повторить попытку.</string>
     <string name="records_count">Количество записей: %s</string>
     <string name="records_more">Загрузить ещё&#8230;</string>
+    <string name="records_clear_cache">Очистить оффлайн-кэш</string>
     <string name="record_date_format">dd MMMM yyyy</string>
     <string name="record_duration">Продолжительность: %s</string>
+
+    <string name="settings">Настройки</string>
+
+    <string name="settings_offline">Оффлайн режим</string>
+
+    <string name="setting_title_cache_while_streaming">Кэшировать при воспроизведении</string>
+    <string name="setting_description_cache_while_streaming">Автоматическое сохранение на устройстве проигрываемых записей для возможности воспроизведения их в оффлайн</string>
 </resources>

@@ -44,18 +44,23 @@
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value=".podcasts.PodcastsActivity"/>
         </activity>
+        <activity
+            android:name=".podcasts.SettingsActivity"
+            android:label="@string/settings"
+            android:parentActivityName=".podcasts.PodcastsActivity">
+        </activity>
+
+        <service android:name=".media.MediaPlayerService">
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService"/>
+            </intent-filter>
+        </service>
 
         <receiver android:name="android.support.v4.media.session.MediaButtonReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON"/>
             </intent-filter>
         </receiver>
-
-        <service android:name=".media.MediaPlayerService">
-            <intent-filter>
-                <action android:name="android.media.browse.MediaBrowserService" />
-            </intent-filter>
-        </service>
     </application>
 
 </manifest>
