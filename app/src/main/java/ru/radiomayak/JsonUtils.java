@@ -1,42 +1,14 @@
 package ru.radiomayak;
 
 import android.support.annotation.Nullable;
-import android.util.JsonReader;
-
-//import com.google.gson.JsonArray;
-//import com.google.gson.JsonElement;
-//import com.google.gson.JsonObject;
-//import com.google.gson.JsonParser;
-//import com.google.gson.JsonPrimitive;
-//import com.google.gson.internal.Streams;
-//import com.google.gson.stream.JsonWriter;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.JSONTokener;
-
-import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
 
 public final class JsonUtils {
-//    private static final JsonReader parser = new JsonReader();
-
     private JsonUtils() {
     }
-
-//    public static Object parse(Reader reader) {
-//        reader.
-//        JSONTokener parser = new JSONTokener(reader);
-//        return JSON..
-//    }
-//
-//    public static void write(Writer writer, Object element) throws IOException {
-//        JsonWriter jsonWriter = new JsonWriter(writer);
-//        jsonWriter.setLenient(true);
-//        Streams.write(element, jsonWriter);
-//    }
 
     public static JSONArray toJsonArray(Iterable<? extends Jsonable> items) {
         JSONArray array = new JSONArray();

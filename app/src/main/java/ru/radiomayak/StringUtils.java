@@ -35,7 +35,6 @@ public final class StringUtils {
         return s1 != null && s2 != null ? s1.equalsIgnoreCase(s2) : s1 == null && s2 == null;
     }
 
-
     @Nullable
     public static String normalize(@Nullable String string) {
         if (string == null) {
@@ -57,6 +56,11 @@ public final class StringUtils {
     }
 
     @Nullable
+    public static String nonEmpty(@Nullable String string, String defaultString) {
+        return string == null || string.isEmpty() ? defaultString : string;
+    }
+
+    @Nullable
     public static String nonEmptyTrimmed(@Nullable String string) {
         if (string == null || string.isEmpty()) {
             return null;
@@ -69,11 +73,6 @@ public final class StringUtils {
     public static String nonEmptyNormalized(@Nullable String string) {
         String normalized = normalize(string);
         return nonEmpty(normalized);
-    }
-
-    @Nullable
-    public static String nonEmpty(@Nullable String string, String defaultString) {
-        return string == null || string.isEmpty() ? defaultString : string;
     }
 
     public static String requireNonEmpty(String string) {
