@@ -182,6 +182,27 @@ public class ByteMapTest {
     }
 
     @Test
+    public void testComplementSingleIntersectingLowerMerge() {
+        ByteMap byteMap = new ByteMap(new int[]{60, 80});
+        Assert.assertEquals(0, byteMap.merge(41, 59));
+        Assert.assertTrue(Arrays.toString(byteMap.segments()), Arrays.equals(byteMap.segments(), new int[]{41, 80}));
+    }
+
+    @Test
+    public void testComplementSingleIntersectingUpperMerge() {
+        ByteMap byteMap = new ByteMap(new int[]{20, 40});
+        Assert.assertEquals(0, byteMap.merge(41, 59));
+        Assert.assertTrue(Arrays.toString(byteMap.segments()), Arrays.equals(byteMap.segments(), new int[]{20, 59}));
+    }
+
+    @Test
+    public void testComplementMultipleIntersectingMerge() {
+        ByteMap byteMap = new ByteMap(new int[]{20, 40, 60, 80});
+        Assert.assertEquals(0, byteMap.merge(41, 59));
+        Assert.assertTrue(Arrays.toString(byteMap.segments()), Arrays.equals(byteMap.segments(), new int[]{20, 80}));
+    }
+
+    @Test
     public void testMultipleSegmentsContains() {
         ByteMap byteMap = new ByteMap(new int[]{100, 150, 200, 2000, 3000, 4000});
         Assert.assertTrue(byteMap.contains(100, 150));

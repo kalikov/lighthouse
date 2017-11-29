@@ -105,7 +105,7 @@ public class ByteMap {
             if (from >= start && to <= end) {
                 return -1;
             }
-            if (from <= start && to >= start || from <= end && to >= end) {
+            if (from <= start - 1 && to >= start - 1 || from <= end + 1 && to >= end + 1) {
                 intersections++;
                 overlap += (end - start + 1) - Math.max(0, from - start) - Math.max(0, end - to);
             }
@@ -147,13 +147,13 @@ public class ByteMap {
         for (int i = 0; i < segments.length; i += 2) {
             int start = segments[i];
             int end = segments[i + 1];
-            if (from < start && to >= start) {
+            if (from < start - 1 && to >= start - 1) {
                 segments[i] = from;
             }
-            if (from <= end && to > end) {
+            if (from <= end + 1 && to > end + 1) {
                 segments[i + 1] = to;
             }
-            if (from <= start && to >= start || from <= end && to >= end) {
+            if (from <= start - 1 && to >= start - 1 || from <= end + 1 && to >= end + 1) {
                 break;
             }
         }
@@ -164,9 +164,9 @@ public class ByteMap {
         for (int i = 0, j = 0; j < array.length; j += 2) {
             int start = segments[i];
             int end = segments[i + 1];
-            if (from <= start && to >= start || from <= end && to > end) {
+            if (from <= start - 1 && to >= start - 1 || from <= end + 1 && to > end + 1) {
                 array[j] = Math.min(from, start);
-                while (from <= start && to >= start || from <= end && to > end) {
+                while (from <= start - 1 && to >= start - 1 || from <= end + 1 && to > end + 1) {
                     array[j + 1] = Math.max(to, end);
                     i += 2;
                     if (i >= segments.length) {

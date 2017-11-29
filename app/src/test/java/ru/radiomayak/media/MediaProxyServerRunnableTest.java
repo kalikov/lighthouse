@@ -24,7 +24,7 @@ import java.net.URLEncoder;
 import java.util.UUID;
 
 public class MediaProxyServerRunnableTest {
-    private MediaProxyServerRunnable runnable;
+    /*private MediaProxyServerRunnable runnable;
 
     private String id;
 
@@ -38,8 +38,8 @@ public class MediaProxyServerRunnableTest {
 
     @After
     public void after() {
-        File file = new File(MediaProxyServerRunnable.FILE_PREFIX + id + MediaProxyServerRunnable.FILE_SUFFIX);
-        FileUtils.deleteQuietly(file);
+//        File file = new File(MediaProxyServerRunnable.FILE_PREFIX + id + MediaProxyServerRunnable.FILE_SUFFIX);
+//        FileUtils.deleteQuietly(file);
     }
 
     @Test
@@ -291,5 +291,5 @@ public class MediaProxyServerRunnableTest {
 
     private InputStream mockInput(String raw) {
         return new ByteArrayInputStream(raw.getBytes());
-    }
+    }*/
 }

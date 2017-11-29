@@ -59,23 +59,23 @@ import ru.radiomayak.io.RandomAccessFileOutputStream;
 class MediaProxyServerRunnable implements Runnable {
     private static final String TAG = MediaProxyServerRunnable.class.getSimpleName();
 
-    private static final ContentLengthStrategy CONTENT_LENGTH_STRATEGY = new LaxContentLengthStrategy(0);
+//    private static final ContentLengthStrategy CONTENT_LENGTH_STRATEGY = new LaxContentLengthStrategy(0);
 
     private static final int BUFFER_SIZE = 10 * 1024;
 
     private final MediaProxyContext context;
     private final ServerSocket socket;
 
-    private volatile MediaProxyClientSession session;
+//    private volatile MediaProxyClientSession session;
 
     MediaProxyServerRunnable(MediaProxyContext context, ServerSocket socket) {
         this.context = context;
         this.socket = socket;
     }
 
-    public MediaProxyClientSession getSession() {
-        return session;
-    }
+//    public MediaProxyClientSession getSession() {
+//        return session;
+//    }
 
     @Override
     public void run() {
@@ -110,28 +110,37 @@ class MediaProxyServerRunnable implements Runnable {
 
     private void processClient(SessionInputBuffer inputBuffer, SessionOutputBuffer outputBuffer) {
         try {
-            session = new MediaProxyClientSession(inputBuffer, outputBuffer, context.getCacheDir());
+            MediaProxyClientSession session = new MediaProxyClientSession(parseRequest(inputBuffer), outputBuffer, BUFFER_SIZE);
 //            if (!streamFromFile(session)) {
 //                processRemoteRequest(session);
 //            }
-            session.processRequest();
+            session.processRequest(context);
         } catch (MalformedURLException e) {
 //            writeResponseHeader(outputBuffer, createResponse(HttpStatus.NOT_FOUND));
-            session.writeError(HttpStatus.NOT_FOUND);
+            writeError(outputBuffer, HttpStatus.NOT_FOUND);
         } catch (IOException | HttpException | IllegalArgumentException e) {
 //            writeResponseHeader(outputBuffer, createResponse(HttpStatus.BAD_REQUEST));
-            session.writeError(HttpStatus.BAD_REQUEST);
+            writeError(outputBuffer, HttpStatus.BAD_REQUEST);
         }
     }
-//
-//    private void writeResponseHeader(SessionOutputBuffer outBuffer, HttpResponse response) {
-//        HttpMessageWriter<HttpResponse> responseWriter = new DefaultHttpResponseWriter(outBuffer);
-//        try {
-//            responseWriter.write(response);
-//            outBuffer.flush();
-//        } catch (IOException | HttpException ignored) {
-//        }
-//    }
+
+    private static HttpRequest parseRequest(SessionInputBuffer buffer) throws IOException, HttpException {
+        HttpMessageParser<HttpRequest> parser = new DefaultHttpRequestParser(buffer);
+        return parser.parse();
+    }
+
+    private void writeError(SessionOutputBuffer outputBuffer, HttpStatus status) {
+        writeResponseHeader(outputBuffer, new BasicHttpResponse(HttpVersion.HTTP_1_0, status.getCode(), status.getReason()));
+    }
+
+    private void writeResponseHeader(SessionOutputBuffer outputBuffer, HttpResponse response) {
+        HttpMessageWriter<HttpResponse> responseWriter = new DefaultHttpResponseWriter(outputBuffer);
+        try {
+            responseWriter.write(response);
+            outputBuffer.flush();
+        } catch (IOException | HttpException ignored) {
+        }
+    }
 //
 //    private HttpResponse createResponse(HttpStatus status) {
 //        return createResponse(HttpVersion.HTTP_1_0, status);

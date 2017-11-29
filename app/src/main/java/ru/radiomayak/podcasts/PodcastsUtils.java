@@ -9,7 +9,6 @@ import android.support.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
@@ -290,9 +289,13 @@ public final class PodcastsUtils {
                     record.setDate(cursor.getString(i++));
                     record.setDuration(cursor.getString(i++));
                     record.setPlayed(cursor.getInt(i) != 0);
-                    try (RandomAccessFile file = new RandomAccessFile(CacheUtils.getFile(cacheDir, 0, String.valueOf(id)), "r")) {
+
+                    File cacheFile = CacheUtils.getFile(cacheDir, String.valueOf(podcast), String.valueOf(id));
+                    try (RandomAccessFile file = new RandomAccessFile(cacheFile, "r")) {
                         ByteMap byteMap = ByteMapUtils.readHeader(file);
-                        record.setCacheSize(byteMap.size());
+                        if (byteMap != null) {
+                            record.setCacheSize(byteMap.size());
+                        }
                     } catch (IOException ignored) {
                     }
                     records.add(record);

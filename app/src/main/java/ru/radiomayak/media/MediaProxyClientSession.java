@@ -32,14 +32,11 @@ import ru.radiomayak.http.HttpRequestParams;
 import ru.radiomayak.http.HttpResponse;
 import ru.radiomayak.http.HttpStatus;
 import ru.radiomayak.http.HttpUtils;
-import ru.radiomayak.http.HttpVersion;
-import ru.radiomayak.http.ProtocolVersion;
+import ru.radiomayak.http.entity.ContentLengthStrategy;
 import ru.radiomayak.http.impl.DefaultBHttpClientConnectionFactory;
-import ru.radiomayak.http.impl.io.DefaultHttpRequestParser;
+import ru.radiomayak.http.impl.entity.LaxContentLengthStrategy;
 import ru.radiomayak.http.impl.io.DefaultHttpResponseWriter;
-import ru.radiomayak.http.io.HttpMessageParser;
 import ru.radiomayak.http.io.HttpMessageWriter;
-import ru.radiomayak.http.io.SessionInputBuffer;
 import ru.radiomayak.http.io.SessionOutputBuffer;
 import ru.radiomayak.http.message.BasicHttpRequest;
 import ru.radiomayak.http.message.BasicHttpResponse;
@@ -48,25 +45,26 @@ import ru.radiomayak.http.protocol.HTTP;
 import ru.radiomayak.io.RandomAccessFileOutputStream;
 
 class MediaProxyClientSession {
-    final SessionInputBuffer inputBuffer;
-    final SessionOutputBuffer outputBuffer;
+    private static final String TAG = MediaProxyClientSession.class.getSimpleName();
 
-    final HttpRequest request;
+    private static final ContentLengthStrategy CONTENT_LENGTH_STRATEGY = new LaxContentLengthStrategy(0);
 
-    final String category;
-    final String id;
-    final URL url;
-    final File file;
+    private static final int FLUSH_BUFFER_SIZE = 256 * 1024;
 
-    volatile ByteMap byteMap;
-    volatile int from;
-    volatile int length;
+    private final SessionOutputBuffer outputBuffer;
+    private final int bufferSize;
 
-    MediaProxyClientSession(SessionInputBuffer inputBuffer, SessionOutputBuffer outputBuffer, File dir) throws IOException, HttpException {
-        this.inputBuffer = inputBuffer;
+    private final HttpRequest request;
+
+    private final String category;
+    private final String id;
+    private final URL url;
+
+    MediaProxyClientSession(HttpRequest request, SessionOutputBuffer outputBuffer, int bufferSize) throws IOException {
+        this.request = request;
         this.outputBuffer = outputBuffer;
+        this.bufferSize = bufferSize;
 
-        request = parseRequest(inputBuffer);
         URI uri = URI.create(request.getRequestLine().getUri());
 
         String query = StringUtils.requireNonEmpty(uri.getRawQuery());
@@ -78,13 +76,13 @@ class MediaProxyClientSession {
         String urlString = StringUtils.requireNonEmpty(params.getFirst(DefaultMediaProxyServer.URL_PARAMETER));
 
         this.url = new URL(urlString);
-
-        file = CacheUtils.getFile(dir, 0, id);
     }
 
-    private static HttpRequest parseRequest(SessionInputBuffer buffer) throws IOException, HttpException {
-        HttpMessageParser<HttpRequest> parser = new DefaultHttpRequestParser(buffer);
-        return parser.parse();
+    void processRequest(MediaProxyContext context) throws HttpException {
+        File file = CacheUtils.getFile(context.getCacheDir(), category, id);
+        if (!streamFromFile(file)) {
+            streamFromRemoteServer(context, file);
+        }
     }
 
     private void writeResponseHeader(HttpResponse response) {
@@ -97,20 +95,16 @@ class MediaProxyClientSession {
     }
 
     private HttpResponse createResponse(HttpStatus status) {
-        return createResponse(HttpVersion.HTTP_1_0, status);
+        return createResponse(status.getCode(), status.getReason());
     }
 
-    private HttpResponse createResponse(ProtocolVersion protocol, HttpStatus status) {
-        return createResponse(protocol, status.getCode(), status.getReason());
+    private HttpResponse createResponse(int code, String message) {
+        return new BasicHttpResponse(new BasicStatusLine(request.getProtocolVersion(), code, message));
     }
 
-    private HttpResponse createResponse(ProtocolVersion protocol, int code, String message) {
-        return new BasicHttpResponse(new BasicStatusLine(protocol, code, message));
-    }
-
-    boolean streamFromFile() {
+    private boolean streamFromFile(File file) {
         try (RandomAccessFile source = new RandomAccessFile(file, "r")) {
-            byteMap = ByteMapUtils.readHeader(source);
+            ByteMap byteMap = ByteMapUtils.readHeader(source);
             if (byteMap == null) {
                 return false;
             }
@@ -119,11 +113,10 @@ class MediaProxyClientSession {
                 return false;
             }
 
-            HttpResponse response = createResponse(request.getProtocolVersion(), HttpStatus.OK);
             if (range == null) {
-                streamFile(response, source);
+                streamFileFull(source);
             } else {
-                streamFileRange(response, source, range);
+                streamFileRange(source, byteMap, range);
             }
             outputBuffer.flush();
             return true;
@@ -132,22 +125,24 @@ class MediaProxyClientSession {
         }
     }
 
-    private void streamFile(HttpResponse response, RandomAccessFile file) throws IOException {
+    private void streamFileFull(RandomAccessFile file) throws IOException {
         long offset = file.getFilePointer();
         long length = file.length();
 
+        HttpResponse response = createResponse(HttpStatus.OK);
         response.setHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(length - offset));
         writeResponseHeader(response);
 
         transferFileBytes(file, offset, length - offset);
     }
 
-    private void streamFileRange(HttpResponse response, RandomAccessFile file, HttpRange range) throws IOException {
+    private void streamFileRange(RandomAccessFile file, ByteMap byteMap, HttpRange range) throws IOException {
         int capacity = byteMap.capacity();
         int to = range.getTo() > 0 ? range.getTo() : capacity;
         int length = to - range.getFrom() + 1;
 
         int offset = byteMap.toOffset(range.getFrom());
+        HttpResponse response = createResponse(HttpStatus.OK);
         response.setHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(length));
         if (capacity > 0) {
             response.setHeader(HttpHeaders.CONTENT_RANGE, range.toString() + "/" + capacity);
@@ -161,7 +156,7 @@ class MediaProxyClientSession {
     }
 
     private void transferFileBytes(RandomAccessFile file, long offset, long count) throws IOException {
-        final byte[] buffer = new byte[BUFFER_SIZE];
+        final byte[] buffer = new byte[bufferSize];
         file.getChannel().transferTo(offset, count, new WritableByteChannel() {
             @Override
             public int write(ByteBuffer src) throws IOException {
@@ -193,10 +188,10 @@ class MediaProxyClientSession {
                 : new Socket(url.getHost(), url.getPort() > 0 ? url.getPort() : 80);
     }
 
-    void processRemoteRequest() throws HttpException {
+    private void streamFromRemoteServer(MediaProxyContext context, File file) throws HttpException {
         long requestLength = CONTENT_LENGTH_STRATEGY.determineLength(request);
         if (requestLength > 0) {
-            writeResponseHeader(createResponse(request.getProtocolVersion(), HttpStatus.NOT_IMPLEMENTED));
+            writeResponseHeader(createResponse(HttpStatus.NOT_IMPLEMENTED));
             return;
         }
 
@@ -227,17 +222,17 @@ class MediaProxyClientSession {
             if (socket != null) {
                 IOUtils.closeQuietly(socket);
             }
-            writeResponseHeader(createResponse(request.getProtocolVersion(), HttpStatus.INTERNAL_SERVER_ERROR));
+            writeResponseHeader(createResponse(HttpStatus.INTERNAL_SERVER_ERROR));
             return;
         }
         try {
-            processConnection(connection);
+            processRemoteConnection(context, file, connection);
         } finally {
             IOUtils.closeQuietly(connection);
         }
     }
 
-    private void processConnection(HttpClientConnection connection) {
+    private void processRemoteConnection(MediaProxyContext context, File file, HttpClientConnection connection) {
         HttpResponse response;
         HttpResponse remoteResponse;
         try {
@@ -245,10 +240,10 @@ class MediaProxyClientSession {
             int status = remoteResponse.getStatusLine().getStatusCode();
             String message = remoteResponse.getStatusLine().getReasonPhrase();
 
-            response = createResponse(request.getProtocolVersion(), status, message);
+            response = createResponse(status, message);
             setResponseHeaders(response, remoteResponse.getAllHeaders());
         } catch (IOException | HttpException e) {
-            writeResponseHeader(createResponse(request.getProtocolVersion(), HttpStatus.INTERNAL_SERVER_ERROR));
+            writeResponseHeader(createResponse(HttpStatus.INTERNAL_SERVER_ERROR));
             return;
         }
         writeResponseHeader(response);
@@ -278,12 +273,9 @@ class MediaProxyClientSession {
         } else {
             capacity = length;
         }
-        if (byteMap == null) {
-            byteMap = new ByteMap(capacity);
-        }
         try {
             connection.receiveResponseEntity(remoteResponse);
-            processResponse(capacity, from, remoteResponse.getEntity().getContent(), length);
+            processRemoteResponse(context, file, capacity, from, remoteResponse.getEntity().getContent(), length);
         } catch (IOException | HttpException e) {
             Log.e(TAG, e.getMessage(), e);
         }
@@ -302,84 +294,40 @@ class MediaProxyClientSession {
         }
     }
 
-    private void processResponse(int capacity, int from, InputStream content, int length) {
+    private void processRemoteResponse(MediaProxyContext context, File file, int capacity, int from, InputStream content, int length) {
         int count = 0;
-        ByteArrayOutputStream output = new ByteArrayOutputStream(length);
+        ByteArrayOutputStream output = new ByteArrayOutputStream(Math.min(length, FLUSH_BUFFER_SIZE));
         try {
-            from = from;
-            byte[] buffer = new byte[BUFFER_SIZE];
+            byte[] buffer = new byte[bufferSize];
             int n;
             while (count < length && IOUtils.EOF != (n = content.read(buffer))) {
+                if (count + n > FLUSH_BUFFER_SIZE) {
+                    updateFile(context, file, capacity, from, from + count - 1, output);
+                    from += count;
+                    count = 0;
+                    output.reset();
+                }
                 output.write(buffer, 0, n);
                 outputBuffer.write(buffer, 0, n);
                 outputBuffer.flush();
                 count += n;
-                this.length += n;
             }
         } catch (IOException e) {
             Log.e(TAG, e.getMessage(), e);
         } finally {
-            processBytesMapUpdate(capacity, from, from + count - 1, output);
+            updateFile(context, file, capacity, from, from + count - 1, output);
             IOUtils.closeQuietly(output);
         }
     }
 
-    private void processBytesMapUpdate(int capacity, int from, int to, ByteArrayOutputStream response) {
-        File fileCopy = null;
-        try (RandomAccessFile target = new RandomAccessFile(file, "rw")) {
-            ByteMap byteMap = ByteMapUtils.readHeader(target);
-            if (byteMap == null) {
-                byteMap = new ByteMap(capacity, from, to);
-                target.seek(0);
-                ByteMapUtils.writeHeader(target, byteMap);
-                response.writeTo(new RandomAccessFileOutputStream(target));
-                target.getChannel().truncate(target.getFilePointer());
-                notifyByteMapUpdate(byteMap);
-                return;
-            }
-            int overlap = byteMap.merge(from, to);
-            if (overlap < 0) {
-                return;
-            }
-            if (capacity > 0) {
-                byteMap.capacity(capacity);
-            }
-            int offset = byteMap.toOffset(from);
-
-            fileCopy = new File(session.file.getAbsolutePath() + ".tmp");
-            FileUtils.copyFile(session.file, fileCopy);
-
-            long sourceBytesOrigin = target.getFilePointer();
-
-            try (RandomAccessFile copy = new RandomAccessFile(fileCopy, "r")) {
-                ByteMapUtils.writeHeader(target, byteMap);
-                copy.getChannel().transferTo(target.getFilePointer(), offset, target.getChannel());
-                response.writeTo(new RandomAccessFileOutputStream(target));
-                copy.seek(sourceBytesOrigin + offset + overlap);
-                copy.getChannel().transferTo(target.getFilePointer(), copy.length() - copy.getFilePointer(), target.getChannel());
-                target.getChannel().truncate(target.getFilePointer());
-            }
-            notifyByteMapUpdate(byteMap);
-        } catch (IOException e) {
-            Log.e(TAG, e.getMessage(), e);
-        } finally {
-            if (fileCopy != null) {
-                FileUtils.deleteQuietly(fileCopy);
-            }
+    private void updateFile(MediaProxyContext context, File file, int capacity, int from, int to, ByteArrayOutputStream response) {
+        ByteMap byteMap = ByteMapUtils.updateFile(file, capacity, from, to, response);
+        if (byteMap != null) {
+            notifyFileUpdate(context, byteMap);
         }
     }
 
-    private void notifyByteMapUpdate(ByteMap byteMap) {
+    private void notifyFileUpdate(MediaProxyContext context, ByteMap byteMap) {
         context.notifyUpdate(category, id, byteMap.size(), byteMap.isPartial());
     }
-
-//    public int getSize() {
-//        if (byteMap.capacity() <= 0) {
-//            return 0;
-//        }
-//        if (length <= 0) {
-//            return (int)(byteMap.size() * 100L / byteMap.capacity());
-//        }
-//        return (int)(byteMap.size(from, from + length - 1) * 100L / byteMap.capacity());
-//    }
 }

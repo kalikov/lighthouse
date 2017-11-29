@@ -7,6 +7,7 @@ import android.util.Log;
 
 import java.io.File;
 
+import ru.radiomayak.StringUtils;
 import ru.radiomayak.media.MediaProxyContext;
 
 public class PodcastsMediaProxyContext implements MediaProxyContext {
@@ -33,12 +34,16 @@ public class PodcastsMediaProxyContext implements MediaProxyContext {
 
     @Override
     public void notifyUpdate(String category, String id, int size, boolean partial) {
-        Intent intent = new Intent(RecordsActivity.ACTION_UPDATE)
-                .setPackage(context.getPackageName())
-                .putExtra(RecordsActivity.EXTRA_PODCAST_ID, category)
-                .putExtra(RecordsActivity.EXTRA_RECORD_ID, id)
-                .putExtra(RecordsActivity.EXTRA_CACHE_SIZE, size)
-                .putExtra(RecordsActivity.EXTRA_CACHE_PARTIAL, partial);
-        context.sendBroadcast(intent);
+        long podcast = StringUtils.parseLong(category, 0);
+        long record = StringUtils.parseLong(id, 0);
+        if (podcast != 0 && record != 0) {
+            Intent intent = new Intent(RecordsActivity.ACTION_UPDATE)
+                    .setPackage(context.getPackageName())
+                    .putExtra(RecordsActivity.EXTRA_PODCAST_ID, podcast)
+                    .putExtra(RecordsActivity.EXTRA_RECORD_ID, record)
+                    .putExtra(RecordsActivity.EXTRA_CACHE_SIZE, size)
+                    .putExtra(RecordsActivity.EXTRA_CACHE_PARTIAL, partial);
+            context.sendBroadcast(intent);
+        }
     }
 }

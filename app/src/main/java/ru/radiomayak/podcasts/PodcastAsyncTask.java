@@ -60,9 +60,12 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
                         PodcastsUtils.storeRecords(application, id, response.getRecords().list());
                         File cacheDir = application.getCacheDir();
                         for (Record record : response.getRecords().list()) {
-                            try (RandomAccessFile file = new RandomAccessFile(CacheUtils.getFile(cacheDir, 0, String.valueOf(record.getId())), "r")) {
+                            File cacheFile = CacheUtils.getFile(cacheDir, String.valueOf(id), String.valueOf(record.getId()));
+                            try (RandomAccessFile file = new RandomAccessFile(cacheFile, "r")) {
                                 ByteMap byteMap = ByteMapUtils.readHeader(file);
-                                record.setCacheSize(byteMap.size());
+                                if (byteMap != null) {
+                                    record.setCacheSize(byteMap.size());
+                                }
                             } catch (IOException ignored) {
                             }
                         }
