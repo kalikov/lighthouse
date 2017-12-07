@@ -2,6 +2,10 @@ package ru.radiomayak.podcasts;
 
 import android.util.Log;
 
+import com.google.android.exoplayer2.upstream.cache.Cache;
+import com.google.android.exoplayer2.upstream.cache.NoOpCacheEvictor;
+import com.google.android.exoplayer2.upstream.cache.SimpleCache;
+
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
@@ -61,13 +65,8 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
                         File cacheDir = application.getCacheDir();
                         for (Record record : response.getRecords().list()) {
                             File cacheFile = CacheUtils.getFile(cacheDir, String.valueOf(id), String.valueOf(record.getId()));
-                            try (RandomAccessFile file = new RandomAccessFile(cacheFile, "r")) {
-                                ByteMap byteMap = ByteMapUtils.readHeader(file);
-                                if (byteMap != null) {
-                                    record.setCacheSize(byteMap.size());
-                                }
-                            } catch (IOException ignored) {
-                            }
+                           Cache cache = new SimpleCache(cacheFile, new NoOpCacheEvictor());
+                           record.setCacheSize((int) cache.getCacheSpace());
                         }
                         RecordsPaginator paginator = new OnlineRecordsPaginator(id, response.getRecords(), response.getNextPage());
                         return new PodcastResponse(response.getPodcast(), paginator);
@@ -77,6 +76,12 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
             }
             if (params.length > 1 && params[1] == LOOPBACK) {
                 List<Record> records = PodcastsUtils.loadRecords(application, id, 0, OFFLINE_PAGE_SIZE + 1);
+                File cacheDir = application.getCacheDir();
+                for (Record record : records) {
+                    File cacheFile = CacheUtils.getFile(cacheDir, String.valueOf(id), String.valueOf(record.getId()));
+                    Cache cache = new SimpleCache(cacheFile, new NoOpCacheEvictor());
+                    record.setCacheSize((int) cache.getCacheSpace());
+                }
                 return new PodcastResponse(null, new OfflineRecordsPaginator(id, records, OFFLINE_PAGE_SIZE));
             }
         } catch (Throwable e) {

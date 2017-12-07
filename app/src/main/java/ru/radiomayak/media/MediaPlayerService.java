@@ -27,12 +27,21 @@ import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
+import com.google.android.exoplayer2.upstream.cache.Cache;
+import com.google.android.exoplayer2.upstream.cache.CacheDataSourceFactory;
+import com.google.android.exoplayer2.upstream.cache.CacheEvictor;
+import com.google.android.exoplayer2.upstream.cache.CacheSpan;
+import com.google.android.exoplayer2.upstream.cache.NoOpCacheEvictor;
+import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 
+import java.io.File;
 import java.util.List;
 import java.util.Objects;
 
+import ru.radiomayak.CacheUtils;
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.podcasts.Podcast;
+import ru.radiomayak.podcasts.PodcastsMediaProxyContext;
 import ru.radiomayak.podcasts.Record;
 
 public class MediaPlayerService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
@@ -79,6 +88,8 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     @Override
     public void onCreate() {
         super.onCreate();
+
+        final PodcastsMediaProxyContext ctx = new PodcastsMediaProxyContext(this);
 
         loadControl = new MediaLoadControl(this);
         loadControl.setAlwaysContinueLoading(true);
@@ -175,8 +186,12 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
                 acquireWifiLockIfNotHeld();
                 stateBuilder.setExtras(extras);
                 DataSource.Factory dataSourceFactory = new DefaultHttpDataSourceFactory("ru.radiomayak");
+
+                File cacheFile = CacheUtils.getFile(ctx.getCacheDir(), String.valueOf(podcast.getId()), String.valueOf(record.getId()));
+                Cache cache = new SimpleCache(cacheFile, new NoOpCacheEvictor());
+                DataSource.Factory cacheFactory = new CacheDataSourceFactory(cache, dataSourceFactory, 0, 100 * 1024 * 1024);
                 setPlayWhenReady(true);
-                mediaPlayer.prepare(new ExtractorMediaSource(uri, dataSourceFactory, new DefaultExtractorsFactory(), null, null));
+                mediaPlayer.prepare(new ExtractorMediaSource(uri, cacheFactory, new DefaultExtractorsFactory(), null, null));
                 mediaPlayer.seekToDefaultPosition();
             }
 

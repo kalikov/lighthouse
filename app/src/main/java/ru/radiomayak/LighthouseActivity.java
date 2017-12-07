@@ -306,11 +306,11 @@ public class LighthouseActivity extends AppCompatActivity {
 
         Uri uri;
         MediaProxyServer mediaProxy = getLighthouseApplication().getMediaProxy();
-        if (mediaProxy == null || !mediaProxy.isStarted()) {
+//        if (mediaProxy == null || !mediaProxy.isStarted()) {
             uri = Uri.parse(record.getUrl());
-        } else {
-            uri = mediaProxy.formatUri(track.getPodcast().getId(), record.getId(), record.getUrl());
-        }
+//        } else {
+//            uri = mediaProxy.formatUri(track.getPodcast().getId(), record.getId(), record.getUrl());
+//        }
 
         MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
         mediaController.getTransportControls().playFromUri(uri, bundle);
