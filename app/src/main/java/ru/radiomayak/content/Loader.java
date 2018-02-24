@@ -6,24 +6,10 @@ import android.support.annotation.Nullable;
 import android.support.annotation.WorkerThread;
 
 public abstract class Loader<T> {
-    public interface OnLoadListener<T> {
-        void onLoadComplete(Loader<T> loader, T data);
-    }
+    public interface Listener<T> {
+        void onComplete(Loader<T> loader, T data);
 
-    private final Context context;
-
-    private LoaderManagerAsyncTask<T> task;
-
-    public Loader(Context context) {
-        this.context = context;
-    }
-
-    public Context getContext() {
-        return context;
-    }
-
-    void setTask(LoaderManagerAsyncTask<T> task) {
-        this.task = task;
+        void onException(Loader<T> loader, Throwable exception);
     }
 
     @MainThread
@@ -32,30 +18,17 @@ public abstract class Loader<T> {
 
     @Nullable
     @WorkerThread
-    protected T onExecute() {
+    protected T onExecute(Context context, LoaderState state) {
         return null;
     }
 
     @MainThread
-    protected void onEndLoading(T data) {
-    }
-
-    protected boolean isCancelled() {
-        return task != null && task.isCancelled();
-    }
-
-    @MainThread
-    void startLoading() {
+    final void startLoading() {
         onStartLoading();
     }
 
     @WorkerThread
-    T execute() {
-        return onExecute();
-    }
-
-    @MainThread
-    void endLoading(T data) {
-        onEndLoading(data);
+    final T execute(Context context, LoaderState state) {
+        return onExecute(context, state);
     }
 }

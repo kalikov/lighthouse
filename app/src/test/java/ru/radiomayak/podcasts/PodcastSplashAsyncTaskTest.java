@@ -15,7 +15,7 @@ public class PodcastSplashAsyncTaskTest {
 
     @Before
     public void before() {
-        task = new PodcastSplashLoader(Mockito.mock(Context.class), null);
+        task = new PodcastSplashLoader(null);
     }
 
     @Test

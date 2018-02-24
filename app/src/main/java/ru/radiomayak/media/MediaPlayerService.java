@@ -29,12 +29,7 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import com.google.android.exoplayer2.upstream.cache.Cache;
 import com.google.android.exoplayer2.upstream.cache.CacheDataSourceFactory;
-import com.google.android.exoplayer2.upstream.cache.CacheEvictor;
-import com.google.android.exoplayer2.upstream.cache.CacheSpan;
-import com.google.android.exoplayer2.upstream.cache.NoOpCacheEvictor;
-import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 
-import java.io.File;
 import java.util.List;
 import java.util.Objects;
 
@@ -187,8 +182,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
                 stateBuilder.setExtras(extras);
                 DataSource.Factory dataSourceFactory = new DefaultHttpDataSourceFactory("ru.radiomayak");
 
-                File cacheFile = CacheUtils.getFile(ctx.getCacheDir(), String.valueOf(podcast.getId()), String.valueOf(record.getId()));
-                Cache cache = new SimpleCache(cacheFile, new NoOpCacheEvictor());
+                Cache cache = CacheUtils.getCache(ctx.getCacheDir(), String.valueOf(podcast.getId()));
                 DataSource.Factory cacheFactory = new CacheDataSourceFactory(cache, dataSourceFactory, 0, 100 * 1024 * 1024);
                 setPlayWhenReady(true);
                 mediaPlayer.prepare(new ExtractorMediaSource(uri, cacheFactory, new DefaultExtractorsFactory(), null, null));

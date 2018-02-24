@@ -64,8 +64,7 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
                         PodcastsUtils.storeRecords(application, id, response.getRecords().list());
                         File cacheDir = application.getCacheDir();
                         for (Record record : response.getRecords().list()) {
-                            File cacheFile = CacheUtils.getFile(cacheDir, String.valueOf(id), String.valueOf(record.getId()));
-                           Cache cache = new SimpleCache(cacheFile, new NoOpCacheEvictor());
+                           Cache cache = CacheUtils.getCache(cacheDir, String.valueOf(id));
                            record.setCacheSize((int) cache.getCacheSpace());
                         }
                         RecordsPaginator paginator = new OnlineRecordsPaginator(id, response.getRecords(), response.getNextPage());
@@ -78,8 +77,7 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
                 List<Record> records = PodcastsUtils.loadRecords(application, id, 0, OFFLINE_PAGE_SIZE + 1);
                 File cacheDir = application.getCacheDir();
                 for (Record record : records) {
-                    File cacheFile = CacheUtils.getFile(cacheDir, String.valueOf(id), String.valueOf(record.getId()));
-                    Cache cache = new SimpleCache(cacheFile, new NoOpCacheEvictor());
+                    Cache cache = CacheUtils.getCache(cacheDir, String.valueOf(id));
                     record.setCacheSize((int) cache.getCacheSpace());
                 }
                 return new PodcastResponse(null, new OfflineRecordsPaginator(id, records, OFFLINE_PAGE_SIZE));

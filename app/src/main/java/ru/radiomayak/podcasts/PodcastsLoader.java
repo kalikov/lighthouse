@@ -8,10 +8,9 @@ import org.apache.commons.io.IOUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
+import ru.radiomayak.content.LoaderState;
 import ru.radiomayak.http.DefaultHttpClientConnectionFactory;
 import ru.radiomayak.http.HttpClientConnection;
 import ru.radiomayak.http.HttpException;
@@ -28,23 +27,19 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
     private static final String PODCASTS_URL = "http://radiomayak.ru/podcasts/";
 
     private final PodcastsLayoutParser parser = new PodcastsLayoutParser();
+    private final Podcasts loopbackPodcasts;
 
-    private final boolean loopback;
-    private final AtomicBoolean requested = new AtomicBoolean();
-
-    PodcastsLoader(Context context, boolean loopback) {
-        super(context);
-        this.loopback = loopback;
+    PodcastsLoader(Podcasts loopbackPodcasts) {
+        this.loopbackPodcasts = loopbackPodcasts;
     }
 
     @Override
-    protected Podcasts onExecute() {
-        Podcasts podcasts = null;
+    protected Podcasts onExecute(Context context, LoaderState state) {
+//        Podcasts podcasts = null;
         try {
-            Podcasts loopbackPodcasts = PodcastsUtils.loadPodcasts(getContext());
-            if (NetworkUtils.isConnected(getContext())) {
+            if (NetworkUtils.isConnected(context)) {
                 try {
-                    podcasts = requestPodcasts(PODCASTS_URL);
+                    Podcasts podcasts = requestPodcasts(PODCASTS_URL);
                     if (podcasts != null && !podcasts.list().isEmpty()) {
                         for (Podcast podcast : podcasts.list()) {
                             if (loopbackPodcasts.list().isEmpty()) {
@@ -53,37 +48,35 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
                                 Podcast loopbackPodcast = loopbackPodcasts.get(podcast.getId());
                                 if (loopbackPodcast != null) {
                                     podcast.setSeen(loopbackPodcast.getSeen());
-                                    setColors(podcast.getIcon(), loopbackPodcast.getIcon());
-                                    setColors(podcast.getSplash(), loopbackPodcast.getSplash());
+                                    copyColors(podcast.getIcon(), loopbackPodcast.getIcon());
+                                    copyColors(podcast.getSplash(), loopbackPodcast.getSplash());
                                 }
                             }
                         }
-                        requested.set(true);
                         return podcasts;
                     }
                 } catch (IOException | HttpException ignored) {
                 }
             }
-            if (loopback) {
-                return loopbackPodcasts;
-            }
         } catch (Throwable e) {
             Log.e(LOG_TAG, e.getMessage(), e);
-            if (podcasts == null) {
-                podcasts = new Podcasts();
-            }
+//            if (podcasts == null) {
+//                podcasts = new Podcasts();
+//            }
+//            return new Podcasts();
         }
-        return podcasts;
+        return new Podcasts();
+//        return podcasts;
     }
 
-    @Override
-    protected void onEndLoading(Podcasts podcasts) {
-        if (!podcasts.list().isEmpty() && requested.get()) {
-            new PodcastsStoreAsyncTask(getContext()).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcasts);
-        }
-    }
+//    @Override
+//    protected void onEndLoading(Podcasts podcasts) {
+//        if (!podcasts.list().isEmpty() && requested.get()) {
+//            new StorePodcastsRunnable(getContext()).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcasts);
+//        }
+//    }
 
-    private static void setColors(Image target, Image source) {
+    private static void copyColors(Image target, Image source) {
         if (target != null && source != null && target.getUrl().equalsIgnoreCase(source.getUrl())) {
             target.setPrimaryColor(source.getPrimaryColor());
             target.setSecondaryColor(source.getSecondaryColor());
@@ -110,18 +103,11 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
 
     @Override
     public int hashCode() {
-        return loopback ? 1 : 0;
+        return 1;
     }
 
     @Override
     public boolean equals(Object object) {
-        if (object == this) {
-            return true;
-        }
-        if (!(object instanceof PodcastsLoader)) {
-            return false;
-        }
-        PodcastsLoader other = (PodcastsLoader) object;
-        return loopback == other.loopback;
+        return object == this || object instanceof PodcastsLoader;
     }
 }

@@ -55,8 +55,8 @@ public class MediaProxyClientSessionTest {
 
     @After
     public void after() {
-        File file = CacheUtils.getFile(tempDir, "foo", id);
-        FileUtils.deleteQuietly(file);
+//        File file = CacheUtils.getFile(tempDir, "foo", id);
+//        FileUtils.deleteQuietly(file);
     }
 
     @Test
@@ -182,25 +182,25 @@ public class MediaProxyClientSessionTest {
                 "Host: www.radiomayak.ru\r\n" +
                 "\r\n", new String(remoteOutput.toByteArray()));
 
-        File file = CacheUtils.getFile(tempDir, "foo", id);
-        Assert.assertTrue(file.exists());
-        try (RandomAccessFile source = new RandomAccessFile(file, "r")) {
-            ByteMap header = ByteMapUtils.readHeader(source);
-            Assert.assertNotNull(header);
-            Assert.assertFalse(header.isPartial());
-            Assert.assertEquals(13, header.capacity());
-            Assert.assertArrayEquals(new int[]{0, 12}, header.segments());
-        }
+//        File file = CacheUtils.getFile(tempDir, "foo", id);
+//        Assert.assertTrue(file.exists());
+//        try (RandomAccessFile source = new RandomAccessFile(file, "r")) {
+//            ByteMap header = ByteMapUtils.readHeader(source);
+//            Assert.assertNotNull(header);
+//            Assert.assertFalse(header.isPartial());
+//            Assert.assertEquals(13, header.capacity());
+//            Assert.assertArrayEquals(new int[]{0, 12}, header.segments());
+//        }
     }
 
     @Test
     public void testSimpleStreamingCacheRead() throws IOException, HttpException {
-        File file = CacheUtils.getFile(tempDir, "foo", id);
-        try (RandomAccessFile target = new RandomAccessFile(file, "rw")) {
-            ByteMap header = new ByteMap(13, new int[] {0, 12});
-            ByteMapUtils.writeHeader(target, header);
-            target.write("Hello, world!".getBytes());
-        }
+//        File file = CacheUtils.getFile(tempDir, "foo", id);
+//        try (RandomAccessFile target = new RandomAccessFile(file, "rw")) {
+//            ByteMap header = new ByteMap(13, new int[] {0, 12});
+//            ByteMapUtils.writeHeader(target, header);
+//            target.write("Hello, world!".getBytes());
+//        }
 
         String url = makeURL("foo", id, "https://www.radiomayak.ru/podcast/922");
         BasicHttpRequest request = new BasicHttpRequest("GET", url, HttpVersion.HTTP_1_1);
@@ -286,8 +286,8 @@ public class MediaProxyClientSessionTest {
                 "Host: www.radiomayak.ru\r\n" +
                 "\r\n", new String(remoteOutput.toByteArray()));
 
-        File file = CacheUtils.getFile(tempDir, "foo", id);
-        Assert.assertFalse(file.exists());
+//        File file = CacheUtils.getFile(tempDir, "foo", id);
+//        Assert.assertFalse(file.exists());
     }
 
     private String makeURL(@Nullable String category, @Nullable String id, @Nullable String url) throws UnsupportedEncodingException {

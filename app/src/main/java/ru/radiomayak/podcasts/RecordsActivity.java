@@ -63,10 +63,14 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
 
     private static final String FRAGMENT_TAG = RecordsActivity.class.getName() + "$data";
 
-    private final Loader.OnLoadListener<BitmapInfo> splashOnLoadListener = new Loader.OnLoadListener<BitmapInfo>() {
+    private final Loader.Listener<BitmapInfo> splashListener = new Loader.Listener<BitmapInfo>() {
         @Override
-        public void onLoadComplete(Loader<BitmapInfo> loader, BitmapInfo data) {
+        public void onComplete(Loader<BitmapInfo> loader, BitmapInfo data) {
             onSplashLoadComplete(data);
+        }
+
+        @Override
+        public void onException(Loader<BitmapInfo> loader, Throwable exception) {
         }
     };
 
@@ -616,8 +620,8 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
         if (splash == null && (icon == null || !PictureUrlUtils.isPictureUrl(icon.getUrl())) || splashFuture != null || this.splash != null) {
             return;
         }
-        PodcastSplashLoader loader = new PodcastSplashLoader(this, podcast);
-        splashFuture = getLighthouseApplication().getImageLoaderManager().execute(loader, splashOnLoadListener);
+        PodcastSplashLoader loader = new PodcastSplashLoader(podcast);
+        splashFuture = getLighthouseApplication().getImageLoaderManager().execute(this, loader, splashListener);
     }
 
     private void updatePageRecords(RecordsPaginator paginator) {

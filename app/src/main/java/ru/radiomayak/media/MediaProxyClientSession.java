@@ -79,10 +79,10 @@ class MediaProxyClientSession {
     }
 
     void processRequest(MediaProxyContext context) throws HttpException {
-        File file = CacheUtils.getFile(context.getCacheDir(), category, id);
-        if (!streamFromFile(file)) {
-            streamFromRemoteServer(context, file);
-        }
+//        File file = CacheUtils.getFile(context.getCacheDir(), category, id);
+//        if (!streamFromFile(file)) {
+//            streamFromRemoteServer(context, file);
+//        }
     }
 
     private void writeResponseHeader(HttpResponse response) {

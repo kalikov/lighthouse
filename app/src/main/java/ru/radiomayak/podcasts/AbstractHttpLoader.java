@@ -1,6 +1,5 @@
 package ru.radiomayak.podcasts;
 
-import android.content.Context;
 import android.support.annotation.Nullable;
 
 import org.apache.commons.io.IOUtils;
@@ -19,10 +18,6 @@ import ru.radiomayak.http.HttpUtils;
 
 abstract class AbstractHttpLoader<T> extends Loader<T> {
     private static final int BUFFER_SIZE = 10 * 1024;
-
-    protected AbstractHttpLoader(Context context) {
-        super(context);
-    }
 
     protected final HttpResponse getResponse(HttpClientConnection connection, HttpRequest request) throws IOException, HttpException {
         connection.setSocketTimeout(NetworkUtils.getRequestTimeout());
@@ -68,6 +63,6 @@ abstract class AbstractHttpLoader<T> extends Loader<T> {
     }
 
     private boolean isInterrupted() {
-        return isCancelled() || Thread.currentThread().isInterrupted();
+        return Thread.currentThread().isInterrupted();
     }
 }

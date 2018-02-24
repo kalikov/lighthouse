@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.concurrent.Future;
 
 import ru.radiomayak.LighthouseActivity;
+import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.R;
 import ru.radiomayak.content.Loader;
@@ -37,18 +38,24 @@ import ru.radiomayak.widget.ToolbarCompat;
 public class PodcastsActivity extends LighthouseActivity {
     private static final String STATE_CONTENT_VIEW = PodcastsActivity.class.getName() + "$contentView";
 
-    private static final String FRAGMENT_TAG = PodcastsActivity.class.getName() + "$data";
+    static final String FRAGMENT_TAG = PodcastsActivity.class.getName() + "$data";
 
     private static final int DEFAULT_IMAGES_CAPACITY = 100;
 
-    private static final LoaderManager<Podcasts> podcastsLoaderManager = new LoaderManager<>();
+    private static final PodcastsLoopback podcastsLoopback = new PodcastsLoopback();
+
+    @VisibleForTesting
+    LoaderManager<Podcasts> podcastsLoaderManager;
 
     @VisibleForTesting
     PodcastsAdapter adapter;
 
     private Podcasts podcasts;
 
-    private Future<Podcasts> podcastsFuture;
+    @VisibleForTesting
+    Future<Podcasts> podcastsFuture;
+
+    private float toolbarTextSize;
 
     private final LongSparseArray<Future<BitmapInfo>> futures = new LongSparseArray<>(DEFAULT_IMAGES_CAPACITY);
 
@@ -67,17 +74,41 @@ public class PodcastsActivity extends LighthouseActivity {
         }
     };
 
-    private final Loader.OnLoadListener<Podcasts> podcastsOnLoadListener = new Loader.OnLoadListener<Podcasts>() {
+    @VisibleForTesting
+    final Loader.Listener<Podcasts> podcastsLoopbackListener = new Loader.Listener<Podcasts>() {
         @Override
-        public void onLoadComplete(Loader<Podcasts> loader, Podcasts data) {
-            onPodcastsLoadComplete(data);
+        public void onComplete(Loader<Podcasts> loader, Podcasts data) {
+            onLoopbackComplete(data);
+        }
+
+        @Override
+        public void onException(Loader<Podcasts> loader, Throwable exception) {
+            podcastsFuture = null;
+            showErrorView();
         }
     };
 
-    private final Loader.OnLoadListener<BitmapInfo> podcastIconOnLoadListener = new Loader.OnLoadListener<BitmapInfo>() {
+    @VisibleForTesting
+    final Loader.Listener<Podcasts> podcastsListener = new Loader.Listener<Podcasts>() {
         @Override
-        public void onLoadComplete(Loader<BitmapInfo> loader, BitmapInfo bitmapInfo) {
+        public void onComplete(Loader<Podcasts> loader, Podcasts data) {
+            onRemoteListComplete(data);
+        }
+
+        @Override
+        public void onException(Loader<Podcasts> loader, Throwable exception) {
+            onRemoteListComplete(null);
+        }
+    };
+
+    private final Loader.Listener<BitmapInfo> podcastIconListener = new Loader.Listener<BitmapInfo>() {
+        @Override
+        public void onComplete(Loader<BitmapInfo> loader, BitmapInfo bitmapInfo) {
             onIconLoadComplete(getPodcastId(loader), bitmapInfo);
+        }
+
+        @Override
+        public void onException(Loader<BitmapInfo> loader, Throwable exception) {
         }
 
         private long getPodcastId(Loader<BitmapInfo> loader) {
@@ -88,6 +119,8 @@ public class PodcastsActivity extends LighthouseActivity {
     @Override
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
+
+        podcastsLoaderManager = getLighthouseApplication().getModule().createLoaderManager();
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(RecordsActivity.ACTION_VIEW);
@@ -113,7 +146,7 @@ public class PodcastsActivity extends LighthouseActivity {
         initializeView();
 
         if (requestList) {
-            requestList();
+            requestLoopback();
         } else {
             showContentView();
         }
@@ -162,22 +195,28 @@ public class PodcastsActivity extends LighthouseActivity {
         initializePlayerView();
     }
 
+    @VisibleForTesting
+    Toolbar getToolbar() {
+        return findViewById(R.id.toolbar);
+    }
+
     private void initializeToolbar() {
-        Toolbar actionBar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar actionBar = getToolbar();
         actionBar.setTitle(R.string.podcasts);
         ToolbarCompat.setTitleTypeface(actionBar, getLighthouseApplication().getFontNormal());
+        toolbarTextSize = ToolbarCompat.getTitleTextSize(actionBar);
 
         setSupportActionBar(actionBar);
     }
 
     private void initializeLoadingView() {
-        TextView text = (TextView) getLoadingView().findViewById(android.R.id.progress);
+        TextView text = getLoadingView().findViewById(android.R.id.progress);
         text.setText(R.string.podcasts_loading);
         text.setTypeface(getLighthouseApplication().getFontNormal());
     }
 
     private void initializeErrorView() {
-        TextView text = (TextView) getErrorView();
+        TextView text = getErrorView();
         text.setText(R.string.podcasts_error);
         text.setTypeface(getLighthouseApplication().getFontNormal());
     }
@@ -230,22 +269,25 @@ public class PodcastsActivity extends LighthouseActivity {
         getRefreshView().setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
-                requestList();
+                requestRemoteList();
             }
         });
         getRefreshView().setColorSchemeResources(R.color.colorPrimary);
         getRefreshView().setEnabled(true);
     }
 
-    private ListView getListView() {
-        return (ListView) findViewById(android.R.id.list);
+    @VisibleForTesting
+    ListView getListView() {
+        return findViewById(android.R.id.list);
     }
 
-    private View getLoadingView() {
+    @VisibleForTesting
+    View getLoadingView() {
         return findViewById(R.id.loading);
     }
 
-    private View getErrorView() {
+    @VisibleForTesting
+    <T extends View> T getErrorView() {
         return findViewById(R.id.error);
     }
 
@@ -277,13 +319,22 @@ public class PodcastsActivity extends LighthouseActivity {
     }
 
     @VisibleForTesting
-    void requestList() {
+    void requestLoopback() {
+        if (podcastsFuture != null) {
+            return;
+        }
+        podcastsFuture = podcastsLoaderManager.execute(this, podcastsLoopback, podcastsLoopbackListener);
+        showLoadingView();
+    }
+
+    @VisibleForTesting
+    void requestRemoteList() {
         if (podcastsFuture != null) {
             return;
         }
         boolean isConnected = NetworkUtils.isConnected(this);
         if (adapter.isEmpty() || isConnected) {
-            podcastsFuture = podcastsLoaderManager.execute(new PodcastsLoader(this, adapter.isEmpty()), podcastsOnLoadListener);
+            podcastsFuture = podcastsLoaderManager.execute(this, new PodcastsLoader(podcasts), podcastsListener);
             if (adapter.isEmpty()) {
                 showLoadingView();
             }
@@ -335,13 +386,43 @@ public class PodcastsActivity extends LighthouseActivity {
         startActivity(intent);
     }
 
-    public void onPodcastsLoadComplete(@Nullable Podcasts data) {
+    private void onLoopbackComplete(@Nullable Podcasts data) {
         podcastsFuture = null;
         if (!isDestroyed()) {
+            if (data != null && !data.list().isEmpty()) {
+                updatePodcasts(data.list());
+            }
+        }
+        boolean isConnected = NetworkUtils.isConnected(this);
+        if (!adapter.isEmpty() || !isConnected) {
+            showContentView();
+        }
+        if (isConnected) {
+            if (!adapter.isEmpty()) {
+                getToolbar().setTitle(R.string.refreshing);
+                if (toolbarTextSize > 3) {
+                    ToolbarCompat.setTitleTextSize(getToolbar(), toolbarTextSize - 3);
+                }
+            }
+            requestRemoteList();
+        }
+    }
+
+    private void onRemoteListComplete(@Nullable final Podcasts data) {
+        podcastsFuture = null;
+        if (!isDestroyed()) {
+            getToolbar().setTitle(R.string.podcasts);
+            ToolbarCompat.setTitleTextSize(getToolbar(), toolbarTextSize);
             if ((data == null || data.list().isEmpty()) && !adapter.isEmpty()) {
                 Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
             } else if (data != null && !data.list().isEmpty()) {
                 updatePodcasts(data.list());
+                LighthouseApplication.NETWORK_POOL_EXECUTOR.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        PodcastsUtils.storePodcasts(PodcastsActivity.this, data);
+                    }
+                });
             }
         }
         showContentView();
@@ -402,7 +483,7 @@ public class PodcastsActivity extends LighthouseActivity {
             return;
         }
         PodcastIconLoader loader = new PodcastIconLoader(this, podcast);
-        futures.put(id, getLighthouseApplication().getImageLoaderManager().execute(loader, podcastIconOnLoadListener));
+        futures.put(id, getLighthouseApplication().getImageLoaderManager().execute(this, loader, podcastIconListener));
     }
 
     public void onIconLoadStarted(long id) {

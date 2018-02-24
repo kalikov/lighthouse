@@ -12,6 +12,7 @@
     <string name="zero">0</string>
     <string name="months">января,февраля,марта,апреля,мая,июня,июля,августа,сентября,октября,ноября,декабря</string>
 
+    <string name="refreshing">Обновление&#8230;</string>
     <string name="loading">Загрузка&#8230;</string>
     <string name="play">Воиспроизведение</string>
     <string name="pause">Пауза</string>

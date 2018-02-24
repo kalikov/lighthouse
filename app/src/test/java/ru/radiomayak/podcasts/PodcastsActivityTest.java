@@ -35,7 +35,7 @@ public class PodcastsActivityTest {
         activity.adapter = Mockito.mock(PodcastsAdapter.class);
         Mockito.when(activity.adapter.isEmpty()).thenReturn(Boolean.FALSE);
 
-        activity.requestList();
+        activity.requestRemoteList();
 
         Mockito.verify(refreshLayout).setRefreshing(false);
     }

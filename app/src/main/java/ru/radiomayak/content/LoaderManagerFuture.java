@@ -10,9 +10,9 @@ import java.util.concurrent.TimeoutException;
 
 class LoaderManagerFuture<T> implements Future<T> {
     private final LoaderManagerAsyncTask<T> task;
-    private final Loader.OnLoadListener<T> listener;
+    private final Loader.Listener<T> listener;
 
-    LoaderManagerFuture(LoaderManagerAsyncTask<T> task, Loader.OnLoadListener<T> listener) {
+    LoaderManagerFuture(LoaderManagerAsyncTask<T> task, Loader.Listener<T> listener) {
         this.task = task;
         this.listener = listener;
     }

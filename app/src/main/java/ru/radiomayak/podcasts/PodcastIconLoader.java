@@ -1,5 +1,6 @@
 package ru.radiomayak.podcasts;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.support.annotation.Nullable;
 
@@ -9,7 +10,7 @@ class PodcastIconLoader extends AbstractPodcastImageLoader {
     private final PodcastsActivity activity;
 
     PodcastIconLoader(PodcastsActivity activity, Podcast podcast) {
-        super(activity, podcast);
+        super(podcast);
         this.activity = activity;
     }
 
@@ -21,20 +22,20 @@ class PodcastIconLoader extends AbstractPodcastImageLoader {
     }
 
     @Override
-    protected boolean shouldExtractColors() {
+    protected boolean shouldExtractColors(Context context) {
         Image splash = getPodcast().getSplash();
-        return !PodcastsUtils.hasColors(getContext(), getPodcast(), getUrl(), splash == null ? null : splash.getUrl());
+        return !PodcastsUtils.hasColors(context, getPodcast(), getUrl(context), splash == null ? null : splash.getUrl());
     }
 
     @Nullable
     @Override
-    protected String getUrl() {
+    protected String getUrl(Context context) {
         Image icon = getPodcast().getIcon();
         if (icon == null) {
             return null;
         }
         String url = icon.getUrl();
-        int size = getContext().getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
+        int size = context.getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
         if (size <= PictureUrlUtils.Size.XS_SQUARE.getWidth()) {
             return PictureUrlUtils.getPictureUrl(url, PictureUrlUtils.Size.XS_SQUARE);
         }
@@ -47,13 +48,13 @@ class PodcastIconLoader extends AbstractPodcastImageLoader {
     }
 
     @Override
-    protected void storeColors(int primaryColor, int secondaryColor) {
-        PodcastsUtils.storePodcastIconColors(getContext(), getPodcast().getId(), primaryColor, secondaryColor);
+    protected void storeColors(Context context, int primaryColor, int secondaryColor) {
+        PodcastsUtils.storePodcastIconColors(context, getPodcast().getId(), primaryColor, secondaryColor);
     }
 
     @Override
-    protected Bitmap postProcessBitmap(Bitmap bitmap) {
-        int size = getContext().getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
+    protected Bitmap postProcessBitmap(Context context, Bitmap bitmap) {
+        int size = context.getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
         if (bitmap == null || bitmap.getWidth() <= size || bitmap.getHeight() <= size) {
             return bitmap;
         }

@@ -44,8 +44,6 @@ public class LighthouseApplication extends Application {
 
     public static final Executor NETWORK_SERIAL_EXECUTOR = Executors.newSingleThreadExecutor();
 
-    private final LoaderManager<BitmapInfo> imageLoaderManager = new LoaderManager<>(true);
-
     private final MediaBrowserCompat.ConnectionCallback connectionCallbacks = new MediaBrowserCompat.ConnectionCallback() {
         @Override
         public void onConnected() {
@@ -64,6 +62,10 @@ public class LighthouseApplication extends Application {
         }
     };
 
+    private LighthouseModule module;
+
+    private LoaderManager<BitmapInfo> imageLoaderManager;
+
     private MediaBrowserCompat mediaBrowser;
 
     private Typeface fontBold;
@@ -76,6 +78,10 @@ public class LighthouseApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        module = createModule();
+
+        imageLoaderManager = module.createLoaderManager(true);
 
         fontBold = Typeface.createFromAsset(getAssets(), "fonts/russia-bold.ttf");
         fontNormal = Typeface.createFromAsset(getAssets(), "fonts/russia-normal.ttf");
@@ -90,6 +96,14 @@ public class LighthouseApplication extends Application {
             mediaProxy.start();
         } catch (IOException ignored) {
         }
+    }
+
+    public LighthouseModule getModule() {
+        return module;
+    }
+
+    protected LighthouseModule createModule() {
+        return new LighthouseModule();
     }
 
     @Override

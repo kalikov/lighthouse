@@ -14,6 +14,7 @@ import java.io.OutputStream;
 import java.net.URL;
 
 import ru.radiomayak.NetworkUtils;
+import ru.radiomayak.content.LoaderState;
 import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.http.DefaultHttpClientConnectionFactory;
 import ru.radiomayak.http.HttpClientConnection;
@@ -29,8 +30,7 @@ abstract class AbstractPodcastImageLoader extends AbstractHttpLoader<BitmapInfo>
 
     private final Podcast podcast;
 
-    protected AbstractPodcastImageLoader(Context context, Podcast podcast) {
-        super(context);
+    protected AbstractPodcastImageLoader(Podcast podcast) {
         this.podcast = podcast;
     }
 
@@ -39,12 +39,12 @@ abstract class AbstractPodcastImageLoader extends AbstractHttpLoader<BitmapInfo>
     }
 
     @Override
-    protected BitmapInfo onExecute() {
+    protected BitmapInfo onExecute(Context context, LoaderState state) {
         try {
-            if (isCancelled()) {
+            if (state.isCancelled()) {
                 return null;
             }
-            return getImage();
+            return getImage(context, state);
         } catch (Throwable e) {
             Log.e(TAG, e.getMessage(), e);
         }
@@ -52,45 +52,45 @@ abstract class AbstractPodcastImageLoader extends AbstractHttpLoader<BitmapInfo>
     }
 
     @Nullable
-    private BitmapInfo getImage() {
+    private BitmapInfo getImage(Context context, LoaderState state) {
         boolean extractColors = true;
-        Bitmap bitmap = getStoredImage();
+        Bitmap bitmap = getStoredImage(context);
         if (bitmap != null) {
-            extractColors = shouldExtractColors();
+            extractColors = shouldExtractColors(context);
         } else {
-            bitmap = getRemoteImage();
+            bitmap = getRemoteImage(context, state);
             if (bitmap == null) {
                 return null;
             }
         }
-        if (isCancelled()) {
+        if (state.isCancelled()) {
             return null;
         }
-        bitmap = postProcessBitmap(bitmap);
-        if (!extractColors || isCancelled()) {
+        bitmap = postProcessBitmap(context, bitmap);
+        if (!extractColors || state.isCancelled()) {
             return new BitmapInfo(bitmap, 0, 0);
         }
         BitmapInfo info = new BitmapInfo(bitmap);
-        storeColors(info.getPrimaryColor(), info.getSecondaryColor());
+        storeColors(context, info.getPrimaryColor(), info.getSecondaryColor());
         return info;
     }
 
 
     @Nullable
-    private Bitmap getStoredImage() {
+    private Bitmap getStoredImage(Context context) {
         String filename = getFilename();
-        byte[] bytes = loadByteArray(getContext(), filename);
+        byte[] bytes = loadByteArray(context, filename);
         return bytes == null ? null : BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
     }
 
     @Nullable
-    private Bitmap getRemoteImage() {
-        if (NetworkUtils.isConnected(getContext()) && !isCancelled()) {
+    private Bitmap getRemoteImage(Context context, LoaderState state) {
+        if (NetworkUtils.isConnected(context) && !state.isCancelled()) {
             try {
-                byte[] bytes = requestImage(getUrl());
+                byte[] bytes = requestImage(getUrl(context));
                 if (bytes != null) {
                     String filename = getFilename();
-                    storeByteArray(getContext(), filename, bytes);
+                    storeByteArray(context, filename, bytes);
                 }
                 return bytes == null ? null : BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
             } catch (IOException | HttpException ignored) {
@@ -99,16 +99,16 @@ abstract class AbstractPodcastImageLoader extends AbstractHttpLoader<BitmapInfo>
         return null;
     }
 
-    protected abstract boolean shouldExtractColors();
+    protected abstract boolean shouldExtractColors(Context context);
 
     @Nullable
-    protected abstract String getUrl();
+    protected abstract String getUrl(Context context);
 
     protected abstract String getFilename();
 
-    protected abstract void storeColors(int primaryColor, int secondaryColor);
+    protected abstract void storeColors(Context context, int primaryColor, int secondaryColor);
 
-    protected Bitmap postProcessBitmap(Bitmap bitmap) {
+    protected Bitmap postProcessBitmap(Context context, Bitmap bitmap) {
         return bitmap;
     }
 

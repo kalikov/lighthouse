@@ -4,19 +4,19 @@ import android.content.Context;
 import android.support.annotation.Nullable;
 
 class PodcastSplashLoader extends AbstractPodcastImageLoader {
-    PodcastSplashLoader(Context context, Podcast podcast) {
-        super(context, podcast);
+    PodcastSplashLoader(Podcast podcast) {
+        super(podcast);
     }
 
     @Override
-    protected boolean shouldExtractColors() {
+    protected boolean shouldExtractColors(Context context) {
         Image splash = getPodcast().getSplash();
-        return !PodcastsUtils.hasSplashColors(getContext(), getPodcast(), splash == null ? null : splash.getUrl());
+        return !PodcastsUtils.hasSplashColors(context, getPodcast(), splash == null ? null : splash.getUrl());
     }
 
     @Nullable
     @Override
-    protected String getUrl() {
+    protected String getUrl(Context context) {
         Image splash = getPodcast().getSplash();
         if (splash != null) {
             return splash.getUrl();
@@ -31,7 +31,7 @@ class PodcastSplashLoader extends AbstractPodcastImageLoader {
     }
 
     @Override
-    protected void storeColors(int primaryColor, int secondaryColor) {
-        PodcastsUtils.storePodcastSplashColors(getContext(), getPodcast().getId(), primaryColor, secondaryColor);
+    protected void storeColors(Context context, int primaryColor, int secondaryColor) {
+        PodcastsUtils.storePodcastSplashColors(context, getPodcast().getId(), primaryColor, secondaryColor);
     }
 }

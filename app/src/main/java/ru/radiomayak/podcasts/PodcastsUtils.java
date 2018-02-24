@@ -289,15 +289,15 @@ public final class PodcastsUtils {
                     record.setDate(cursor.getString(i++));
                     record.setDuration(cursor.getString(i++));
                     record.setPlayed(cursor.getInt(i) != 0);
-
-                    File cacheFile = CacheUtils.getFile(cacheDir, String.valueOf(podcast), String.valueOf(id));
-                    try (RandomAccessFile file = new RandomAccessFile(cacheFile, "r")) {
-                        ByteMap byteMap = ByteMapUtils.readHeader(file);
-                        if (byteMap != null) {
-                            record.setCacheSize(byteMap.size());
-                        }
-                    } catch (IOException ignored) {
-                    }
+//
+//                    File cacheFile = CacheUtils.getFile(cacheDir, String.valueOf(podcast), String.valueOf(id));
+//                    try (RandomAccessFile file = new RandomAccessFile(cacheFile, "r")) {
+//                        ByteMap byteMap = ByteMapUtils.readHeader(file);
+//                        if (byteMap != null) {
+//                            record.setCacheSize(byteMap.size());
+//                        }
+//                    } catch (IOException ignored) {
+//                    }
                     records.add(record);
                 }
                 return records;
