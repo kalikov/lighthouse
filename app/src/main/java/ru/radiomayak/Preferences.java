@@ -4,5 +4,5 @@ public final class Preferences {
     private Preferences() {
     }
 
-    public static final String CACHE_WHILE_STREAMING = "cache_while_streaming";
+    public static final String PODCASTS_DIRECTORY = "podcasts_dir";
 }

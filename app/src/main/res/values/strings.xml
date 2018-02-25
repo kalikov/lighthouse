@@ -38,6 +38,5 @@
 
     <string name="settings_offline">Оффлайн режим</string>
 
-    <string name="setting_title_cache_while_streaming">Кэшировать при воспроизведении</string>
-    <string name="setting_description_cache_while_streaming">Автоматическое сохранение на устройстве проигрываемых записей для возможности воспроизведения их в оффлайн</string>
+    <string name="setting_title_podcasts_dir">Директория подкастов</string>
 </resources>

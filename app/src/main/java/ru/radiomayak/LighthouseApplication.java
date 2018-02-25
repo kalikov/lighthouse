@@ -4,11 +4,12 @@ import android.app.Application;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.graphics.Typeface;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v4.media.MediaBrowserCompat;
+import android.util.Log;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -20,12 +21,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import ru.radiomayak.content.LoaderManager;
 import ru.radiomayak.graphics.BitmapInfo;
-import ru.radiomayak.podcasts.PodcastsMediaProxyContext;
 import ru.radiomayak.media.MediaPlayerService;
-import ru.radiomayak.media.DefaultMediaProxyServer;
-import ru.radiomayak.media.MediaProxyServer;
 
 public class LighthouseApplication extends Application {
+    private static final String TAG = LighthouseApplication.class.getSimpleName();
+
     private static final ThreadFactory threadFactory = new ThreadFactory() {
         private final AtomicInteger counter = new AtomicInteger(1);
 
@@ -72,8 +72,7 @@ public class LighthouseApplication extends Application {
     private Typeface fontNormal;
     private Typeface fontLight;
 
-    private PodcastsMediaProxyContext mediaProxyContext;
-    private MediaProxyServer mediaProxy;
+    private File podcastsDir;
 
     @Override
     public void onCreate() {
@@ -90,11 +89,13 @@ public class LighthouseApplication extends Application {
         mediaBrowser = new MediaBrowserCompat(this, new ComponentName(this, MediaPlayerService.class), connectionCallbacks, null);
         mediaBrowser.connect();
 
-        mediaProxyContext = new PodcastsMediaProxyContext(getApplicationContext());
-        mediaProxy = new DefaultMediaProxyServer(mediaProxyContext);
-        try {
-            mediaProxy.start();
-        } catch (IOException ignored) {
+        File dir = getExternalFilesDir(Environment.DIRECTORY_PODCASTS);
+        if (dir == null) {
+            dir = getFilesDir();
+        }
+        podcastsDir = dir;
+        if (!podcastsDir.mkdirs()) {
+            Log.e(TAG, "Storage directories not created");
         }
     }
 
@@ -109,17 +110,6 @@ public class LighthouseApplication extends Application {
     @Override
     public void onTerminate() {
         mediaBrowser.disconnect();
-
-        if (mediaProxy != null) {
-            try {
-                mediaProxy.stop();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                mediaProxy = null;
-            }
-        }
-        mediaProxyContext = null;
 
         super.onTerminate();
     }
@@ -144,12 +134,8 @@ public class LighthouseApplication extends Application {
         return mediaBrowser;
     }
 
-    public MediaProxyServer getMediaProxy() {
-        return mediaProxy;
-    }
-
     public File getCacheDir() {
-        return mediaProxyContext.getCacheDir();
+        return podcastsDir;
     }
 
     private void broadcastUpdate() {

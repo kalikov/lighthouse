@@ -305,7 +305,6 @@ public class LighthouseActivity extends AppCompatActivity {
         this.track = track;
 
         Uri uri;
-        MediaProxyServer mediaProxy = getLighthouseApplication().getMediaProxy();
 //        if (mediaProxy == null || !mediaProxy.isStarted()) {
             uri = Uri.parse(record.getUrl());
 //        } else {

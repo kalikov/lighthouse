@@ -1,6 +1,7 @@
 package ru.radiomayak.podcasts;
 
 import android.animation.ValueAnimator;
+import android.app.DownloadManager;
 import android.app.FragmentManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,7 +11,9 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.annotation.Nullable;
 import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.CollapsingToolbarLayout;
@@ -105,6 +108,8 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
 
     private RecordsPaginator paginator;
 
+    private Record contextRecord;
+
     @Override
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
@@ -177,6 +182,26 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
+        }
+    }
+
+    public boolean onContextItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.download:
+                Uri uri = Uri.parse(contextRecord.getUrl());
+                DownloadManager.Request request = new DownloadManager.Request(uri);
+                request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI | DownloadManager.Request.NETWORK_MOBILE);
+                request.setAllowedOverRoaming(false);
+                request.setTitle("GadgetSaint Downloading " + "Sample" + ".mp3");
+                request.setDescription("Downloading " + "Sample" + ".mp3");
+                request.setVisibleInDownloadsUi(true);
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_PODCASTS, "radiomayak/" + podcast.getId() + "/" + contextRecord.getId());
+
+                DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                long refid = downloadManager.enqueue(request);
+                return true;
+            default:
+                return super.onContextItemSelected(item);
         }
     }
 
@@ -766,9 +791,18 @@ public class RecordsActivity extends LighthouseActivity implements PodcastAsyncT
     }
 
     @Override
-    public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
+    public void onCreateContextMenu(ContextMenu menu, View view, ContextMenu.ContextMenuInfo menuInfo) {
+        RecyclerView.ViewHolder viewHolder = getRecyclerView().findContainingViewHolder(view);
+        contextRecord = adapter.getItem(viewHolder.getAdapterPosition());
+
         menu.setHeaderTitle("Select The Action");
-        menu.add(0, v.getId(), 0, "Call");//groupId, itemId, order, title
-        menu.add(0, v.getId(), 0, "SMS");
+        menu.add(0, R.id.download, 0, "Download");
+    }
+
+    @Override
+    public void onContextMenuClosed(Menu menu) {
+        contextRecord = null;
+
+        super.onContextMenuClosed(menu);
     }
 }

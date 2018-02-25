@@ -27,16 +27,12 @@ import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
-import com.google.android.exoplayer2.upstream.cache.Cache;
-import com.google.android.exoplayer2.upstream.cache.CacheDataSourceFactory;
 
 import java.util.List;
 import java.util.Objects;
 
-import ru.radiomayak.CacheUtils;
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.podcasts.Podcast;
-import ru.radiomayak.podcasts.PodcastsMediaProxyContext;
 import ru.radiomayak.podcasts.Record;
 
 public class MediaPlayerService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
@@ -66,7 +62,6 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     };
 
     private ExoPlayer mediaPlayer;
-    private MediaLoadControl loadControl;
 
     private WifiManager.WifiLock wifiLock;
 
@@ -84,11 +79,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     public void onCreate() {
         super.onCreate();
 
-        final PodcastsMediaProxyContext ctx = new PodcastsMediaProxyContext(this);
-
-        loadControl = new MediaLoadControl(this);
-        loadControl.setAlwaysContinueLoading(true);
-        mediaPlayer = ExoPlayerFactory.newSimpleInstance(new DefaultRenderersFactory(this), new DefaultTrackSelector(), loadControl);
+        mediaPlayer = ExoPlayerFactory.newSimpleInstance(new DefaultRenderersFactory(this), new DefaultTrackSelector());
         mediaPlayer.setPlayWhenReady(true);
         mediaPlayer.addListener(new Player.EventListener() {
             @Override
@@ -182,10 +173,8 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
                 stateBuilder.setExtras(extras);
                 DataSource.Factory dataSourceFactory = new DefaultHttpDataSourceFactory("ru.radiomayak");
 
-                Cache cache = CacheUtils.getCache(ctx.getCacheDir(), String.valueOf(podcast.getId()));
-                DataSource.Factory cacheFactory = new CacheDataSourceFactory(cache, dataSourceFactory, 0, 100 * 1024 * 1024);
                 setPlayWhenReady(true);
-                mediaPlayer.prepare(new ExtractorMediaSource(uri, cacheFactory, new DefaultExtractorsFactory(), null, null));
+                mediaPlayer.prepare(new ExtractorMediaSource(uri, dataSourceFactory, new DefaultExtractorsFactory(), null, null));
                 mediaPlayer.seekToDefaultPosition();
             }
 
@@ -226,7 +215,6 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
-            loadControl = null;
         }
         releaseWifiLockIfHeld();
         notificationManager.stopNotification();
@@ -274,7 +262,6 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
 
     private void setPlayWhenReady(boolean playWhenReady) {
         mediaPlayer.setPlayWhenReady(playWhenReady);
-        loadControl.setAlwaysContinueLoading(playWhenReady);
     }
 
     public long getCurrentPosition() {
