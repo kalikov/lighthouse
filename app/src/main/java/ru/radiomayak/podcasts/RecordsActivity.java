@@ -265,7 +265,9 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
 
             @Override
             public void onOffsetChanged(AppBarLayout appBarLayout, int verticalOffset) {
-                getRefreshView().setEnabled(verticalOffset >= 0 && !isRefreshing());
+                if (!isRefreshing()) {
+                    getRefreshView().setEnabled(verticalOffset >= 0);
+                }
                 if (scrollRange == -1) {
                     scrollRange = appBarLayout.getTotalScrollRange();
                 }
@@ -813,7 +815,11 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
 
     void loadMore() {
         adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
-        requestNextPage();
+        if (paginator != null) {
+            requestNextPage();
+        } else {
+            requestPodcast();
+        }
     }
 
     @Override
