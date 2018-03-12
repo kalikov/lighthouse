@@ -1,10 +1,16 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory android:title="@string/settings_offline" android:icon="@drawable/ic_info_black_24dp">
+    <PreferenceCategory
+        android:title="@string/settings_cache">
 
-        <EditTextPreference
-            android:key="podcasts_dir"
-            android:title="@string/setting_title_podcasts_dir"/>
+        <SwitchPreference
+            android:defaultValue="true"
+            android:key="cache_images_on"
+            android:title="@string/setting_cache_images"/>
+
+        <Preference
+            android:key="cache_images_clear"
+            android:title="@string/setting_clear_images_cache"/>
 
     </PreferenceCategory>
 

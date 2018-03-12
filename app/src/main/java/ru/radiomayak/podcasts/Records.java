@@ -16,8 +16,6 @@ import ru.radiomayak.JsonUtils;
 import ru.radiomayak.Jsonable;
 
 public class Records implements Parcelable, Jsonable {
-    private static final int VERSION = 1;
-
     public static final Creator<Records> CREATOR = new Creator<Records>() {
         @Override
         public Records createFromParcel(Parcel in) {
@@ -36,7 +34,6 @@ public class Records implements Parcelable, Jsonable {
     private final LongSparseArray<Record> recordsMap;
 
     protected Records(Parcel in) {
-        int version = in.readInt();
         records = in.createTypedArrayList(Record.CREATOR);
         recordsMap = new LongSparseArray<>(records.size());
         for (Record record : records) {
@@ -97,7 +94,6 @@ public class Records implements Parcelable, Jsonable {
 
     @Override
     public void writeToParcel(Parcel out, int flags) {
-        out.writeInt(VERSION);
         out.writeTypedList(records);
     }
 

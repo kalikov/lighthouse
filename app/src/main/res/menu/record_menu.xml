@@ -5,7 +5,7 @@
 
     <item
         android:id="@+id/download"
-        android:title="@string/records_clear_cache"
+        android:title="@string/record_download"
         app:showAsAction="never"/>
 
 </menu>

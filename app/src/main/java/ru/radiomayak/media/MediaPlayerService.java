@@ -136,7 +136,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
             @Override
             public void onPlayerError(ExoPlaybackException error) {
                 mediaSession.setActive(false);
-                stop(PlaybackStateCompat.STATE_ERROR);
+                stopService(PlaybackStateCompat.STATE_ERROR);
             }
 
             @Override
@@ -284,7 +284,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     }
 
     public boolean isPlaying() {
-        return mediaPlayer.getPlayWhenReady();
+        return mediaPlayer.getPlayWhenReady() && mediaPlayer.getPlaybackState() == Player.STATE_READY;
     }
 
     public void play() {
@@ -322,20 +322,25 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     }
 
     public void stop() {
-        stop(PlaybackStateCompat.STATE_STOPPED);
+        stopService(PlaybackStateCompat.STATE_STOPPED);
     }
 
     private void stop(int state) {
         releaseWifiLockIfHeld();
-        notificationManager.stopNotification();
         storeRecordPosition();
         if (mediaPlayer.getPlaybackState() != Player.STATE_IDLE && mediaPlayer.getPlaybackState() != Player.STATE_ENDED) {
             mediaPlayer.stop();
         }
-        stopSelf();
         restorePlay = false;
         stateBuilder.setBufferedPosition(0);
         mediaSession.setPlaybackState(stateBuilder.setState(state, 0, mediaPlayer.getPlaybackParameters().speed).build());
+        notificationManager.updateNotification();
+    }
+
+    private void stopService(int state) {
+        notificationManager.stopNotification();
+        stop(state);
+        stopSelf();
     }
 
     public LighthouseTrack getTrack() {
@@ -350,7 +355,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         mediaSession.setMetadata(null);
         metadata = null;
 
-        stop(PlaybackStateCompat.STATE_NONE);
+        stopService(PlaybackStateCompat.STATE_NONE);
         this.track = null;
     }
 

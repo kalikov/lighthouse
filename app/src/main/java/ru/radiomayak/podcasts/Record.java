@@ -43,7 +43,6 @@ public class Record implements Parcelable, Jsonable {
     private String date;
     private String duration;
     private int position = POSITION_UNDEFINED;
-    private RecordFile file;
 
     protected Record(Parcel in) {
         id = in.readLong();
@@ -53,9 +52,6 @@ public class Record implements Parcelable, Jsonable {
         date = readStringFromParcel(in);
         duration = readStringFromParcel(in);
         position = in.readInt();
-        if (in.readByte() == 1) {
-            file = RecordFile.CREATOR.createFromParcel(in);
-        }
     }
 
     public Record(long id, String name, String url, @Nullable URI uri) {
@@ -82,12 +78,6 @@ public class Record implements Parcelable, Jsonable {
         writeStringToParcel(out, date);
         writeStringToParcel(out, duration);
         out.writeInt(position);
-        if (file == null) {
-            out.writeByte((byte) 0);
-        } else {
-            out.writeByte((byte) 1);
-            file.writeToParcel(out, flags);
-        }
     }
 
     @Nullable
@@ -146,14 +136,6 @@ public class Record implements Parcelable, Jsonable {
 
     public void setPosition(int position) {
         this.position = position;
-    }
-
-    public RecordFile getFile() {
-        return file;
-    }
-
-    public void setFile(RecordFile file) {
-        this.file = file;
     }
 
     public boolean merge(Record record) {

@@ -1,5 +1,6 @@
 package ru.radiomayak.podcasts;
 
+import android.content.Context;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
@@ -9,8 +10,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 
-import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
+import ru.radiomayak.content.LoaderState;
 import ru.radiomayak.http.DefaultHttpClientConnectionFactory;
 import ru.radiomayak.http.HttpClientConnection;
 import ru.radiomayak.http.HttpException;
@@ -21,38 +22,27 @@ import ru.radiomayak.http.HttpUtils;
 import ru.radiomayak.http.HttpVersion;
 import ru.radiomayak.http.message.BasicHttpRequest;
 
-class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastResponse> {
-    static final Object LOOPBACK = new Object();
-
-    private static final String LOG_TAG = PodcastAsyncTask.class.getSimpleName();
+class PodcastLoader extends AbstractHttpLoader<PodcastResponse> {
+    private static final String TAG = PodcastLoader.class.getSimpleName();
 
     private static final String PODCAST_URL = "http://radiomayak.ru/podcasts/podcast/id/%s/";
 
-    private static final int OFFLINE_PAGE_SIZE = 20;
-
     private final PodcastLayoutParser parser = new PodcastLayoutParser();
 
-    private final LighthouseApplication application;
-    private final Listener listener;
+    private final long id;
 
-    interface Listener {
-        void onPodcastLoaded(PodcastResponse response, boolean isCancelled);
-    }
-
-    PodcastAsyncTask(LighthouseApplication application, Listener listener) {
-        this.application = application;
-        this.listener = listener;
+    PodcastLoader(long id) {
+        this.id = id;
     }
 
     @Override
-    protected PodcastResponse doInBackground(Object... params) {
+    protected PodcastResponse onExecute(Context context, LoaderState state) {
         try {
-            long id = ((Number) params[0]).longValue();
-            if (NetworkUtils.isConnected(application)) {
+            if (NetworkUtils.isConnected(context)) {
                 try {
                     PodcastLayoutContent response = requestContent(id);
                     if (response != null && !response.getRecords().isEmpty()) {
-                        PodcastsOpenHelper helper = new PodcastsOpenHelper(application);
+                        PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
                         try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
                             database.loadRecordsPosition(id, response.getRecords());
                         }
@@ -62,29 +52,10 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
                 } catch (IOException | HttpException ignored) {
                 }
             }
-            if (params.length > 1 && params[1] == LOOPBACK) {
-//                List<Record> records = PodcastsUtils.loadRecords(application, id, 0, OFFLINE_PAGE_SIZE + 1);
-//                File cacheDir = application.getCacheDir();
-//                for (Record record : records) {
-//                    Cache cache = CacheUtils.getCache(cacheDir, String.valueOf(id));
-//                    record.setCacheSize((int) cache.getCacheSpace());
-//                }
-//                return new PodcastResponse(null, new OfflineRecordsPaginator(id, records, OFFLINE_PAGE_SIZE));
-            }
         } catch (Throwable e) {
-            Log.e(LOG_TAG, e.getMessage(), e);
+            Log.e(TAG, e.getMessage(), e);
         }
         return new PodcastResponse(null, null);
-    }
-
-    @Override
-    protected void onPostExecute(PodcastResponse response) {
-        listener.onPodcastLoaded(response, false);
-    }
-
-    @Override
-    protected void onCancelled(PodcastResponse response) {
-        listener.onPodcastLoaded(response, true);
     }
 
     @Nullable
@@ -104,4 +75,15 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
             }
         }
     }
+
+    @Override
+    public int hashCode() {
+        return (int)(id ^ (id >>> 32));
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        return object == this || object instanceof PodcastLoader && ((PodcastLoader) object).id == id;
+    }
 }
+

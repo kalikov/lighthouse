@@ -4,9 +4,11 @@ import android.support.annotation.Nullable;
 import android.support.graphics.drawable.AnimatedVectorDrawableCompat;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
+import android.view.MenuInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -61,14 +63,11 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
     @Override
     public int getItemCount() {
-        if (records.isEmpty()) {
-            return 0;
-        }
         return (podcast.getLength() > 0 ? 1 : 0) + records.size() + (footerMode != FooterMode.HIDDEN ? 1 : 0);
     }
 
     public boolean isEmpty() {
-        return records.isEmpty();
+        return records.isEmpty() && podcast.getLength() <= 0 && footerMode == FooterMode.HIDDEN;
     }
 
     @Override
@@ -205,7 +204,14 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             durationView.setTypeface(activity.getLighthouseApplication().getFontLight());
 
             updatePlayPauseState(record);
-            updateCacheState(record);
+
+            View menuView = getMenuView(itemView);
+            menuView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    activity.onCreatePopupMenu(record, view);
+                }
+            });
 
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -221,28 +227,6 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                 }
             });
             itemView.setOnCreateContextMenuListener(activity);
-        }
-
-        void updateCacheState(Record record) {
-            TextView cacheView = getCacheView(itemView);
-            ImageView cacheIconView = getCacheIconView(itemView);
-            if (record.getFile() == null) {
-                cacheView.setVisibility(View.GONE);
-                cacheIconView.setVisibility(View.GONE);
-            } else {
-                cacheView.setVisibility(View.VISIBLE);
-                cacheView.setText(formatSize(record.getFile().getSize()));
-                cacheIconView.setVisibility(View.VISIBLE);
-            }
-        }
-
-        private String formatSize(int size) {
-            int kbytes = size / 1024;
-            int mbytes = kbytes / 1024;
-            if (mbytes > 0) {
-                return mbytes + " MB";
-            }
-            return kbytes + " KB";
         }
 
         void updatePlayPauseState(Record record) {
@@ -264,35 +248,31 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         }
 
         private TextView getNameView(View view) {
-            return (TextView) view.findViewById(R.id.name);
+            return view.findViewById(R.id.name);
         }
 
         private TextView getDescriptionView(View view) {
-            return (TextView) view.findViewById(R.id.description);
+            return view.findViewById(R.id.description);
         }
 
         private TextView getDateView(View view) {
-            return (TextView) view.findViewById(R.id.date);
+            return view.findViewById(R.id.date);
         }
 
         private TextView getDurationView(View view) {
-            return (TextView) view.findViewById(R.id.duration);
+            return view.findViewById(R.id.duration);
         }
 
         private ImageView getIconView(View view) {
-            return (ImageView) view.findViewById(android.R.id.icon);
+            return view.findViewById(android.R.id.icon);
         }
 
         private ImageView getDoneIconView(View view) {
-            return (ImageView) view.findViewById(android.R.id.icon1);
+            return view.findViewById(android.R.id.icon1);
         }
 
-        private ImageView getCacheIconView(View view) {
-            return (ImageView) view.findViewById(android.R.id.icon2);
-        }
-
-        private TextView getCacheView(View view) {
-            return (TextView) view.findViewById(R.id.cache);
+        private ImageView getMenuView(View view) {
+            return view.findViewById(R.id.menu);
         }
     }
 

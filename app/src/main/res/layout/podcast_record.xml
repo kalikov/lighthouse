@@ -23,6 +23,7 @@
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
                 android:layout_toEndOf="@android:id/icon"
+                android:layout_toStartOf="@id/menu"
                 android:ellipsize="end"
                 android:maxLines="2"
                 android:paddingEnd="0dp"
@@ -37,6 +38,16 @@
                 android:layout_centerVertical="true"
                 android:src="@drawable/record_play"
                 android:tint="#000"
+                tools:ignore="ContentDescription"/>
+
+            <ImageView
+                android:id="@+id/menu"
+                android:layout_width="@dimen/record_icon_size"
+                android:layout_height="@dimen/record_icon_size"
+                android:layout_centerVertical="true"
+                android:layout_alignParentEnd="true"
+                android:src="@drawable/menu"
+                android:tint="@color/colorAccent"
                 tools:ignore="ContentDescription"/>
 
         </RelativeLayout>
@@ -66,29 +77,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/podcast_padding">
-
-            <ImageView
-                android:id="@android:id/icon2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignBottom="@id/cache"
-                android:layout_alignParentStart="true"
-                android:layout_alignTop="@id/cache"
-                android:layout_marginEnd="@dimen/podcast_length_padding"
-                android:src="@drawable/record_download"
-                tools:ignore="ContentDescription"/>
-
-            <TextView
-                android:id="@+id/cache"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:layout_toEndOf="@android:id/icon2"
-                android:layout_toStartOf="@android:id/icon1"
-                android:lines="1"
-                android:text="@string/lorem_ipsum"
-                android:textAlignment="textStart"
-                android:textAppearance="@style/AppTheme.Text.Small"/>
 
             <ImageView
                 android:id="@android:id/icon1"

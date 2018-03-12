@@ -3,7 +3,6 @@ package ru.radiomayak.podcasts;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
-import java.io.IOException;
 import java.util.Collection;
 
 import ru.radiomayak.StringUtils;
@@ -121,32 +120,6 @@ public class PodcastsReadableDatabase implements AutoCloseable {
 
     public void commit() {
         db.setTransactionSuccessful();
-    }
-
-    public void loadRecordsFile(long podcast, Records records) {
-        if (records.isEmpty()) {
-            return;
-        }
-        StringBuilder queryBuilder = new StringBuilder(Files.SELECT_SQL);
-        String[] args = new String[records.list().size() + 1];
-
-        queryBuilder.append(WHERE).append(Files.Fields.PODCAST_ID).append(" = ?");
-        args[0] = String.valueOf(podcast);
-
-        queryBuilder.append(AND).append(Files.Fields.RECORD_ID).append(" in (");
-        buildArgs(queryBuilder, args, 1, records.list());
-        queryBuilder.append(')');
-        try (Cursor cursor = db.rawQuery(queryBuilder.toString(), args)) {
-            while (cursor.moveToNext()) {
-                long id = cursor.getLong(Files.Fields.RECORD_ID.ordinal());
-                Record record = records.get(id);
-                if (record != null) {
-                    int size = cursor.getInt(Files.Fields.SIZE.ordinal());
-                    int capacity = cursor.getInt(Files.Fields.CAPACITY.ordinal());
-                    record.setFile(new RecordFile(size, capacity));
-                }
-            }
-        }
     }
 
     public void loadRecordsPosition(long podcast, Records records) {

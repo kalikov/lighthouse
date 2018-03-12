@@ -178,6 +178,7 @@ public class PodcastsActivity extends LighthouseActivity {
             podcastsFuture.cancel(true);
             podcastsFuture = null;
         }
+        podcasts = null;
         super.onDestroy();
     }
 

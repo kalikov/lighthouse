@@ -111,6 +111,20 @@ public final class StringUtils {
         return builder.toString();
     }
 
+    @Nullable
+    public static String toFilename(@Nullable String string) {
+        if (string == null || string.isEmpty()) {
+            return string;
+        }
+        StringBuilder builder = new StringBuilder(string.length());
+        for (char c : string.toCharArray()) {
+            if (Character.isLetterOrDigit(c) || Character.isSpaceChar(c) || "!@#$^&()[]{}-+_='\"".indexOf(c) >= 0) {
+                builder.append(c);
+            }
+        }
+        return builder.toString();
+    }
+
     private StringUtils() {
     }
 }

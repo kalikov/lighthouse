@@ -25,29 +25,16 @@ import ru.radiomayak.widget.ToolbarCompat;
 import java.util.Objects;
 
 public class SettingsActivity extends AppCompatActivity {
-    /**
-     * A preference value change listener that updates the preference's summary
-     * to reflect its new value.
-     */
     private static final Preference.OnPreferenceChangeListener changeListener = new Preference.OnPreferenceChangeListener() {
         @Override
         public boolean onPreferenceChange(Preference preference, Object value) {
             String stringValue = value.toString();
 
             if (preference instanceof ListPreference) {
-                // For list preferences, look up the correct display value in
-                // the preference's 'entries' list.
                 ListPreference listPreference = (ListPreference) preference;
                 int index = listPreference.findIndexOfValue(stringValue);
-
-                // Set the summary to reflect the new value.
-                preference.setSummary(
-                        index >= 0
-                                ? listPreference.getEntries()[index]
-                                : null);
+                preference.setSummary(index >= 0 ? listPreference.getEntries()[index] : null);
             } else {
-                // For all other preferences, set the summary to the value's
-                // simple string representation.
                 preference.setSummary(stringValue);
             }
             return true;
@@ -77,7 +64,7 @@ public class SettingsActivity extends AppCompatActivity {
 
 
     private void initializeToolbar() {
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setTitle(R.string.settings);
         ToolbarCompat.setTitleTypeface(toolbar, getLighthouseApplication().getFontNormal());
         setSupportActionBar(toolbar);

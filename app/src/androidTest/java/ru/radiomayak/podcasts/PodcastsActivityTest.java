@@ -5,7 +5,6 @@ import android.support.test.rule.ActivityTestRule;
 import android.support.test.runner.AndroidJUnit4;
 import android.view.View;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -21,17 +20,13 @@ import ru.radiomayak.content.Loader;
 @RunWith(AndroidJUnit4.class)
 public class PodcastsActivityTest {
     @Rule
-    public ActivityTestRule<PodcastsActivity> rule = new ActivityTestRule<>(PodcastsActivity.class);
+    public final ActivityTestRule<PodcastsActivity> rule = new ActivityTestRule<>(PodcastsActivity.class);
 
     private PodcastsActivity activity;
 
     @Before
     public void before() {
         activity = rule.getActivity();
-    }
-
-    @After
-    public void after() {
     }
 
     @Test

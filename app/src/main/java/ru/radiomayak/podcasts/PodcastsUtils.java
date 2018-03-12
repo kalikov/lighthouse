@@ -8,18 +8,9 @@ import android.support.annotation.Nullable;
 
 import org.apache.commons.io.IOUtils;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 
-import ru.radiomayak.CacheUtils;
-import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.StringUtils;
-import ru.radiomayak.media.ByteMap;
-import ru.radiomayak.media.ByteMapUtils;
 
 public final class PodcastsUtils {
     static final String PODCASTS_DATABASE_NAME = "podcasts";

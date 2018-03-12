@@ -3,10 +3,9 @@ package ru.radiomayak.widget;
 import android.content.Context;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.support.annotation.NonNull;
 import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.CoordinatorLayout;
-import android.support.v4.os.ParcelableCompat;
-import android.support.v4.os.ParcelableCompatCreatorCallbacks;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.RecyclerView;
 import android.util.AttributeSet;
@@ -39,7 +38,8 @@ public final class AppBarLayoutFlingBehavior extends AppBarLayout.Behavior {
     }
 
     @Override
-    public boolean onNestedFling(CoordinatorLayout coordinatorLayout, AppBarLayout child, View target, float velocityX, float velocityY, boolean consumed) {
+    public boolean onNestedFling(@NonNull CoordinatorLayout coordinatorLayout, @NonNull AppBarLayout child,
+            @NonNull View target, float velocityX, float velocityY, boolean consumed) {
         if (velocityY > 0 && !isPositive || velocityY < 0 && isPositive) {
             velocityY = velocityY * -1;
         }
@@ -56,8 +56,9 @@ public final class AppBarLayoutFlingBehavior extends AppBarLayout.Behavior {
     }
 
     @Override
-    public void onNestedPreScroll(CoordinatorLayout coordinatorLayout, AppBarLayout child, View target, int dx, int dy, int[] consumed) {
-        super.onNestedPreScroll(coordinatorLayout, child, target, dx, dy, consumed);
+    public void onNestedPreScroll(CoordinatorLayout coordinatorLayout, AppBarLayout child,
+            View target, int dx, int dy, int[] consumed, int type) {
+        super.onNestedPreScroll(coordinatorLayout, child, target, dx, dy, consumed, type);
         isPositive = dy > 0;
     }
 
@@ -76,16 +77,32 @@ public final class AppBarLayoutFlingBehavior extends AppBarLayout.Behavior {
         }
 
         public static final Parcelable.Creator<InstanceState> CREATOR =
-                ParcelableCompat.newCreator(new ParcelableCompatCreatorCallbacks<InstanceState>() {
+                new Parcelable.ClassLoaderCreator<InstanceState>() {
                     @Override
-                    public InstanceState createFromParcel(Parcel source, ClassLoader loader) {
-                        return new InstanceState(source, loader);
+                    public InstanceState createFromParcel(Parcel source) {
+                        return new InstanceState(source, getClass().getClassLoader());
                     }
 
                     @Override
                     public InstanceState[] newArray(int size) {
                         return new InstanceState[size];
                     }
-                });
+
+                    @Override
+                    public InstanceState createFromParcel(Parcel source, ClassLoader loader) {
+                        return new InstanceState(source, loader);
+                    }
+                };
+//                ParcelableCompat.newCreator(new ParcelableCompatCreatorCallbacks<InstanceState>() {
+//                    @Override
+//                    public InstanceState createFromParcel(Parcel source, ClassLoader loader) {
+//                        return new InstanceState(source, loader);
+//                    }
+//
+//                    @Override
+//                    public InstanceState[] newArray(int size) {
+//                        return new InstanceState[size];
+//                    }
+//                });
     }
 }
