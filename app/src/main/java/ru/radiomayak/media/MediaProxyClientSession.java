@@ -145,9 +145,9 @@ class MediaProxyClientSession {
         HttpResponse response = createResponse(HttpStatus.OK);
         response.setHeader(HttpHeaders.CONTENT_LENGTH, String.valueOf(length));
         if (capacity > 0) {
-            response.setHeader(HttpHeaders.CONTENT_RANGE, range.toString() + "/" + capacity);
+            response.setHeader(HttpHeaders.CONTENT_RANGE, range.toContentRangeString() + "/" + capacity);
         } else {
-            response.setHeader(HttpHeaders.CONTENT_RANGE, range.toString());
+            response.setHeader(HttpHeaders.CONTENT_RANGE, range.toContentRangeString());
         }
         response.setStatusCode(HttpStatus.PARTIAL_CONTENT.getCode());
         writeResponseHeader(response);

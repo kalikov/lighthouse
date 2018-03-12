@@ -39,6 +39,19 @@ public class PodcastLayoutParserTest {
     }
 
     @Test
+    public void shouldGetRecordsWithIncorrectHtmlEntities() throws IOException, JSONException {
+        Records records;
+        try (InputStream stream = getResource("podcasts/podcast-2.html")) {
+            PodcastLayoutContent content = parser.parse(0, stream, "UTF-8", RESPONSE_URL);
+            records = content.getRecords();
+        }
+        try (InputStream resource = getResource("podcasts/podcast-2.records.json")) {
+            String json = IOUtils.toString(resource, "UTF-8");
+            assertEquals(new JSONArray(json), records.toJson());
+        }
+    }
+
+    @Test
     public void shouldGetPodcast() throws IOException, JSONException {
         Podcast podcast;
         try (InputStream stream = getResource("podcasts/podcast-1.html")) {

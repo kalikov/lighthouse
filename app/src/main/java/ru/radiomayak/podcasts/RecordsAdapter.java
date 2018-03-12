@@ -226,12 +226,12 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         void updateCacheState(Record record) {
             TextView cacheView = getCacheView(itemView);
             ImageView cacheIconView = getCacheIconView(itemView);
-            if (record.getCacheSize() == 0) {
+            if (record.getFile() == null) {
                 cacheView.setVisibility(View.GONE);
                 cacheIconView.setVisibility(View.GONE);
             } else {
                 cacheView.setVisibility(View.VISIBLE);
-                cacheView.setText(formatSize(record.getCacheSize()));
+                cacheView.setText(formatSize(record.getFile().getSize()));
                 cacheIconView.setVisibility(View.VISIBLE);
             }
         }
@@ -251,7 +251,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             }
             LighthouseTrack track = activity.getTrack();
             ImageView iconView = getIconView(itemView);
-            if (record == null || track == null || track.getPodcast().getId() != podcast.getId() || track.getRecord().getId() != record.getId()) {
+            if (track == null || track.getPodcast().getId() != podcast.getId() || track.getRecord().getId() != record.getId()) {
                 iconView.setImageResource(R.drawable.record_play);
             } else if (activity.isPlaying()) {
                 iconView.setImageDrawable(equalizerDrawable);
@@ -260,7 +260,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                 iconView.setImageResource(R.drawable.record_equalizer);
                 equalizerDrawable.stop();
             }
-            getDoneIconView(itemView).setVisibility(record == null || !record.isPlayed() ? View.INVISIBLE : View.VISIBLE);
+            getDoneIconView(itemView).setVisibility(record.getPosition() == Record.POSITION_UNDEFINED ? View.INVISIBLE : View.VISIBLE);
         }
 
         private TextView getNameView(View view) {

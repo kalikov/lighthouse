@@ -70,7 +70,8 @@ class OfflineRecordsPaginator implements RecordsPaginator {
     @Override
     public RecordsPaginator advance(LighthouseApplication context) {
         long from = records.get(pageSize - 1).getId();
-        List<Record> nextRecords = PodcastsUtils.loadRecords(context, podcast, from, pageSize + 1);
-        return new OfflineRecordsPaginator(podcast, nextRecords, pageSize);
+//        List<Record> nextRecords = PodcastsUtils.loadRecords(context, podcast, from, pageSize + 1);
+//        return new OfflineRecordsPaginator(podcast, nextRecords, pageSize);
+        return null;
     }
 }

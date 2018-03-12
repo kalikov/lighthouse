@@ -47,7 +47,6 @@ public final class PodcastsUtils {
     private static final String RECORD_DESC = PodcastsOpenHelper.RECORD_DESC;
     private static final String RECORD_DATE = PodcastsOpenHelper.RECORD_DATE;
     private static final String RECORD_DURATION = PodcastsOpenHelper.RECORD_DURATION;
-    private static final String RECORD_PLAYED = PodcastsOpenHelper.RECORD_PLAYED;
 
     private static final String[] PODCASTS_SELECT_FIELDS = {PODCAST_ID, PODCAST_NAME, PODCAST_DESC, PODCAST_LENGTH, PODCAST_SEEN,
             PODCAST_ICON_URL, PODCAST_ICON_RGB, PODCAST_ICON_RGB2, PODCAST_SPLASH_URL, PODCAST_SPLASH_RGB, PODCAST_SPLASH_RGB2};
@@ -63,10 +62,10 @@ public final class PodcastsUtils {
             " FROM " + PodcastsOpenHelper.PODCASTS + " WHERE " + PODCAST_ID + " = ?";
 
     private static final String[] RECORDS_SELECT_FIELDS = {RECORD_ID, RECORD_NAME, RECORD_URL, RECORD_DESC,
-            RECORD_DATE, RECORD_DURATION, RECORD_PLAYED};
+            RECORD_DATE, RECORD_DURATION};
 
-    private static final String RECORD_PLAYED_SELECT_SQL = "SELECT " + RECORD_PLAYED +
-            " FROM " + PodcastsOpenHelper.RECORDS + " WHERE " + RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " = ?";
+//    private static final String RECORD_PLAYED_SELECT_SQL = "SELECT " + RECORD_PLAYED +
+//            " FROM " + PodcastsOpenHelper.RECORDS + " WHERE " + RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " = ?";
 
     private static final ThreadLocal<String[]> IDENTITY_LEN_ARRAY = new ThreadLocal<>();
     private static final ThreadLocal<String[]> DOUBLE_LEN_ARRAY = new ThreadLocal<>();
@@ -262,7 +261,7 @@ public final class PodcastsUtils {
         return String.format(PODCAST_SPLASH_FILE, String.valueOf(podcast.getId()));
     }
 
-    static List<Record> loadRecords(LighthouseApplication application, long podcast, long from, int count) {
+    /*static List<Record> loadRecords(LighthouseApplication application, long podcast, long from, int count) {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(application, PODCASTS_DATABASE_NAME);
         try (SQLiteDatabase database = helper.getReadableDatabase()) {
             String sql = "SELECT " + StringUtils.join(RECORDS_SELECT_FIELDS, ", ") + " FROM " + PodcastsOpenHelper.RECORDS;
@@ -303,8 +302,9 @@ public final class PodcastsUtils {
                 return records;
             }
         }
-    }
+    }*/
 
+    /*
     static void storeRecords(Context context, long podcast, List<Record> records) {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
         try (SQLiteDatabase database = helper.getWritableDatabase()) {
@@ -317,28 +317,28 @@ public final class PodcastsUtils {
                 values.put(RECORD_DESC, record.getDescription());
                 values.put(RECORD_DATE, record.getDate());
                 values.put(RECORD_DURATION, record.getDuration());
-                if (!record.isPlayed()) {
-                    try (Cursor cursor = database.rawQuery(RECORD_PLAYED_SELECT_SQL, args(podcast, record.getId()))) {
-                        if (cursor.moveToNext()) {
-                            record.setPlayed(cursor.getInt(0) != 0);
-                        }
-                    }
-                }
-                values.put(RECORD_PLAYED, record.isPlayed() ? 1 : 0);
+//                if (!record.isPlayed()) {
+//                    try (Cursor cursor = database.rawQuery(RECORD_PLAYED_SELECT_SQL, args(podcast, record.getId()))) {
+//                        if (cursor.moveToNext()) {
+//                            record.setPlayed(cursor.getInt(0) != 0);
+//                        }
+//                    }
+//                }
+//                values.put(RECORD_PLAYED, record.isPlayed() ? 1 : 0);
                 database.insertWithOnConflict(PodcastsOpenHelper.RECORDS, null, values, SQLiteDatabase.CONFLICT_REPLACE);
             }
         }
-    }
-
+    }*/
+/*
     public static void storeRecordPlayedProperty(Context context, long podcast, Record record) {
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context, PODCASTS_DATABASE_NAME);
         try (SQLiteDatabase database = helper.getWritableDatabase()) {
             ContentValues values = new ContentValues();
-            values.put(RECORD_PLAYED, record.isPlayed() ? 1 : 0);
+//            values.put(RECORD_PLAYED, record.isPlayed() ? 1 : 0);
             String[] args = args(podcast, record.getId());
             database.update(PodcastsOpenHelper.RECORDS, values, RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " = ?", args);
         }
-    }
+    }*/
 
     private static String[] args(long arg) {
         return args(String.valueOf(arg));

@@ -50,10 +50,16 @@
             android:parentActivityName=".podcasts.PodcastsActivity">
         </activity>
 
-        <service android:name=".media.MediaPlayerService">
+        <service android:name=".media.MediaPlayerService" android:exported="false">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService"/>
             </intent-filter>
+        </service>
+
+        <service android:name=".podcasts.DownloadService" android:exported="false">
+            <!--<intent-filter>-->
+                <!--<action android:name="android.media.browse.MediaBrowserService"/>-->
+            <!--</intent-filter>-->
         </service>
 
         <receiver android:name="android.support.v4.media.session.MediaButtonReceiver">

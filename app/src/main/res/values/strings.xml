@@ -12,6 +12,8 @@
     <string name="zero">0</string>
     <string name="months">января,февраля,марта,апреля,мая,июня,июля,августа,сентября,октября,ноября,декабря</string>
 
+    <string name="downloading">Скачивается&#8230;</string>
+    <string name="saved">Сохранено</string>
     <string name="refreshing">Обновление&#8230;</string>
     <string name="loading">Загрузка&#8230;</string>
     <string name="play">Воиспроизведение</string>
@@ -30,13 +32,15 @@
     <string name="records_error">Не удалось получить список записей.\nПопробуйте повторить попытку.</string>
     <string name="records_count">Количество записей: %s</string>
     <string name="records_more">Загрузить ещё&#8230;</string>
-    <string name="records_clear_cache">Очистить оффлайн-кэш</string>
+    <string name="records_clear_cache">Очистить офлайн-кэш</string>
     <string name="record_date_format">dd MMMM yyyy</string>
     <string name="record_duration">Продолжительность: %s</string>
 
+    <string name="record_download">Скачать</string>
+
     <string name="settings">Настройки</string>
 
-    <string name="settings_offline">Оффлайн режим</string>
+    <string name="settings_offline">Офлайн режим</string>
 
     <string name="setting_title_podcasts_dir">Директория подкастов</string>
 </resources>

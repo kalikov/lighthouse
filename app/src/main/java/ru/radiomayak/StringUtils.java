@@ -100,6 +100,17 @@ public final class StringUtils {
         return builder.toString();
     }
 
+    public static String join(Object[] objects, String delimiter) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < objects.length; i++) {
+            if (i > 0) {
+                builder.append(delimiter);
+            }
+            builder.append(objects[i]);
+        }
+        return builder.toString();
+    }
+
     private StringUtils() {
     }
 }

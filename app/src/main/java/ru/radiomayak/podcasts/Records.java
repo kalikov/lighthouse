@@ -57,6 +57,10 @@ public class Records implements Parcelable, Jsonable {
         recordsMap = new LongSparseArray<>(records.size());
     }
 
+    public boolean isEmpty() {
+        return records.isEmpty();
+    }
+
     public List<Record> list() {
         return unmodifiableRecords;
     }

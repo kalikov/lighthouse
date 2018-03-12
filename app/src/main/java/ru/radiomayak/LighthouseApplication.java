@@ -134,8 +134,12 @@ public class LighthouseApplication extends Application {
         return mediaBrowser;
     }
 
-    public File getCacheDir() {
+    public File getPodcastsDir() {
         return podcastsDir;
+    }
+
+    public File getPodcastDir(long podcast) {
+        return new File(getPodcastsDir(), String.valueOf(podcast));
     }
 
     private void broadcastUpdate() {

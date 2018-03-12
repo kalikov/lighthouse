@@ -1,6 +1,7 @@
 package ru.radiomayak.media;
 
 import android.content.Context;
+import android.content.Intent;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
@@ -31,8 +32,11 @@ import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
 import java.util.List;
 import java.util.Objects;
 
+import ru.radiomayak.LighthouseActivity;
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.podcasts.Podcast;
+import ru.radiomayak.podcasts.PodcastsOpenHelper;
+import ru.radiomayak.podcasts.PodcastsWritableDatabase;
 import ru.radiomayak.podcasts.Record;
 
 public class MediaPlayerService extends MediaBrowserServiceCompat implements AudioManager.OnAudioFocusChangeListener {
@@ -110,13 +114,16 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
                         float speed = mediaPlayer.getPlaybackParameters().speed;
                         stateBuilder.setBufferedPosition(mediaPlayer.getBufferedPercentage());
                         mediaSession.setPlaybackState(stateBuilder.setState(PlaybackStateCompat.STATE_BUFFERING, pos, speed).build());
+                        storeRecordPosition(pos);
                         break;
                     case Player.STATE_READY:
                         updateSessionActiveState();
                         updateMetadata();
                         progressRunnable.run();
+                        storeRecordPosition();
                         break;
                     case Player.STATE_ENDED:
+                        storeRecordPosition(0);
                         stop(PlaybackStateCompat.STATE_STOPPED);
                         break;
                 }
@@ -175,7 +182,11 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
 
                 setPlayWhenReady(true);
                 mediaPlayer.prepare(new ExtractorMediaSource(uri, dataSourceFactory, new DefaultExtractorsFactory(), null, null));
-                mediaPlayer.seekToDefaultPosition();
+                if (record.getPosition() == Record.POSITION_UNDEFINED) {
+                    mediaPlayer.seekToDefaultPosition();
+                } else {
+                    mediaPlayer.seekTo(record.getPosition());
+                }
             }
 
             @Override
@@ -292,6 +303,24 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         notificationManager.updateNotification();
     }
 
+    private void storeRecordPosition() {
+        if (mediaPlayer.getPlaybackState() != Player.STATE_IDLE && mediaPlayer.getPlaybackState() != Player.STATE_ENDED) {
+            storeRecordPosition(getCurrentPosition());
+        }
+    }
+
+    private void storeRecordPosition(long position) {
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(this);
+        try (PodcastsWritableDatabase db = PodcastsWritableDatabase.get(helper)) {
+            db.storeRecordPosition(track.getPodcast().getId(), track.getRecord().getId(), (int) position);
+        }
+        Intent intent = new Intent(LighthouseActivity.ACTION_POSITION);
+        intent.putExtra(LighthouseActivity.EXTRA_PODCAST, track.getPodcast().getId());
+        intent.putExtra(LighthouseActivity.EXTRA_RECORD, track.getRecord().getId());
+        intent.putExtra(LighthouseActivity.EXTRA_POSITION, (int) position);
+        sendBroadcast(intent);
+    }
+
     public void stop() {
         stop(PlaybackStateCompat.STATE_STOPPED);
     }
@@ -299,6 +328,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     private void stop(int state) {
         releaseWifiLockIfHeld();
         notificationManager.stopNotification();
+        storeRecordPosition();
         if (mediaPlayer.getPlaybackState() != Player.STATE_IDLE && mediaPlayer.getPlaybackState() != Player.STATE_ENDED) {
             mediaPlayer.stop();
         }

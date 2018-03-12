@@ -138,9 +138,21 @@ public class HttpRange {
         return 31 * from + to ^ length;
     }
 
+    public String toRangeString() {
+        return to > 0 ? "bytes=" + from + "-" + to : "bytes=" + from + "-";
+    }
+
+    public String toContentRangeString() {
+        String string = to > 0 ? "bytes " + from + "-" + to : "bytes " + from + "-";
+        if (length > 0) {
+            return string + "/" + length;
+        }
+        return string;
+    }
+
     @Override
     public String toString() {
-        String string = to > 0 ? "bytes " + from + "-" + to : "bytes " + from + "-";
+        String string = to > 0 ? from + "-" + to : from + "-";
         if (length > 0) {
             return string + "/" + length;
         }

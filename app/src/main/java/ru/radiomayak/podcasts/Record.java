@@ -20,8 +20,9 @@ public class Record implements Parcelable, Jsonable {
     private static final String PROP_DESC = "description";
     private static final String PROP_DATE = "date";
     private static final String PROP_DURATION = "duration";
-    private static final String PROP_PLAYED = "played";
-    private static final String PROP_CACHE_SIZE = "cache_size";
+    private static final String PROP_POSITION = "position";
+
+    public static final int POSITION_UNDEFINED = -1;
 
     public static final Creator<Record> CREATOR = new Creator<Record>() {
         @Override
@@ -41,8 +42,8 @@ public class Record implements Parcelable, Jsonable {
     private String description;
     private String date;
     private String duration;
-    private boolean isPlayed;
-    private int cacheSize;
+    private int position = POSITION_UNDEFINED;
+    private RecordFile file;
 
     protected Record(Parcel in) {
         id = in.readLong();
@@ -51,8 +52,10 @@ public class Record implements Parcelable, Jsonable {
         description = readStringFromParcel(in);
         date = readStringFromParcel(in);
         duration = readStringFromParcel(in);
-        isPlayed = in.readByte() != 0;
-        cacheSize = in.readInt();
+        position = in.readInt();
+        if (in.readByte() == 1) {
+            file = RecordFile.CREATOR.createFromParcel(in);
+        }
     }
 
     public Record(long id, String name, String url, @Nullable URI uri) {
@@ -78,8 +81,13 @@ public class Record implements Parcelable, Jsonable {
         writeStringToParcel(out, description);
         writeStringToParcel(out, date);
         writeStringToParcel(out, duration);
-        out.writeByte(isPlayed ? (byte) 1 : 0);
-        out.writeInt(cacheSize);
+        out.writeInt(position);
+        if (file == null) {
+            out.writeByte((byte) 0);
+        } else {
+            out.writeByte((byte) 1);
+            file.writeToParcel(out, flags);
+        }
     }
 
     @Nullable
@@ -132,20 +140,20 @@ public class Record implements Parcelable, Jsonable {
         this.duration = StringUtils.nonEmpty(duration);
     }
 
-    public boolean isPlayed() {
-        return isPlayed;
+    public int getPosition() {
+        return position;
     }
 
-    public void setPlayed(boolean isPlayed) {
-        this.isPlayed = isPlayed;
+    public void setPosition(int position) {
+        this.position = position;
     }
 
-    public int getCacheSize() {
-        return cacheSize;
+    public RecordFile getFile() {
+        return file;
     }
 
-    public void setCacheSize(int cacheSize) {
-        this.cacheSize = cacheSize;
+    public void setFile(RecordFile file) {
+        this.file = file;
     }
 
     public boolean merge(Record record) {
@@ -162,13 +170,9 @@ public class Record implements Parcelable, Jsonable {
             updated = updated || !StringUtils.equals(duration, record.getDuration());
             duration = record.getDuration();
         }
-        if (record.isPlayed() && !isPlayed) {
+        if (record.getPosition() != position) {
             updated = true;
-            isPlayed = true;
-        }
-        if (record.getCacheSize() != cacheSize) {
-            cacheSize = record.getCacheSize();
-            updated = true;
+            position = record.getPosition();
         }
         return updated;
     }
@@ -183,9 +187,8 @@ public class Record implements Parcelable, Jsonable {
             json.put(PROP_DESC, description);
             json.put(PROP_DATE, date);
             json.put(PROP_DURATION, duration);
-            json.put(PROP_PLAYED, isPlayed);
-            if (cacheSize > 0) {
-                json.put(PROP_CACHE_SIZE, cacheSize);
+            if (position != POSITION_UNDEFINED) {
+                json.put(PROP_POSITION, position);
             }
         } catch (JSONException e) {
             throw new RuntimeException(e);
@@ -211,8 +214,7 @@ public class Record implements Parcelable, Jsonable {
         record.setDescription(StringUtils.nonEmpty(JsonUtils.getOptString(json, PROP_DESC)));
         record.setDate(StringUtils.nonEmpty(JsonUtils.getOptString(json, PROP_DATE)));
         record.setDuration(StringUtils.nonEmpty(JsonUtils.getOptString(json, PROP_DURATION)));
-        record.setPlayed(JsonUtils.getOptBoolean(json, PROP_PLAYED, false));
-        record.setCacheSize(JsonUtils.getOptInt(json, PROP_CACHE_SIZE, 0));
+        record.setPosition(JsonUtils.getOptInt(json, PROP_POSITION, POSITION_UNDEFINED));
         return record;
     }
 }

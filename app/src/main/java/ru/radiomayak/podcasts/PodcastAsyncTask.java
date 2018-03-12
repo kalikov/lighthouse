@@ -1,21 +1,14 @@
 package ru.radiomayak.podcasts;
 
+import android.support.annotation.Nullable;
 import android.util.Log;
-
-import com.google.android.exoplayer2.upstream.cache.Cache;
-import com.google.android.exoplayer2.upstream.cache.NoOpCacheEvictor;
-import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 
 import org.apache.commons.io.IOUtils;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.RandomAccessFile;
 import java.net.URL;
-import java.util.List;
 
-import ru.radiomayak.CacheUtils;
 import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.http.DefaultHttpClientConnectionFactory;
@@ -27,8 +20,6 @@ import ru.radiomayak.http.HttpResponse;
 import ru.radiomayak.http.HttpUtils;
 import ru.radiomayak.http.HttpVersion;
 import ru.radiomayak.http.message.BasicHttpRequest;
-import ru.radiomayak.media.ByteMap;
-import ru.radiomayak.media.ByteMapUtils;
 
 class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastResponse> {
     static final Object LOOPBACK = new Object();
@@ -60,12 +51,11 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
             if (NetworkUtils.isConnected(application)) {
                 try {
                     PodcastLayoutContent response = requestContent(id);
-                    if (response != null && !response.getRecords().list().isEmpty()) {
-                        PodcastsUtils.storeRecords(application, id, response.getRecords().list());
-                        File cacheDir = application.getCacheDir();
-                        for (Record record : response.getRecords().list()) {
-                           Cache cache = CacheUtils.getCache(cacheDir, String.valueOf(id));
-                           record.setCacheSize((int) cache.getCacheSpace());
+                    if (response != null && !response.getRecords().isEmpty()) {
+                        PodcastsOpenHelper helper = new PodcastsOpenHelper(application);
+                        try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
+                            database.loadRecordsFile(id, response.getRecords());
+                            database.loadRecordsPosition(id, response.getRecords());
                         }
                         RecordsPaginator paginator = new OnlineRecordsPaginator(id, response.getRecords(), response.getNextPage());
                         return new PodcastResponse(response.getPodcast(), paginator);
@@ -74,13 +64,13 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
                 }
             }
             if (params.length > 1 && params[1] == LOOPBACK) {
-                List<Record> records = PodcastsUtils.loadRecords(application, id, 0, OFFLINE_PAGE_SIZE + 1);
-                File cacheDir = application.getCacheDir();
-                for (Record record : records) {
-                    Cache cache = CacheUtils.getCache(cacheDir, String.valueOf(id));
-                    record.setCacheSize((int) cache.getCacheSpace());
-                }
-                return new PodcastResponse(null, new OfflineRecordsPaginator(id, records, OFFLINE_PAGE_SIZE));
+//                List<Record> records = PodcastsUtils.loadRecords(application, id, 0, OFFLINE_PAGE_SIZE + 1);
+//                File cacheDir = application.getCacheDir();
+//                for (Record record : records) {
+//                    Cache cache = CacheUtils.getCache(cacheDir, String.valueOf(id));
+//                    record.setCacheSize((int) cache.getCacheSpace());
+//                }
+//                return new PodcastResponse(null, new OfflineRecordsPaginator(id, records, OFFLINE_PAGE_SIZE));
             }
         } catch (Throwable e) {
             Log.e(LOG_TAG, e.getMessage(), e);
@@ -98,20 +88,20 @@ class PodcastAsyncTask extends AbstractHttpAsyncTask<Object, Void, PodcastRespon
         listener.onPodcastLoaded(response, true);
     }
 
-    private PodcastLayoutContent requestContent(long id) throws IOException, HttpException {
-        URL url = new URL(String.format(PODCAST_URL, String.valueOf(id)));
+    @Nullable
+    private PodcastLayoutContent requestContent(long podcast) throws IOException, HttpException {
+        URL url = new URL(String.format(PODCAST_URL, String.valueOf(podcast)));
         HttpRequest request = new BasicHttpRequest("GET", url.getPath(), HttpVersion.HTTP_1_1);
         request.setHeader(HttpHeaders.ACCEPT, "text/html,*/*");
         request.setHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate");
         request.setHeader(HttpHeaders.HOST, url.getAuthority());
-        // If-Modified-Since: Thu, 24 Nov 2016 10:13:10 GMT
         try (HttpClientConnection connection = DefaultHttpClientConnectionFactory.INSTANCE.openConnection(url)) {
             HttpResponse response = getEntityResponse(connection, request);
             if (response == null) {
                 return null;
             }
             try (InputStream input = HttpUtils.getContent(response.getEntity())) {
-                return parser.parse(id, IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
+                return parser.parse(podcast, IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
             }
         }
     }

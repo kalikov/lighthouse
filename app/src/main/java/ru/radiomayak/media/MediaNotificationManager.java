@@ -1,15 +1,17 @@
 package ru.radiomayak.media;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.support.annotation.Nullable;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.app.TaskStackBuilder;
-import android.support.v7.app.NotificationCompat;
 import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -34,6 +36,8 @@ public class MediaNotificationManager extends BroadcastReceiver {
     public static final String ACTION_STOP = MediaNotificationManager.class.getPackage().getName() + ".stop";
 
     private final NotificationManagerCompat notificationManager;
+    private final String channelId;
+
     private final MediaPlayerService service;
 
     private final PendingIntent pauseIntent;
@@ -47,6 +51,12 @@ public class MediaNotificationManager extends BroadcastReceiver {
 
         notificationManager = NotificationManagerCompat.from(service);
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            channelId = NotificationChannel.DEFAULT_CHANNEL_ID;
+        } else {
+            channelId = "default";
+        }
+
         String pkg = service.getPackageName();
         pauseIntent = PendingIntent.getBroadcast(service, REQUEST_CODE, new Intent(ACTION_PAUSE).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
         playIntent = PendingIntent.getBroadcast(service, REQUEST_CODE, new Intent(ACTION_PLAY).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
@@ -56,7 +66,7 @@ public class MediaNotificationManager extends BroadcastReceiver {
 
     public boolean startNotification() {
         if (notificationBuilder == null) {
-            notificationBuilder = new NotificationCompat.Builder(service);
+            notificationBuilder = new NotificationCompat.Builder(service, channelId);
             Notification notification = createNotification();
             if (notification == null) {
                 notificationBuilder = null;

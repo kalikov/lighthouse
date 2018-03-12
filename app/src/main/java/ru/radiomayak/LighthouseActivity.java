@@ -1,6 +1,7 @@
 package ru.radiomayak;
 
 import android.animation.ValueAnimator;
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -28,13 +29,18 @@ import android.widget.Toast;
 import java.io.IOException;
 
 import ru.radiomayak.animation.Interpolators;
-import ru.radiomayak.media.MediaProxyServer;
 import ru.radiomayak.podcasts.Podcast;
 import ru.radiomayak.podcasts.PodcastsUtils;
 import ru.radiomayak.podcasts.Record;
 
-public class LighthouseActivity extends AppCompatActivity {
+public abstract class LighthouseActivity extends AppCompatActivity {
     static final String ACTION_UPDATE = LighthouseActivity.class.getPackage().getName() + ".MEDIA_UPDATE";
+
+    public static final String ACTION_POSITION = "ru.radiomayak.podcasts.action.POSITION";
+
+    public static final String EXTRA_PODCAST = "ru.radiomayak.podcasts.extra.PODCAST";
+    public static final String EXTRA_RECORD = "ru.radiomayak.podcasts.extra.RECORD";
+    public static final String EXTRA_POSITION = "ru.radiomayak.podcasts.extra.POSITION";
 
     private static final String ZERO_TIME_TEXT = "00:00";
 
@@ -85,7 +91,7 @@ public class LighthouseActivity extends AppCompatActivity {
                 onFailed();
             } else if (state.getState() == PlaybackStateCompat.STATE_PLAYING || state.getState() == PlaybackStateCompat.STATE_PAUSED) {
                 isSeeking = false;
-                updateRecordPlayedState();
+//                updateRecordPosition(getCurrentPosition());
                 updatePlayerView(false);
             } else if (state.getState() != PlaybackStateCompat.STATE_REWINDING) {
                 isSeeking = false;
@@ -120,6 +126,7 @@ public class LighthouseActivity extends AppCompatActivity {
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_UPDATE);
+        filter.addAction(ACTION_POSITION);
         registerReceiver(broadcastReceiver, filter);
     }
 
@@ -185,6 +192,7 @@ public class LighthouseActivity extends AppCompatActivity {
 
         getPlayerView().setOnTouchListener(new View.OnTouchListener() {
             @Override
+            @SuppressLint("ClickableViewAccessibility")
             public boolean onTouch(View view, MotionEvent event) {
                 return true;
             }
@@ -234,9 +242,11 @@ public class LighthouseActivity extends AppCompatActivity {
             getSongPositionView().setText(ZERO_TIME_TEXT);
             getSongDurationView().setText(ZERO_TIME_TEXT);
         } else {
-            getSeekBar().setEnabled(getDuration() > 0);
-            getSongPositionView().setText(PodcastsUtils.formatTime(getCurrentPosition()));
-            getSongDurationView().setText(PodcastsUtils.formatTime(getDuration()));
+            int position = getCurrentPosition();
+            int duration = getDuration();
+            getSeekBar().setEnabled(duration > 0);
+            getSongPositionView().setText(position <= duration ? PodcastsUtils.formatTime(position) : ZERO_TIME_TEXT);
+            getSongDurationView().setText(PodcastsUtils.formatTime(duration));
             updateProgress();
         }
         if (valueAnimator != null) {
@@ -423,7 +433,7 @@ public class LighthouseActivity extends AppCompatActivity {
         }
     }
 
-    protected long updateProgress() {
+    protected int updateProgress() {
         if (isTracking || isRewinding()) {
             return 0;
         }
@@ -438,22 +448,24 @@ public class LighthouseActivity extends AppCompatActivity {
         int percent = getBufferPercentage();
         getSeekBar().setSecondaryProgress(percent * 10);
 
-        getSongDurationView().setText(PodcastsUtils.formatTime(duration));
-        getSongPositionView().setText(PodcastsUtils.formatTime(position));
+//        getSongDurationView().setText(PodcastsUtils.formatTime(duration));
+//        getSongPositionView().setText(PodcastsUtils.formatTime(position <= duration ? position : 0));
 
         return position;
     }
 
-    private void updateRecordPlayedState() {
-        LighthouseTrack track = getTrack();
-        if (track != null && !track.getRecord().isPlayed()) {
-            updateRecordPlayedState(track.getPodcast(), track.getRecord());
-        }
-    }
+//    private void updateRecordPosition(int position) {
+//        LighthouseTrack track = getTrack();
+//        if (track != null && track.getRecord().getPosition() != position) {
+//            track.getRecord().setPosition(position);
+//            updateRecordPosition(track.getPodcast(), track.getRecord(), position);
+//        }
+//    }
 
-    protected void updateRecordPlayedState(Podcast podcast, Record record) {
-        record.setPlayed(true);
-        PodcastsUtils.storeRecordPlayedProperty(this, podcast.getId(), record);
+    protected void updateRecordPosition(long podcast, long record, int position) {
+        if (track != null && track.getPodcast().getId() == podcast && track.getRecord().getId() == record) {
+            track.getRecord().setPosition(position);
+        }
     }
 
     private void onFailed() {
@@ -499,6 +511,12 @@ public class LighthouseActivity extends AppCompatActivity {
             updateMediaController();
 
             updatePlayerView(true);
+        } else if (ACTION_POSITION.equals(action)) {
+            long podcast = intent.getLongExtra(EXTRA_PODCAST, 0);
+            long record = intent.getLongExtra(EXTRA_RECORD, 0);
+            int position = intent.getIntExtra(EXTRA_POSITION, 0);
+
+            updateRecordPosition(podcast, record, position);
         }
     }
 }

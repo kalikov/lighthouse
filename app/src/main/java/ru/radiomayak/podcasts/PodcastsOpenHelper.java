@@ -5,12 +5,13 @@ import android.database.DatabaseErrorHandler;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
-class PodcastsOpenHelper extends SQLiteOpenHelper {
-    private static final int VERSION = 3;
+public class PodcastsOpenHelper extends SQLiteOpenHelper {
+    private static final int VERSION = 4;
 
     static final String PODCASTS = "podcasts";
-
     static final String RECORDS = "records";
+    static final String PLAYERS = "players";
+    static final String FILES = "files";
 
     static final String PODCAST_ID = "id";
     static final String PODCAST_NAME = "name";
@@ -32,41 +33,68 @@ class PodcastsOpenHelper extends SQLiteOpenHelper {
     static final String RECORD_DESC = "description";
     static final String RECORD_DATE = "date";
     static final String RECORD_DURATION = "duration";
-    static final String RECORD_PLAYED = "played";
 
-    private static final String CREATE_PODCASTS_SQL = "CREATE TABLE " + PODCASTS + " (" +
-            PODCAST_ID + " INTEGER NOT NULL," +
-            PODCAST_NAME + " TEXT NOT NULL," +
-            PODCAST_DESC + " TEXT," +
-            PODCAST_LENGTH + " INTEGER NOT NULL," +
-            PODCAST_SEEN + " INTEGER NOT NULL," +
-            PODCAST_ICON_URL + " TEXT," +
-            PODCAST_ICON_RGB + " INTEGER NOT NULL," +
-            PODCAST_ICON_RGB2 + " INTEGER NOT NULL," +
-            PODCAST_SPLASH_URL + " TEXT," +
-            PODCAST_SPLASH_RGB + " INTEGER NOT NULL," +
-            PODCAST_SPLASH_RGB2 + " INTEGER NOT NULL," +
-            PODCAST_ORD + " INTEGER NOT NULL," +
-            "PRIMARY KEY (" + PODCAST_ID + ")" +
-            ")";
+    static final String PLAYER_PODCAST_ID = "podcast_id";
+    static final String PLAYER_RECORD_ID = "record_id";
+    static final String PLAYER_POSITION = "position";
 
-    private static final String ALTER_PODCASTS_SEEN_SQL = "ALTER TABLE " + PODCASTS +
-            " ADD COLUMN " + PODCAST_SEEN + " INTEGER NOT NULL DEFAULT 0";
+    static final String FILE_PODCAST_ID = "podcast_id";
+    static final String FILE_RECORD_ID = "record_id";
+    static final String FILE_SIZE = "size";
+    static final String FILE_CAPACITY = "capacity";
 
-    private static final String CREATE_PODCASTS_ORD_INDEX_SQL = "CREATE INDEX idx_podcasts__ord" +
-            " ON " + PODCASTS + " (" + PODCAST_ORD + " DESC)";
+    private static final String CREATE_PODCASTS_SQL = "CREATE TABLE " + PODCASTS + " ("
+            + PODCAST_ID + " INTEGER NOT NULL,"
+            + PODCAST_NAME + " TEXT NOT NULL,"
+            + PODCAST_DESC + " TEXT,"
+            + PODCAST_LENGTH + " INTEGER NOT NULL,"
+            + PODCAST_SEEN + " INTEGER NOT NULL,"
+            + PODCAST_ICON_URL + " TEXT,"
+            + PODCAST_ICON_RGB + " INTEGER NOT NULL,"
+            + PODCAST_ICON_RGB2 + " INTEGER NOT NULL,"
+            + PODCAST_SPLASH_URL + " TEXT,"
+            + PODCAST_SPLASH_RGB + " INTEGER NOT NULL,"
+            + PODCAST_SPLASH_RGB2 + " INTEGER NOT NULL,"
+            + PODCAST_ORD + " INTEGER NOT NULL,"
+            + "PRIMARY KEY (" + PODCAST_ID + ")"
+            + ")";
 
-    private static final String CREATE_RECORDS_SQL = "CREATE TABLE " + RECORDS + " (" +
-            RECORD_PODCAST_ID + " INTEGER NOT NULL," +
-            RECORD_ID + " INTEGER NOT NULL," +
-            RECORD_NAME + " TEXT NOT NULL," +
-            RECORD_URL + " TEXT NOT NULL," +
-            RECORD_DESC + " TEXT," +
-            RECORD_DATE + " TEXT," +
-            RECORD_DURATION + " TEXT," +
-            RECORD_PLAYED + " INTEGER NOT NULL," +
-            "PRIMARY KEY (" + RECORD_PODCAST_ID + ", " + RECORD_ID + ")" +
-            ")";
+    private static final String CREATE_PODCASTS_ORD_INDEX_SQL = "CREATE INDEX idx_podcasts__ord"
+            + " ON " + PODCASTS + " (" + PODCAST_ORD + " DESC)";
+
+    private static final String CREATE_RECORDS_SQL = "CREATE TABLE " + RECORDS + " ("
+            + RECORD_PODCAST_ID + " INTEGER NOT NULL,"
+            + RECORD_ID + " INTEGER NOT NULL,"
+            + RECORD_NAME + " TEXT NOT NULL,"
+            + RECORD_URL + " TEXT NOT NULL,"
+            + RECORD_DESC + " TEXT,"
+            + RECORD_DATE + " TEXT,"
+            + RECORD_DURATION + " TEXT,"
+            + "PRIMARY KEY (" + RECORD_PODCAST_ID + ", " + RECORD_ID + ")"
+            + ")";
+
+    private static final String CREATE_PLAYERS_SQL = "CREATE TABLE " + PLAYERS + " ("
+            + PLAYER_PODCAST_ID + " INTEGER NOT NULL,"
+            + PLAYER_RECORD_ID + " INTEGER NOT NULL,"
+            + PLAYER_POSITION + " INTEGER NOT NULL,"
+            + "PRIMARY KEY (" + RECORD_PODCAST_ID + ", " + PLAYER_RECORD_ID + ")"
+            + ")";
+
+    private static final String CREATE_FILES_SQL = "CREATE TABLE " + FILES + " ("
+            + FILE_PODCAST_ID + " INTEGER NOT NULL,"
+            + FILE_RECORD_ID + " INTEGER NOT NULL,"
+            + FILE_SIZE + " INTEGER NOT NULL,"
+            + FILE_CAPACITY + " INTEGER NOT NULL,"
+            + "PRIMARY KEY (" + FILE_PODCAST_ID + ", " + FILE_RECORD_ID + ")"
+            + ")";
+
+    private static final String MIGRATE_RECORDS_PLAYED_SQL = "INSERT INTO " + PLAYERS
+            + "(" + PLAYER_PODCAST_ID + ", " + PLAYER_RECORD_ID + ", " + PLAYER_POSITION + ")"
+            + " SELECT " + RECORD_PODCAST_ID + ", " + RECORD_ID + ", 0 FROM " + RECORDS + " WHERE played = 1";
+
+    public PodcastsOpenHelper(Context context) {
+        this(context, PodcastsReadableDatabase.DATABASE_NAME);
+    }
 
     PodcastsOpenHelper(Context context, String name) {
         super(context, name, null, VERSION);
@@ -81,17 +109,26 @@ class PodcastsOpenHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_PODCASTS_SQL);
         db.execSQL(CREATE_PODCASTS_ORD_INDEX_SQL);
         db.execSQL(CREATE_RECORDS_SQL);
+        db.execSQL(CREATE_PLAYERS_SQL);
+        db.execSQL(CREATE_FILES_SQL);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion <= 1) {
-            db.execSQL(ALTER_PODCASTS_SEEN_SQL);
-            db.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH);
+            db.execSQL("ALTER TABLE " + PODCASTS + " ADD COLUMN " + PODCAST_SEEN + " INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("UPDATE " + PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH);
         }
         if (oldVersion <= 2) {
-            db.execSQL("UPDATE " + PodcastsOpenHelper.PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH +
-                    " WHERE "+ PODCAST_SEEN + " > " + PODCAST_LENGTH);
+            db.execSQL("UPDATE " + PODCASTS + " SET " + PODCAST_SEEN + " = " + PODCAST_LENGTH
+                    + " WHERE " + PODCAST_SEEN + " > " + PODCAST_LENGTH);
+        }
+        if (oldVersion <= 3) {
+            db.execSQL(CREATE_PLAYERS_SQL);
+            db.execSQL(MIGRATE_RECORDS_PLAYED_SQL);
+            db.execSQL("DROP TABLE " + RECORDS);
+            db.execSQL(CREATE_RECORDS_SQL);
+            db.execSQL(CREATE_FILES_SQL);
         }
     }
 }
