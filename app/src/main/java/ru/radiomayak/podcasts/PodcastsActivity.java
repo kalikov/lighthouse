@@ -11,12 +11,10 @@ import android.support.annotation.VisibleForTesting;
 import android.util.LongSparseArray;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.Toolbar;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -152,23 +150,23 @@ public class PodcastsActivity extends LighthouseActivity {
         }
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.podcasts_menu, menu);
-        return true;
-    }
+//    @Override
+//    public boolean onCreateOptionsMenu(Menu menu) {
+//        MenuInflater inflater = getMenuInflater();
+//        inflater.inflate(R.menu.podcasts_menu, menu);
+//        return true;
+//    }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.settings:
-                openSettings();
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
-        }
-    }
+//    @Override
+//    public boolean onOptionsItemSelected(MenuItem item) {
+//        switch (item.getItemId()) {
+//            case R.id.settings:
+//                openSettings();
+//                return true;
+//            default:
+//                return super.onOptionsItemSelected(item);
+//        }
+//    }
 
     @Override
     protected void onDestroy() {
@@ -217,9 +215,19 @@ public class PodcastsActivity extends LighthouseActivity {
     }
 
     private void initializeErrorView() {
-        TextView text = getErrorView();
+        View errorView = getErrorView();
+        TextView text = errorView.findViewById(android.R.id.text1);
         text.setText(R.string.podcasts_error);
         text.setTypeface(getLighthouseApplication().getFontNormal());
+
+        Button retryButton = errorView.findViewById(R.id.retry);
+        retryButton.setTypeface(getLighthouseApplication().getFontNormal());
+        retryButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                requestRemoteList();
+            }
+        });
     }
 
     private void initializeListView() {
@@ -288,7 +296,7 @@ public class PodcastsActivity extends LighthouseActivity {
     }
 
     @VisibleForTesting
-    <T extends View> T getErrorView() {
+    View getErrorView() {
         return findViewById(R.id.error);
     }
 
@@ -564,8 +572,8 @@ public class PodcastsActivity extends LighthouseActivity {
         updatePodcastRows();
     }
 
-    private void openSettings() {
-        Intent intent = new Intent(this, SettingsActivity.class);
-        startActivity(intent);
-    }
+//    private void openSettings() {
+//        Intent intent = new Intent(this, SettingsActivity.class);
+//        startActivity(intent);
+//    }
 }

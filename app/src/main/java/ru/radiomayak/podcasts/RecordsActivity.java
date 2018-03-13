@@ -29,6 +29,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.TextView;
@@ -51,7 +52,7 @@ import ru.radiomayak.content.LoaderManager;
 import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.widget.ToolbarCompat;
 
-public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyncTask.Listener,*/ PageAsyncTask.Listener,
+public class RecordsActivity extends LighthouseActivity implements PageAsyncTask.Listener,
         PopupMenu.OnDismissListener, PopupMenu.OnMenuItemClickListener {
 
     public static final String ACTION_VIEW = RecordsActivity.class.getPackage().getName() + ".view";
@@ -61,7 +62,7 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
     public static final String EXTRA_SEEN = RecordsActivity.class.getPackage().getName() + ".SEEN";
 
     private static final String STATE_CONTENT_VIEW = PodcastsActivity.class.getName() + "$contentView";
-    private static final String STATE_FOOTER = RecordsActivity.class.getName() + "$footer";
+    private static final String STATE_PAGE_FAILED = RecordsActivity.class.getName() + "pageFailed";
 
     private static final String FRAGMENT_TAG = RecordsActivity.class.getName() + "$data";
 
@@ -82,14 +83,13 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
     final Loader.Listener<PodcastResponse> podcastListener = new Loader.Listener<PodcastResponse>() {
         @Override
         public void onComplete(Loader<PodcastResponse> loader, PodcastResponse data) {
-            onPodcastLoaded(data, false);
+            onPodcastLoaded(data);
         }
 
         @Override
         public void onException(Loader<PodcastResponse> loader, Throwable exception) {
             podcastFuture = null;
-            adapter.setFooterMode(RecordsAdapter.FooterMode.BUTTON);
-            showErrorView();
+            updateView();
         }
     };
 
@@ -113,10 +113,10 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
     private float maxAlpha = -1.0f;
     private ValueAnimator alphaAnimator;
 
-    //    private PodcastAsyncTask podcastAsyncTask;
     private PageAsyncTask pageAsyncTask;
 
     private RecordsPaginator paginator;
+    private boolean pageFailed;
 
     private Record contextRecord;
 
@@ -128,7 +128,6 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
 
         boolean requestList = true;
 
-        RecordsAdapter.FooterMode footerMode = null;
         if (state != null) {
             boolean isContentView = state.getBoolean(STATE_CONTENT_VIEW, true);
             if (isContentView) {
@@ -139,8 +138,7 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
                     records = dataFragment.getRecords();
                     paginator = dataFragment.getPaginator();
                     requestList = records == null || records.list().isEmpty();
-                    footerMode = paginator != null && paginator.hasNext() ? RecordsAdapter.FooterMode.LOADING : RecordsAdapter.FooterMode.HIDDEN;
-                    footerMode = RecordsAdapter.FooterMode.values()[state.getInt(STATE_FOOTER, footerMode.ordinal())];
+                    pageFailed = state.getBoolean(STATE_PAGE_FAILED, false);
                 }
             }
         }
@@ -157,23 +155,18 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
         }
 
         adapter = new RecordsAdapter(this, podcast, records.list());
-        if (footerMode != null) {
-            adapter.setFooterMode(footerMode);
-        }
 
         initializeView();
 
         if (requestList) {
             requestPodcast();
-            showLoadingView();
-        } else {
-            showContentView();
         }
         if (splashInfo != null) {
             setPodcastSplash(splashInfo);
         } else {
             requestPodcastSplash();
         }
+        updateView();
     }
 
     @Override
@@ -265,8 +258,10 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
 
             @Override
             public void onOffsetChanged(AppBarLayout appBarLayout, int verticalOffset) {
-                if (!isRefreshing()) {
-                    getRefreshView().setEnabled(verticalOffset >= 0);
+                if (verticalOffset >= 0 && podcastFuture == null) {
+                    getRefreshView().setEnabled(true);
+                } else if (!getRefreshView().isRefreshing()) {
+                    getRefreshView().setEnabled(false);
                 }
                 if (scrollRange == -1) {
                     scrollRange = appBarLayout.getTotalScrollRange();
@@ -387,9 +382,19 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
     }
 
     private void initializeErrorView() {
-        TextView text = getErrorView();
+        View errorView = getErrorView();
+        TextView text = errorView.findViewById(android.R.id.text1);
         text.setText(R.string.records_error);
         text.setTypeface(getLighthouseApplication().getFontNormal());
+
+        Button retryButton = errorView.findViewById(R.id.retry);
+        retryButton.setTypeface(getLighthouseApplication().getFontNormal());
+        retryButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                refreshPodcast();
+            }
+        });
     }
 
     private void initializeRecyclerView() {
@@ -403,7 +408,6 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
                 if (!view.isNestedScrollingEnabled()) {
                     setAppBarCollapsingEnabled(hasContentScroll());
                 }
-//                getRefreshView().setEnabled(isRefreshViewEnabled());
             }
         });
 
@@ -421,32 +425,33 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
             }
 
             private boolean isFooterVisible(RecyclerView view) {
-                if (adapter.getItemViewType(adapter.getItemCount() - 1) != RecordsAdapter.FOOTER_VIEW_TYPE) {
+                int last = adapter.getItemCount() - 1;
+                if (adapter.getItemViewType(last) != RecordsAdapter.FOOTER_VIEW_TYPE) {
                     return false;
                 }
-                RecyclerView.ViewHolder viewHolder = view.findViewHolderForAdapterPosition(adapter.getItemCount() - 1);
+                RecyclerView.ViewHolder viewHolder = view.findViewHolderForAdapterPosition(last);
                 return viewHolder != null;
             }
         });
     }
 
-    private boolean isContentScrollOnTop() {
-        return getAppBarLayout().getTop() >= 0 && !getRecyclerView().canScrollVertically(-1);
-    }
-
-    private boolean isRefreshing() {
-        return podcastFuture != null || pageAsyncTask != null;
-    }
-
-    private boolean isRefreshViewEnabled() {
-        return isContentScrollOnTop() && !isRefreshing();
+    private void updateView() {
+        if (splash == null && records.isEmpty()) {
+            if (podcastFuture != null) {
+                showLoadingView();
+            } else {
+                showErrorView();
+            }
+        } else {
+            showRecyclerView();
+        }
     }
 
     private void initializeRefreshView() {
         getRefreshView().setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
-                requestPodcast();
+                refreshPodcast();
             }
         });
         getRefreshView().setColorSchemeResources(R.color.colorPrimary);
@@ -485,7 +490,7 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
     }
 
     @VisibleForTesting
-    TextView getErrorView() {
+    View getErrorView() {
         return findViewById(R.id.error);
     }
 
@@ -510,7 +515,7 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
             }
             dataFragment.setRecords(records);
             dataFragment.setPaginator(paginator);
-            state.putInt(STATE_FOOTER, adapter.getFooterMode().ordinal());
+            state.putBoolean(STATE_PAGE_FAILED, pageFailed);
         }
         super.onSaveInstanceState(state);
     }
@@ -531,21 +536,6 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
             Toast.makeText(this, R.string.toast_no_connection, Toast.LENGTH_SHORT).show();
             getRefreshView().setRefreshing(false);
         }
-//        if (podcastAsyncTask != null) {
-//            return;
-//        }
-//        if (records.isEmpty() || NetworkUtils.isConnected(this)) {
-//            podcastAsyncTask = new PodcastAsyncTask(getLighthouseApplication(), this);
-//            if (records.isEmpty()) {
-//                podcastAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcast.getId(), PodcastAsyncTask.LOOPBACK);
-//                showLoadingView();
-//            } else {
-//                podcastAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcast.getId());
-//            }
-//        } else {
-//            Toast.makeText(this, R.string.toast_no_connection, Toast.LENGTH_SHORT).show();
-//            getRefreshView().setRefreshing(false);
-//        }
     }
 
     private void requestNextPage() {
@@ -557,6 +547,7 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
     }
 
     private void showLoadingView() {
+        getAppBarLayout().setVisibility(View.GONE);
         getLoadingView().setVisibility(View.VISIBLE);
         getErrorView().setVisibility(View.GONE);
         getRecyclerView().setVisibility(View.GONE);
@@ -565,6 +556,7 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
     }
 
     private void showErrorView() {
+        getAppBarLayout().setVisibility(View.GONE);
         getLoadingView().setVisibility(View.GONE);
         getErrorView().setVisibility(View.VISIBLE);
         getRecyclerView().setVisibility(View.GONE);
@@ -572,38 +564,54 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
         getRefreshView().setRefreshing(false);
     }
 
-    private void showListView() {
+    private void showRecyclerView() {
         getAppBarLayout().setVisibility(View.VISIBLE);
         getLoadingView().setVisibility(View.GONE);
         getErrorView().setVisibility(View.GONE);
         getRecyclerView().setVisibility(View.VISIBLE);
-        getRefreshView().setEnabled(isRefreshViewEnabled());
-        getRefreshView().setRefreshing(false);
-    }
 
-    private void showContentView() {
-        if (records.isEmpty() && splash == null) {
-            showErrorView();
+        if (podcastFuture != null) {
+            if (records.isEmpty()) {
+                adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
+                getRefreshView().setEnabled(false);
+                getRefreshView().setRefreshing(false);
+            }
         } else {
-            showListView();
-        }
-    }
-
-//    @Override
-    public void onPodcastLoaded(PodcastResponse response, boolean isCancelled) {
-        podcastFuture = null;
-        if (!isCancelled && !isDestroyed()) {
-            if (response.getPaginator() == null && !records.isEmpty()) {
-                Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
-            } else {
-                if (response.getPodcast() != null) {
-                    updatePodcast(response.getPodcast());
+            if (pageAsyncTask == null) {
+                getRefreshView().setRefreshing(false);
+            }
+            if (paginator != null && paginator.hasNext()) {
+                if (pageAsyncTask != null || !pageFailed) {
+                    adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
+                } else {
+                    adapter.setFooterMode(RecordsAdapter.FooterMode.MORE);
                 }
-                updateFirstPageRecords(response.getPaginator());
+            } else {
+                if (!records.isEmpty()) {
+                    adapter.setFooterMode(RecordsAdapter.FooterMode.HIDDEN);
+                } else {
+                    adapter.setFooterMode(RecordsAdapter.FooterMode.ERROR);
+                }
             }
         }
-        showContentView();
     }
+
+    public void onPodcastLoaded(PodcastResponse response) {
+        podcastFuture = null;
+        if (isDestroyed()) {
+            return;
+        }
+        if (response.getPaginator() == null && !records.isEmpty()) {
+            Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
+        } else {
+            if (response.getPodcast() != null) {
+                updatePodcast(response.getPodcast());
+            }
+            updateFirstPageRecords(response.getPaginator());
+        }
+        updateView();
+    }
+
 
     private void updatePodcast(Podcast podcast) {
         boolean hasNoLength = this.podcast.getLength() <= 0;
@@ -649,14 +657,14 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
         }
         if (notifyDataSetChanged) {
             adapter.notifyDataSetChanged();
-            getRefreshView().setEnabled(isRefreshViewEnabled());
+//            getRefreshView().setEnabled(isRefreshViewEnabled());
         }
         this.paginator = paginator;
-        if (records.isEmpty()) {
-            adapter.setFooterMode(RecordsAdapter.FooterMode.BUTTON);
-        } else {
-            updateFooterMode();
-        }
+//        if (records.isEmpty()) {
+//            adapter.setFooterMode(RecordsAdapter.FooterMode.MORE);
+//        } else {
+//            updateFooterMode();
+//        }
     }
 
     private boolean hasContentScroll() {
@@ -685,23 +693,39 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
     @Override
     public void onPageLoaded(RecordsPaginator response, boolean isCancelled) {
         pageAsyncTask = null;
+        pageFailed = response == null;
         if (!isCancelled && !isDestroyed()) {
             if (response == null) {
                 Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
-                adapter.setFooterMode(RecordsAdapter.FooterMode.BUTTON);
+//                adapter.setFooterMode(RecordsAdapter.FooterMode.MORE);
+//                pageFailed = true;
             } else {
+
                 updatePageRecords(response);
             }
         }
+        updateView();
     }
 
-    private void updateFooterMode() {
-        if (paginator != null && paginator.hasNext() || podcastFuture != null) {
-            adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
-        } else {
-            adapter.setFooterMode(RecordsAdapter.FooterMode.HIDDEN);
-        }
-    }
+//    private void updateFooterMode() {
+//        if (podcastFuture != null) {
+//            adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
+//        } else {
+//            if (paginator != null && paginator.hasNext()) {
+//                if (pageAsyncTask != null || !pageFailed) {
+//                    adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
+//                } else {
+//                    adapter.setFooterMode(RecordsAdapter.FooterMode.MORE);
+//                }
+//            } else {
+//                if (!records.isEmpty()) {
+//                    adapter.setFooterMode(RecordsAdapter.FooterMode.HIDDEN);
+//                } else {
+//                    adapter.setFooterMode(RecordsAdapter.FooterMode.MORE);
+//                }
+//            }
+//        }
+//    }
 
     private void updatePageRecords(RecordsPaginator paginator) {
         boolean notifyDataSetChanged = records.isEmpty();
@@ -724,10 +748,8 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
         }
         if (notifyDataSetChanged) {
             adapter.notifyDataSetChanged();
-            getRefreshView().setEnabled(isRefreshViewEnabled());
         }
         this.paginator = paginator;
-        updateFooterMode();
     }
 
     private void updateRecordRow(Record record) {
@@ -755,6 +777,7 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
         }
         PodcastImageCache.getInstance().setSplash(podcast.getId(), bitmapInfo);
         setPodcastSplash(bitmapInfo);
+        updateView();
     }
 
     private void setPodcastSplash(BitmapInfo bitmapInfo) {
@@ -768,10 +791,10 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
             splash.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
             updateToolbarColor();
         }
-        if (podcastFuture != null) {
-            updateFooterMode();
-        }
-        showContentView();
+//        if (podcastFuture != null) {
+//            updateFooterMode();
+//        }
+//        showContentView();
     }
 
     private void setPodcastSplash(Bitmap bitmap) {
@@ -814,12 +837,13 @@ public class RecordsActivity extends LighthouseActivity implements /*PodcastAsyn
     }
 
     void loadMore() {
-        adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
-        if (paginator != null) {
-            requestNextPage();
-        } else {
-            requestPodcast();
-        }
+        requestNextPage();
+        updateView();
+    }
+
+    void refreshPodcast() {
+        requestPodcast();
+        updateView();
     }
 
     @Override

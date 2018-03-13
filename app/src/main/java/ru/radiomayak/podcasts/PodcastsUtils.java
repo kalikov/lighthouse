@@ -31,14 +31,6 @@ public final class PodcastsUtils {
     private static final String PODCAST_SPLASH_RGB2 = PodcastsOpenHelper.PODCAST_SPLASH_RGB2;
     private static final String PODCAST_ORD = PodcastsOpenHelper.PODCAST_ORD;
 
-    private static final String RECORD_PODCAST_ID = PodcastsOpenHelper.RECORD_PODCAST_ID;
-    private static final String RECORD_ID = PodcastsOpenHelper.RECORD_ID;
-    private static final String RECORD_NAME = PodcastsOpenHelper.RECORD_NAME;
-    private static final String RECORD_URL = PodcastsOpenHelper.RECORD_URL;
-    private static final String RECORD_DESC = PodcastsOpenHelper.RECORD_DESC;
-    private static final String RECORD_DATE = PodcastsOpenHelper.RECORD_DATE;
-    private static final String RECORD_DURATION = PodcastsOpenHelper.RECORD_DURATION;
-
     private static final String[] PODCASTS_SELECT_FIELDS = {PODCAST_ID, PODCAST_NAME, PODCAST_DESC, PODCAST_LENGTH, PODCAST_SEEN,
             PODCAST_ICON_URL, PODCAST_ICON_RGB, PODCAST_ICON_RGB2, PODCAST_SPLASH_URL, PODCAST_SPLASH_RGB, PODCAST_SPLASH_RGB2};
 
@@ -51,12 +43,6 @@ public final class PodcastsUtils {
 
     private static final String PODCAST_COLORS_SELECT_SQL = "SELECT " + StringUtils.join(PODCAST_COLORS_SELECT_FIELDS, ", ") +
             " FROM " + PodcastsOpenHelper.PODCASTS + " WHERE " + PODCAST_ID + " = ?";
-
-    private static final String[] RECORDS_SELECT_FIELDS = {RECORD_ID, RECORD_NAME, RECORD_URL, RECORD_DESC,
-            RECORD_DATE, RECORD_DURATION};
-
-//    private static final String RECORD_PLAYED_SELECT_SQL = "SELECT " + RECORD_PLAYED +
-//            " FROM " + PodcastsOpenHelper.RECORDS + " WHERE " + RECORD_PODCAST_ID + " = ? AND " + RECORD_ID + " = ?";
 
     private static final ThreadLocal<String[]> IDENTITY_LEN_ARRAY = new ThreadLocal<>();
     private static final ThreadLocal<String[]> DOUBLE_LEN_ARRAY = new ThreadLocal<>();
@@ -137,7 +123,13 @@ public final class PodcastsUtils {
                         continue;
                     }
                     values.put(PODCAST_ID, podcast.getId());
-                    values.put(PODCAST_SEEN, updated > 0 || podcast.getSeen() > 0 ? podcast.getSeen() : podcast.getLength());
+                    if (updated > 0) {
+                        if (podcast.getSeen() > 0) {
+                            values.put(PODCAST_SEEN, podcast.getSeen());
+                        }
+                    } else {
+                        values.put(PODCAST_SEEN, podcast.getLength());
+                    }
                     Cursor cursor = null;
                     try {
                         if (podcast.getIcon() != null) {

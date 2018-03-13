@@ -35,7 +35,6 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
 
     @Override
     protected Podcasts onExecute(Context context, LoaderState state) {
-//        Podcasts podcasts = null;
         try {
             if (NetworkUtils.isConnected(context)) {
                 try {
@@ -60,21 +59,9 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
             }
         } catch (Throwable e) {
             Log.e(LOG_TAG, e.getMessage(), e);
-//            if (podcasts == null) {
-//                podcasts = new Podcasts();
-//            }
-//            return new Podcasts();
         }
         return new Podcasts();
-//        return podcasts;
     }
-
-//    @Override
-//    protected void onEndLoading(Podcasts podcasts) {
-//        if (!podcasts.list().isEmpty() && requested.get()) {
-//            new StorePodcastsRunnable(getContext()).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcasts);
-//        }
-//    }
 
     private static void copyColors(Image target, Image source) {
         if (target != null && source != null && target.getUrl().equalsIgnoreCase(source.getUrl())) {

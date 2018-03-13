@@ -38,23 +38,18 @@ public class PodcastsOpenHelper extends SQLiteOpenHelper {
     static final String PLAYER_RECORD_ID = "record_id";
     static final String PLAYER_POSITION = "position";
 
-    static final String FILE_PODCAST_ID = "podcast_id";
-    static final String FILE_RECORD_ID = "record_id";
-    static final String FILE_SIZE = "size";
-    static final String FILE_CAPACITY = "capacity";
-
     private static final String CREATE_PODCASTS_SQL = "CREATE TABLE " + PODCASTS + " ("
             + PODCAST_ID + " INTEGER NOT NULL,"
             + PODCAST_NAME + " TEXT NOT NULL,"
             + PODCAST_DESC + " TEXT,"
             + PODCAST_LENGTH + " INTEGER NOT NULL,"
-            + PODCAST_SEEN + " INTEGER NOT NULL,"
+            + PODCAST_SEEN + " INTEGER NOT NULL DEFAULT 0,"
             + PODCAST_ICON_URL + " TEXT,"
-            + PODCAST_ICON_RGB + " INTEGER NOT NULL,"
-            + PODCAST_ICON_RGB2 + " INTEGER NOT NULL,"
+            + PODCAST_ICON_RGB + " INTEGER NOT NULL DEFAULT 0,"
+            + PODCAST_ICON_RGB2 + " INTEGER NOT NULL DEFAULT 0,"
             + PODCAST_SPLASH_URL + " TEXT,"
-            + PODCAST_SPLASH_RGB + " INTEGER NOT NULL,"
-            + PODCAST_SPLASH_RGB2 + " INTEGER NOT NULL,"
+            + PODCAST_SPLASH_RGB + " INTEGER NOT NULL DEFAULT 0,"
+            + PODCAST_SPLASH_RGB2 + " INTEGER NOT NULL DEFAULT 0,"
             + PODCAST_ORD + " INTEGER NOT NULL,"
             + "PRIMARY KEY (" + PODCAST_ID + ")"
             + ")";
@@ -80,14 +75,6 @@ public class PodcastsOpenHelper extends SQLiteOpenHelper {
             + "PRIMARY KEY (" + RECORD_PODCAST_ID + ", " + PLAYER_RECORD_ID + ")"
             + ")";
 
-    private static final String CREATE_FILES_SQL = "CREATE TABLE " + FILES + " ("
-            + FILE_PODCAST_ID + " INTEGER NOT NULL,"
-            + FILE_RECORD_ID + " INTEGER NOT NULL,"
-            + FILE_SIZE + " INTEGER NOT NULL,"
-            + FILE_CAPACITY + " INTEGER NOT NULL,"
-            + "PRIMARY KEY (" + FILE_PODCAST_ID + ", " + FILE_RECORD_ID + ")"
-            + ")";
-
     private static final String MIGRATE_RECORDS_PLAYED_SQL = "INSERT INTO " + PLAYERS
             + "(" + PLAYER_PODCAST_ID + ", " + PLAYER_RECORD_ID + ", " + PLAYER_POSITION + ")"
             + " SELECT " + RECORD_PODCAST_ID + ", " + RECORD_ID + ", 0 FROM " + RECORDS + " WHERE played = 1";
@@ -110,7 +97,6 @@ public class PodcastsOpenHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_PODCASTS_ORD_INDEX_SQL);
         db.execSQL(CREATE_RECORDS_SQL);
         db.execSQL(CREATE_PLAYERS_SQL);
-        db.execSQL(CREATE_FILES_SQL);
     }
 
     @Override
@@ -128,7 +114,11 @@ public class PodcastsOpenHelper extends SQLiteOpenHelper {
             db.execSQL(MIGRATE_RECORDS_PLAYED_SQL);
             db.execSQL("DROP TABLE " + RECORDS);
             db.execSQL(CREATE_RECORDS_SQL);
-            db.execSQL(CREATE_FILES_SQL);
+            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_SEEN + " INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_ICON_RGB + " INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_ICON_RGB2 + " INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_SPLASH_RGB + " INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_SPLASH_RGB2 + " INTEGER NOT NULL DEFAULT 0");
         }
     }
 }

@@ -21,15 +21,17 @@
     <string name="stop">Стоп</string>
     <string name="player_failed">Ошибка воспроизведения</string>
 
+    <string name="retry">Повторить попытку</string>
+
     <string name="toast_no_connection">Нет соединения</string>
     <string name="toast_loading_error">При загрузке данных произошла ошибка</string>
 
     <string name="podcasts">Подкасты</string>
     <string name="podcasts_loading">Получение списка подкастов&#8230;</string>
-    <string name="podcasts_error">Не удалось получить список подкастов.\nПопробуйте повторить попытку.</string>
+    <string name="podcasts_error">Не удалось получить список подкастов</string>
 
     <string name="records_loading">Получение списка записей&#8230;</string>
-    <string name="records_error">Не удалось получить список записей.\nПопробуйте повторить попытку.</string>
+    <string name="records_error">Не удалось получить список записей</string>
     <string name="records_count">Количество записей: %s</string>
     <string name="records_more">Загрузить ещё&#8230;</string>
     <string name="record_date_format">dd MMMM yyyy</string>

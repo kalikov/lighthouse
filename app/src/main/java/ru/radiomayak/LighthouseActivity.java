@@ -91,7 +91,6 @@ public abstract class LighthouseActivity extends AppCompatActivity {
                 onFailed();
             } else if (state.getState() == PlaybackStateCompat.STATE_PLAYING || state.getState() == PlaybackStateCompat.STATE_PAUSED) {
                 isSeeking = false;
-//                updateRecordPosition(getCurrentPosition());
                 updatePlayerView(false);
             } else if (state.getState() != PlaybackStateCompat.STATE_REWINDING) {
                 isSeeking = false;
@@ -141,8 +140,6 @@ public abstract class LighthouseActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
-//        unsetMediaController();
-
         super.onPause();
     }
 
@@ -314,12 +311,7 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         extras = bundle;
         this.track = track;
 
-        Uri uri;
-//        if (mediaProxy == null || !mediaProxy.isStarted()) {
-            uri = Uri.parse(record.getUrl());
-//        } else {
-//            uri = mediaProxy.formatUri(track.getPodcast().getId(), record.getId(), record.getUrl());
-//        }
+        Uri uri = Uri.parse(record.getUrl());
 
         MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
         mediaController.getTransportControls().playFromUri(uri, bundle);
@@ -448,19 +440,8 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         int percent = getBufferPercentage();
         getSeekBar().setSecondaryProgress(percent * 10);
 
-//        getSongDurationView().setText(PodcastsUtils.formatTime(duration));
-//        getSongPositionView().setText(PodcastsUtils.formatTime(position <= duration ? position : 0));
-
         return position;
     }
-
-//    private void updateRecordPosition(int position) {
-//        LighthouseTrack track = getTrack();
-//        if (track != null && track.getRecord().getPosition() != position) {
-//            track.getRecord().setPosition(position);
-//            updateRecordPosition(track.getPodcast(), track.getRecord(), position);
-//        }
-//    }
 
     protected void updateRecordPosition(long podcast, long record, int position) {
         if (track != null && track.getPodcast().getId() == podcast && track.getRecord().getId() == record) {

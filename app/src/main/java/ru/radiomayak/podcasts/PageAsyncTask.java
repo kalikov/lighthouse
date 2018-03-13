@@ -4,12 +4,14 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import java.lang.ref.WeakReference;
+
 import ru.radiomayak.LighthouseApplication;
 
 class PageAsyncTask extends AsyncTask<Object, Void, RecordsPaginator> {
     private static final String LOG_TAG = PageAsyncTask.class.getSimpleName();
 
-    private final LighthouseApplication context;
+    private final WeakReference<Context> contextRef;
     private final Listener listener;
 
     interface Listener {
@@ -17,12 +19,16 @@ class PageAsyncTask extends AsyncTask<Object, Void, RecordsPaginator> {
     }
 
     PageAsyncTask(LighthouseApplication context, Listener listener) {
-        this.context = context;
+        this.contextRef = new WeakReference<Context>(context);
         this.listener = listener;
     }
 
     @Override
     protected RecordsPaginator doInBackground(Object... params) {
+        Context context = contextRef.get();
+        if (context == null) {
+            return null;
+        }
         try {
             RecordsPaginator paginator = (RecordsPaginator) params[0];
             return paginator.advance(context);

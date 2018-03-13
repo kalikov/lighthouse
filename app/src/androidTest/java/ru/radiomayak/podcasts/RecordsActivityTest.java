@@ -179,7 +179,7 @@ public class RecordsActivityTest {
         Assert.assertFalse(activity.getRefreshView().isRefreshing());
         Assert.assertTrue(activity.getRefreshView().isEnabled());
 
-        Assert.assertEquals(RecordsAdapter.FooterMode.BUTTON, activity.adapter.getFooterMode());
+        Assert.assertEquals(RecordsAdapter.FooterMode.MORE, activity.adapter.getFooterMode());
 
         Assert.assertNull(activity.podcastFuture);
     }

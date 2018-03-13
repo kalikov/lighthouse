@@ -67,30 +67,6 @@ public class PodcastsReadableDatabase implements AutoCloseable {
         }
     }
 
-    static class Files {
-        static final String NAME = "files";
-
-        private static final String SELECT_SQL = SELECT + StringUtils.join(Fields.values(), COMMA) + FROM + NAME;
-
-        enum Fields {
-            PODCAST_ID("podcast_id"),
-            RECORD_ID("record_id"),
-            SIZE("size"),
-            CAPACITY("capacity");
-
-            private final String name;
-
-            Fields(String name) {
-                this.name = name;
-            }
-
-            @Override
-            public String toString() {
-                return name;
-            }
-        }
-    }
-
     protected final SQLiteDatabase db;
 
     public static PodcastsReadableDatabase get(PodcastsOpenHelper helper) {

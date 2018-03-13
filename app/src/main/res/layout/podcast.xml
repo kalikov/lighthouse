@@ -24,7 +24,6 @@
             android:layout_height="0dp"
             android:fitsSystemWindows="true"
             android:theme="@style/AppTheme.ActionBar">
-            <!--app:layout_behavior="ru.radiomayak.widget.AppBarLayoutFlingBehavior">-->
 
             <android.support.design.widget.CollapsingToolbarLayout
                 android:id="@+id/toolbar_layout"

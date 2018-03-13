@@ -20,15 +20,6 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
         db.insertWithOnConflict(Players.NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
-    public void storeRecordFile(long podcast, long record, int size, int capacity) {
-        ContentValues values = new ContentValues();
-        values.put(Files.Fields.PODCAST_ID.toString(), podcast);
-        values.put(Files.Fields.RECORD_ID.toString(), record);
-        values.put(Files.Fields.SIZE.toString(), size);
-        values.put(Files.Fields.CAPACITY.toString(), capacity);
-        db.insertWithOnConflict(Files.NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE);
-    }
-
     public void storeRecord(long podcast, Record record) {
         ContentValues values = new ContentValues();
         values.put(RecordsT.Fields.PODCAST_ID.toString(), podcast);

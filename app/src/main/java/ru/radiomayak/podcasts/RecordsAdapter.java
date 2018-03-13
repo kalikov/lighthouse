@@ -4,11 +4,10 @@ import android.support.annotation.Nullable;
 import android.support.graphics.drawable.AnimatedVectorDrawableCompat;
 import android.support.v7.widget.RecyclerView;
 import android.view.LayoutInflater;
-import android.view.MenuInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
-import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -40,7 +39,8 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
     enum FooterMode {
         HIDDEN,
         LOADING,
-        BUTTON
+        MORE,
+        ERROR
     }
 
     RecordsAdapter(RecordsActivity activity, Podcast podcast, List<Record> records) {
@@ -90,15 +90,16 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         if (this.footerMode == footerMode) {
             return;
         }
+        int position = (podcast.getLength() > 0 ? 1 : 0) + records.size();
         if (this.footerMode == FooterMode.HIDDEN) {
             this.footerMode = footerMode;
-            notifyItemInserted(records.size());
+            notifyItemInserted(position);
         } else if (footerMode == FooterMode.HIDDEN) {
             this.footerMode = footerMode;
-            notifyItemRemoved(records.size());
+            notifyItemRemoved(position);
         } else {
             this.footerMode = footerMode;
-            notifyItemChanged(records.size());
+            notifyItemChanged(position);
         }
     }
 
@@ -112,7 +113,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             View view = LayoutInflater.from(activity).inflate(R.layout.podcast_header, parent, false);
             return new HeaderViewHolder(view);
         }
-        View view = LayoutInflater.from(activity).inflate(R.layout.podcast_more, parent, false);
+        View view = LayoutInflater.from(activity).inflate(R.layout.podcast_footer, parent, false);
         return new FooterViewHolder(view);
     }
 
@@ -289,7 +290,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         }
 
         private TextView getLengthView(View view) {
-            return (TextView) view.findViewById(R.id.length);
+            return view.findViewById(R.id.length);
         }
     }
 
@@ -299,23 +300,49 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         }
 
         void bind(FooterMode footerMode) {
-            getTextView(itemView).setVisibility(footerMode == FooterMode.BUTTON ? View.VISIBLE : View.INVISIBLE);
-            getProgressBar(itemView).setVisibility(footerMode == FooterMode.LOADING ? View.VISIBLE : View.INVISIBLE);
-
-            itemView.setOnClickListener(new View.OnClickListener() {
+            TextView moreView = getMoreView(itemView);
+            moreView.setTypeface(activity.getLighthouseApplication().getFontNormal());
+            moreView.setVisibility(footerMode == FooterMode.MORE ? View.VISIBLE : View.INVISIBLE);
+            moreView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     activity.loadMore();
                 }
             });
+
+            getErrorTextView(itemView).setTypeface(activity.getLighthouseApplication().getFontNormal());
+
+            Button retryButton = getRetryButton(itemView);
+            retryButton.setTypeface(activity.getLighthouseApplication().getFontNormal());
+            retryButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    activity.refreshPodcast();
+                }
+            });
+
+            getErrorView(itemView).setVisibility(footerMode == FooterMode.ERROR ? View.VISIBLE : View.INVISIBLE);
+            getProgressBar(itemView).setVisibility(footerMode == FooterMode.LOADING ? View.VISIBLE : View.INVISIBLE);
         }
 
-        private TextView getTextView(View view) {
-            return (TextView) view.findViewById(android.R.id.text1);
+        private TextView getMoreView(View view) {
+            return view.findViewById(android.R.id.text1);
+        }
+
+        private View getErrorView(View view) {
+            return view.findViewById(R.id.error);
+        }
+
+        private TextView getErrorTextView(View view) {
+            return view.findViewById(android.R.id.text2);
+        }
+
+        private Button getRetryButton(View view) {
+            return view.findViewById(R.id.retry);
         }
 
         private ProgressBar getProgressBar(View view) {
-            return (ProgressBar) view.findViewById(android.R.id.progress);
+            return view.findViewById(android.R.id.progress);
         }
     }
 }
