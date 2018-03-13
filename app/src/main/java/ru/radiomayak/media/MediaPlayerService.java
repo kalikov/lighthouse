@@ -135,8 +135,9 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
 
             @Override
             public void onPlayerError(ExoPlaybackException error) {
+                storeRecordPosition();
                 mediaSession.setActive(false);
-                stopService(PlaybackStateCompat.STATE_ERROR);
+                stop(PlaybackStateCompat.STATE_ERROR);
             }
 
             @Override
@@ -176,17 +177,9 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
                     return;
                 }
                 track = new LighthouseTrack(podcast, record);
-                acquireWifiLockIfNotHeld();
                 stateBuilder.setExtras(extras);
-                DataSource.Factory dataSourceFactory = new DefaultHttpDataSourceFactory("ru.radiomayak");
 
-                setPlayWhenReady(true);
-                mediaPlayer.prepare(new ExtractorMediaSource(uri, dataSourceFactory, new DefaultExtractorsFactory(), null, null));
-                if (record.getPosition() == Record.POSITION_UNDEFINED) {
-                    mediaPlayer.seekToDefaultPosition();
-                } else {
-                    mediaPlayer.seekTo(record.getPosition());
-                }
+                prepare(uri, record);
             }
 
             @Override
@@ -288,13 +281,38 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     }
 
     public void play() {
-        setPlayWhenReady(true);
-        if (mediaPlayer.getPlaybackState() == Player.STATE_ENDED) {
-            mediaPlayer.seekToDefaultPosition();
+        if (mediaPlayer.getPlaybackState() == Player.STATE_IDLE) {
+            if (track == null) {
+                return;
+            }
+            Record record = track.getRecord();
+            Uri uri = Uri.parse(record.getUrl());
+            prepare(uri, record);
+        } else {
+            acquireWifiLockIfNotHeld();
+            setPlayWhenReady(true);
+            if (mediaPlayer.getPlaybackState() == Player.STATE_ENDED) {
+                mediaPlayer.seekToDefaultPosition();
+            }
         }
+    }
+
+    private void prepare(Uri uri, Record record) {
         acquireWifiLockIfNotHeld();
-        if (!notificationManager.startNotification()) {
-            notificationManager.updateNotification();
+        try {
+            setPlayWhenReady(true);
+            DataSource.Factory dataSourceFactory = new DefaultHttpDataSourceFactory("ru.radiomayak");
+            mediaPlayer.prepare(new ExtractorMediaSource(uri, dataSourceFactory, new DefaultExtractorsFactory(), null, null));
+            if (record.getPosition() == Record.POSITION_UNDEFINED) {
+                mediaPlayer.seekToDefaultPosition();
+            } else {
+                mediaPlayer.seekTo(record.getPosition());
+            }
+        } catch (RuntimeException e) {
+            if (mediaPlayer.getPlaybackState() == Player.STATE_IDLE) {
+                releaseWifiLockIfHeld();
+            }
+            throw e;
         }
     }
 
@@ -314,6 +332,7 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         try (PodcastsWritableDatabase db = PodcastsWritableDatabase.get(helper)) {
             db.storeRecordPosition(track.getPodcast().getId(), track.getRecord().getId(), (int) position);
         }
+        track.getRecord().setPosition((int) position);
         Intent intent = new Intent(LighthouseActivity.ACTION_POSITION);
         intent.putExtra(LighthouseActivity.EXTRA_PODCAST, track.getPodcast().getId());
         intent.putExtra(LighthouseActivity.EXTRA_RECORD, track.getRecord().getId());

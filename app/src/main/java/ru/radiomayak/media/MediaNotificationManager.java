@@ -66,8 +66,8 @@ public class MediaNotificationManager extends BroadcastReceiver {
 
     public boolean startNotification() {
         if (notificationBuilder == null) {
-            notificationBuilder = new NotificationCompat.Builder(service, channelId);
-            Notification notification = createNotification();
+            NotificationCompat.Builder builder = notificationBuilder = new NotificationCompat.Builder(service, channelId);
+            Notification notification = createNotification(builder);
             if (notification == null) {
                 notificationBuilder = null;
                 return false;
@@ -85,8 +85,9 @@ public class MediaNotificationManager extends BroadcastReceiver {
     }
 
     public void updateNotification() {
-        if (notificationBuilder != null) {
-            Notification notification = createNotification();
+        NotificationCompat.Builder builder = notificationBuilder;
+        if (builder != null) {
+            Notification notification = createNotification(builder);
             if (notification == null) {
                 stopNotification();
             } else {
@@ -133,7 +134,7 @@ public class MediaNotificationManager extends BroadcastReceiver {
     }
 
     @Nullable
-    private Notification createNotification() {
+    private Notification createNotification(NotificationCompat.Builder builder) {
         LighthouseTrack track = service.getTrack();
         if (track == null) {
             return null;
@@ -144,7 +145,7 @@ public class MediaNotificationManager extends BroadcastReceiver {
         RemoteViews remoteViews = new RemoteViews(service.getPackageName(), R.layout.notification);
         RemoteViews bigRemoteViews = new RemoteViews(service.getPackageName(), R.layout.notification_big);
 
-        notificationBuilder.setSmallIcon(R.drawable.notification_icon)
+        builder.setSmallIcon(R.drawable.notification_icon)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setContentTitle(podcast.getName())
                 .setContent(remoteViews)
@@ -159,7 +160,7 @@ public class MediaNotificationManager extends BroadcastReceiver {
 
         setNotificationPlaybackState(bigRemoteViews);
 
-        return notificationBuilder.build();
+        return builder.build();
     }
 
     private void setRecordState(RemoteViews remoteViews, Podcast podcast, Record record) {

@@ -321,7 +321,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                 }
             });
 
-            getErrorView(itemView).setVisibility(footerMode == FooterMode.ERROR ? View.VISIBLE : View.INVISIBLE);
+            getErrorView(itemView).setVisibility(footerMode == FooterMode.ERROR ? View.VISIBLE : View.GONE);
             getProgressBar(itemView).setVisibility(footerMode == FooterMode.LOADING ? View.VISIBLE : View.INVISIBLE);
         }
 

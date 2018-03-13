@@ -5,13 +5,14 @@ import android.database.DatabaseErrorHandler;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 
+import ru.radiomayak.StringUtils;
+
 public class PodcastsOpenHelper extends SQLiteOpenHelper {
     private static final int VERSION = 4;
 
     static final String PODCASTS = "podcasts";
     static final String RECORDS = "records";
     static final String PLAYERS = "players";
-    static final String FILES = "files";
 
     static final String PODCAST_ID = "id";
     static final String PODCAST_NAME = "name";
@@ -114,11 +115,13 @@ public class PodcastsOpenHelper extends SQLiteOpenHelper {
             db.execSQL(MIGRATE_RECORDS_PLAYED_SQL);
             db.execSQL("DROP TABLE " + RECORDS);
             db.execSQL(CREATE_RECORDS_SQL);
-            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_SEEN + " INTEGER NOT NULL DEFAULT 0");
-            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_ICON_RGB + " INTEGER NOT NULL DEFAULT 0");
-            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_ICON_RGB2 + " INTEGER NOT NULL DEFAULT 0");
-            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_SPLASH_RGB + " INTEGER NOT NULL DEFAULT 0");
-            db.execSQL("ALTER TABLE " + PODCASTS + " MODIFY COLUMN " + PODCAST_SPLASH_RGB2 + " INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("ALTER TABLE " + PODCASTS + " RENAME TO old_podcasts");
+            db.execSQL(CREATE_PODCASTS_SQL);
+            String columns = StringUtils.join(new String[] {PODCAST_ID, PODCAST_NAME, PODCAST_DESC, PODCAST_LENGTH,
+                    PODCAST_SEEN, PODCAST_ICON_URL, PODCAST_ICON_RGB, PODCAST_ICON_RGB2,
+                    PODCAST_SPLASH_URL, PODCAST_SPLASH_RGB, PODCAST_SPLASH_RGB2, PODCAST_ORD}, ", ");
+            db.execSQL("INSERT INTO " + PODCASTS + "(" + columns + ") SELECT " + columns + " FROM old_podcasts");
+            db.execSQL("DROP TABLE old_podcasts");
         }
     }
 }

@@ -1,9 +1,11 @@
 package ru.radiomayak.podcasts;
 
+import android.Manifest;
 import android.animation.ValueAnimator;
 import android.app.DownloadManager;
 import android.app.FragmentManager;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
@@ -17,6 +19,8 @@ import android.support.annotation.VisibleForTesting;
 import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.CollapsingToolbarLayout;
 import android.support.design.widget.CoordinatorLayout;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.graphics.ColorUtils;
 import android.support.v4.widget.SwipeRefreshLayout;
@@ -65,6 +69,8 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     private static final String STATE_PAGE_FAILED = RecordsActivity.class.getName() + "pageFailed";
 
     private static final String FRAGMENT_TAG = RecordsActivity.class.getName() + "$data";
+
+    private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 501;
 
     @VisibleForTesting
     final Loader.Listener<BitmapInfo> splashListener = new Loader.Listener<BitmapInfo>() {
@@ -119,6 +125,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     private boolean pageFailed;
 
     private Record contextRecord;
+    private Record permissionRecord;
 
     @Override
     protected void onCreate(@Nullable Bundle state) {
@@ -173,23 +180,45 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     public boolean onContextItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.download:
-                Uri uri = Uri.parse(contextRecord.getUrl());
-                String filename = StringUtils.toFilename(contextRecord.getName()) + ".mp3";
-
-                DownloadManager.Request request = new DownloadManager.Request(uri);
-                request.setTitle(contextRecord.getName());
-                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_PODCASTS, filename);
-
-                DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-                if (downloadManager == null) {
-                    Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                    permissionRecord = contextRecord;
+                    ActivityCompat.requestPermissions(this,
+                            new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                            MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
                 } else {
-                    downloadManager.enqueue(request);
+                    download(contextRecord);
                 }
                 return true;
             default:
                 return super.onContextItemSelected(item);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    download(permissionRecord);
+                }
+            }
+        }
+    }
+
+    private void download(Record record) {
+        Uri uri = Uri.parse(record.getUrl());
+        String filename = StringUtils.toFilename(record.getName()) + ".mp3";
+
+        DownloadManager.Request request = new DownloadManager.Request(uri);
+        request.setTitle(record.getName());
+        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+        request.setDestinationInExternalPublicDir(Environment.DIRECTORY_PODCASTS, filename);
+
+        DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+        if (downloadManager == null) {
+            Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
+        } else {
+            downloadManager.enqueue(request);
         }
     }
 
@@ -657,14 +686,8 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
         }
         if (notifyDataSetChanged) {
             adapter.notifyDataSetChanged();
-//            getRefreshView().setEnabled(isRefreshViewEnabled());
         }
         this.paginator = paginator;
-//        if (records.isEmpty()) {
-//            adapter.setFooterMode(RecordsAdapter.FooterMode.MORE);
-//        } else {
-//            updateFooterMode();
-//        }
     }
 
     private boolean hasContentScroll() {
@@ -697,35 +720,12 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
         if (!isCancelled && !isDestroyed()) {
             if (response == null) {
                 Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
-//                adapter.setFooterMode(RecordsAdapter.FooterMode.MORE);
-//                pageFailed = true;
             } else {
-
                 updatePageRecords(response);
             }
         }
         updateView();
     }
-
-//    private void updateFooterMode() {
-//        if (podcastFuture != null) {
-//            adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
-//        } else {
-//            if (paginator != null && paginator.hasNext()) {
-//                if (pageAsyncTask != null || !pageFailed) {
-//                    adapter.setFooterMode(RecordsAdapter.FooterMode.LOADING);
-//                } else {
-//                    adapter.setFooterMode(RecordsAdapter.FooterMode.MORE);
-//                }
-//            } else {
-//                if (!records.isEmpty()) {
-//                    adapter.setFooterMode(RecordsAdapter.FooterMode.HIDDEN);
-//                } else {
-//                    adapter.setFooterMode(RecordsAdapter.FooterMode.MORE);
-//                }
-//            }
-//        }
-//    }
 
     private void updatePageRecords(RecordsPaginator paginator) {
         boolean notifyDataSetChanged = records.isEmpty();
@@ -791,10 +791,6 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
             splash.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
             updateToolbarColor();
         }
-//        if (podcastFuture != null) {
-//            updateFooterMode();
-//        }
-//        showContentView();
     }
 
     private void setPodcastSplash(Bitmap bitmap) {
