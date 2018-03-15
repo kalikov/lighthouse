@@ -868,7 +868,9 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
             RecyclerView.ViewHolder holder = recyclerView.getChildViewHolder(view);
             if (holder != null && holder.getItemViewType() == RecordsAdapter.ITEM_VIEW_TYPE) {
                 Record record = adapter.getItem(holder.getAdapterPosition());
-                ((RecordsAdapter.ItemViewHolder) holder).updatePlayPauseState(record);
+                if (record != null) {
+                    ((RecordsAdapter.ItemViewHolder) holder).updatePlayPauseState(record);
+                }
             }
         }
     }

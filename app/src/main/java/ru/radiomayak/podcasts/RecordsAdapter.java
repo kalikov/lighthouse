@@ -138,7 +138,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             }
             index--;
         }
-        return index < records.size() ? records.get(index) : null;
+        return index >= 0 && index < records.size() ? records.get(index) : null;
     }
 
     @Override
@@ -150,7 +150,10 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             }
             index--;
         }
-        return index < records.size() ? records.get(index).getId() : -1;
+        if (index >= 0 && index < records.size()) {
+            return records.get(index).getId();
+        }
+        return index == records.size() && footerMode != FooterMode.HIDDEN ? Long.MAX_VALUE : RecyclerView.NO_ID;
     }
 
     static abstract class ViewHolder extends RecyclerView.ViewHolder {
