@@ -356,10 +356,10 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     private void updateToolbarColor() {
         int primaryColor = 0;
         int secondaryColor = 0;
-        if (podcast.getSplash() != null && podcast.getSplash().getPrimaryColor() != 0) {
+        if (podcast.getSplash() != null && podcast.getSplash().hasColor()) {
             primaryColor = podcast.getSplash().getPrimaryColor();
             secondaryColor = podcast.getSplash().getSecondaryColor();
-        } else if (podcast.getIcon() != null && podcast.getIcon().getPrimaryColor() != 0) {
+        } else if (podcast.getIcon() != null && podcast.getIcon().hasColor()) {
             primaryColor = podcast.getIcon().getPrimaryColor();
             secondaryColor = podcast.getIcon().getSecondaryColor();
         }
@@ -782,11 +782,12 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
 
     private void setPodcastSplash(BitmapInfo bitmapInfo) {
         setPodcastSplash(bitmapInfo.getBitmap());
-        if (bitmapInfo.getPrimaryColor() != 0) {
+        if (bitmapInfo.getPrimaryColor() != 0 || bitmapInfo.getSecondaryColor() != 0) {
             Image splash = podcast.getSplash();
             if (splash == null) {
                 Image icon = Objects.requireNonNull(podcast.getIcon());
                 splash = new Image(PictureUrlUtils.getPictureUrl(icon.getUrl(), PictureUrlUtils.Size.L));
+                podcast.setSplash(splash);
             }
             splash.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
             updateToolbarColor();

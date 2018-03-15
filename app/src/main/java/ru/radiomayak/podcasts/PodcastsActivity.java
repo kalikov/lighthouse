@@ -429,7 +429,10 @@ public class PodcastsActivity extends LighthouseActivity {
                 LighthouseApplication.NETWORK_POOL_EXECUTOR.execute(new Runnable() {
                     @Override
                     public void run() {
-                        PodcastsUtils.storePodcasts(PodcastsActivity.this, data);
+                        PodcastsOpenHelper helper = new PodcastsOpenHelper(PodcastsActivity.this);
+                        try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
+                            database.storePodcasts(data);
+                        }
                     }
                 });
             }
@@ -513,7 +516,7 @@ public class PodcastsActivity extends LighthouseActivity {
         if (bitmapInfo != null) {
             PodcastImageCache.getInstance().putIcon(id, bitmapInfo);
             Podcast podcast = podcasts.get(id);
-            if (bitmapInfo.getPrimaryColor() != 0) {
+            if (bitmapInfo.getPrimaryColor() != 0 || bitmapInfo.getSecondaryColor() != 0) {
                 Image icon = Objects.requireNonNull(podcast.getIcon());
                 icon.setColors(bitmapInfo.getPrimaryColor(), bitmapInfo.getSecondaryColor());
             }

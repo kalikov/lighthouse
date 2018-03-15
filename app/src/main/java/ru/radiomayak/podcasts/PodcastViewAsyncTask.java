@@ -19,7 +19,10 @@ class PodcastViewAsyncTask extends AsyncTask<Podcast, Void, Void> {
             Context context = contextRef.get();
             if (context != null) {
                 Podcast podcast = podcasts[0];
-                PodcastsUtils.storePodcastSeen(context, podcast.getId(), podcast.getLength());
+                PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
+                try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
+                    database.storePodcastSeen(podcast.getId(), podcast.getLength());
+                }
                 Intent intent = new Intent(RecordsActivity.ACTION_VIEW)
                         .setPackage(context.getPackageName())
                         .putExtra(RecordsActivity.EXTRA_PODCAST_ID, podcast.getId())

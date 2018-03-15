@@ -22,9 +22,11 @@ class PodcastIconLoader extends AbstractPodcastImageLoader {
     }
 
     @Override
-    protected boolean shouldExtractColors(Context context) {
-        Image splash = getPodcast().getSplash();
-        return !PodcastsUtils.hasColors(context, getPodcast(), getUrl(context), splash == null ? null : splash.getUrl());
+    protected Image loadImage(Context context) {
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
+        try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
+            return database.loadPodcastIcon(getPodcast().getId());
+        }
     }
 
     @Nullable
@@ -48,8 +50,11 @@ class PodcastIconLoader extends AbstractPodcastImageLoader {
     }
 
     @Override
-    protected void storeColors(Context context, int primaryColor, int secondaryColor) {
-        PodcastsUtils.storePodcastIconColors(context, getPodcast().getId(), primaryColor, secondaryColor);
+    protected void storeImage(Context context, String url, int primaryColor, int secondaryColor) {
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
+        try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
+            database.storePodcastIcon(getPodcast().getId(), url, primaryColor, secondaryColor);
+        }
     }
 
     @Override

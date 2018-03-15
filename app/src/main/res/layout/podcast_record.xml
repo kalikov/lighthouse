@@ -6,52 +6,59 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-
-    <RelativeLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/record_bg_selector"
-        android:paddingEnd="0dp"
-        android:paddingStart="@dimen/podcast_padding"
+        android:orientation="vertical"
         android:paddingTop="@dimen/podcast_padding">
 
-        <TextView
-            android:id="@+id/name"
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_centerInParent="true"
-            android:layout_toEndOf="@android:id/icon"
-            android:layout_toStartOf="@id/menu"
-            android:ellipsize="end"
-            android:maxLines="2"
             android:paddingEnd="0dp"
-            android:paddingStart="@dimen/record_title_padding"
-            android:text="@string/lorem_ipsum_large"
-            android:textAppearance="@style/AppTheme.Title"/>
+            android:paddingStart="@dimen/podcast_padding">
 
-        <ImageView
-            android:id="@android:id/icon"
-            android:layout_width="@dimen/record_icon_size"
-            android:layout_height="@dimen/record_icon_size"
-            android:layout_centerVertical="true"
-            android:src="@drawable/record_play"
-            android:tint="#000"
-            tools:ignore="ContentDescription"/>
+            <TextView
+                android:id="@+id/name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:layout_toEndOf="@android:id/icon"
+                android:layout_toStartOf="@id/menu"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:paddingEnd="0dp"
+                android:paddingStart="@dimen/record_title_padding"
+                android:paddingBottom="@dimen/podcast_title_padding"
+                android:text="@string/lorem_ipsum_large"
+                android:textAppearance="@style/AppTheme.Title"/>
 
-        <ImageView
-            android:id="@+id/menu"
-            android:layout_width="34dp"
-            android:layout_height="@dimen/record_icon_size"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:paddingEnd="@dimen/podcast_padding"
-            android:paddingStart="0dp"
-            android:scaleType="center"
-            android:src="@drawable/menu"
-            android:tint="@color/colorAccent"
-            tools:ignore="ContentDescription"/>
+            <ImageView
+                android:id="@android:id/icon"
+                android:layout_width="@dimen/record_icon_size"
+                android:layout_height="@dimen/record_icon_size"
+                android:layout_centerVertical="true"
+                android:src="@drawable/record_play"
+                android:tint="#000"
+                tools:ignore="ContentDescription"/>
 
-    </RelativeLayout>
+            <ImageView
+                android:id="@+id/menu"
+                android:layout_width="34dp"
+                android:layout_height="@dimen/record_icon_size"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:paddingEnd="@dimen/podcast_padding"
+                android:paddingStart="0dp"
+                android:scaleType="center"
+                android:src="@drawable/menu"
+                android:tint="@color/colorAccent"
+                tools:ignore="ContentDescription"/>
+
+        </RelativeLayout>
+
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -60,8 +67,7 @@
         android:orientation="vertical"
         android:paddingBottom="@dimen/podcast_padding"
         android:paddingEnd="@dimen/podcast_padding"
-        android:paddingStart="@dimen/podcast_padding"
-        android:paddingTop="0dp">
+        android:paddingStart="@dimen/podcast_padding">
 
         <TextView
             android:id="@+id/date"
@@ -110,9 +116,7 @@
                 android:textAlignment="textEnd"
                 android:textAppearance="@style/AppTheme.Text.Small"/>
 
-
         </RelativeLayout>
-
 
     </LinearLayout>
 

@@ -8,7 +8,10 @@ import ru.radiomayak.content.LoaderState;
 class PodcastsLoopback extends Loader<Podcasts> {
     @Override
     protected Podcasts onExecute(Context context, LoaderState state) {
-        return PodcastsUtils.loadPodcasts(context);
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
+        try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
+            return database.loadPodcasts();
+        }
     }
 
     @Override

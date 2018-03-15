@@ -22,12 +22,17 @@ public class PodcastsUtilsTest {
         Podcast podcast = new Podcast(10, "foobar");
         podcast.setLength(1000);
         podcast.setSeen(1);
-        PodcastsUtils.storePodcasts(context, new Podcasts(Collections.singletonList(podcast)));
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
+        try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
+            database.storePodcasts(new Podcasts(Collections.singletonList(podcast)));
+            database.storePodcastSeen(podcast.getId(), 100);
+        }
 
-        PodcastsUtils.storePodcastSeen(context, 10, 100);
-
-        Podcasts stored = PodcastsUtils.loadPodcasts(context);
-        Podcast actual = stored.get(10);
+        Podcasts stored;
+        try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
+            stored = database.loadPodcasts();
+        }
+        Podcast actual = stored.get(podcast.getId());
         Assert.assertNotNull(actual);
         Assert.assertNotSame(podcast, actual);
         Assert.assertEquals(100, actual.getSeen());
@@ -36,7 +41,7 @@ public class PodcastsUtilsTest {
     @After
     public void after() {
         Context context = InstrumentationRegistry.getTargetContext();
-        String path = context.getDatabasePath(PodcastsUtils.PODCASTS_DATABASE_NAME).getPath();
+        String path = context.getDatabasePath(PodcastsReadableDatabase.DATABASE_NAME).getPath();
         SQLiteDatabase.deleteDatabase(new File(path));
     }
 }

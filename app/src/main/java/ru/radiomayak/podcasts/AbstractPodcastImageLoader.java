@@ -53,26 +53,16 @@ abstract class AbstractPodcastImageLoader extends AbstractHttpLoader<BitmapInfo>
 
     @Nullable
     private BitmapInfo getImage(Context context, LoaderState state) {
-        boolean extractColors = true;
         Bitmap bitmap = getStoredImage(context);
-        if (bitmap != null) {
-            extractColors = shouldExtractColors(context);
-        } else {
-            bitmap = getRemoteImage(context, state);
-            if (bitmap == null) {
-                return null;
-            }
-        }
-        if (state.isCancelled()) {
-            return null;
+        if (bitmap == null) {
+            return getRemoteImage(context, state);
         }
         bitmap = postProcessBitmap(context, bitmap);
-        if (!extractColors || state.isCancelled()) {
-            return new BitmapInfo(bitmap, 0, 0);
+        Image image = loadImage(context);
+        if (image != null && image.hasColor()) {
+            return new BitmapInfo(bitmap, image.getPrimaryColor(), image.getSecondaryColor());
         }
-        BitmapInfo info = new BitmapInfo(bitmap);
-        storeColors(context, info.getPrimaryColor(), info.getSecondaryColor());
-        return info;
+        return new BitmapInfo(bitmap);
     }
 
 
@@ -84,29 +74,38 @@ abstract class AbstractPodcastImageLoader extends AbstractHttpLoader<BitmapInfo>
     }
 
     @Nullable
-    private Bitmap getRemoteImage(Context context, LoaderState state) {
+    private BitmapInfo getRemoteImage(Context context, LoaderState state) {
         if (NetworkUtils.isConnected(context) && !state.isCancelled()) {
             try {
-                byte[] bytes = requestImage(getUrl(context));
-                if (bytes != null) {
-                    String filename = getFilename();
-                    storeByteArray(context, filename, bytes);
+                String url = getUrl(context);
+                byte[] bytes = requestImage(url);
+                Bitmap remoteBitmap = bytes == null ? null : BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                if (remoteBitmap == null || state.isCancelled()) {
+                    return null;
                 }
-                return bytes == null ? null : BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                Bitmap bitmap = postProcessBitmap(context, remoteBitmap);
+                if (state.isCancelled()) {
+                    return null;
+                }
+                BitmapInfo info = new BitmapInfo(bitmap);
+                storeImage(context, url, info.getPrimaryColor(), info.getSecondaryColor());
+                storeByteArray(context, getFilename(), bytes);
+                return info;
             } catch (IOException | HttpException ignored) {
             }
         }
         return null;
     }
 
-    protected abstract boolean shouldExtractColors(Context context);
+    @Nullable
+    protected abstract Image loadImage(Context context);
 
     @Nullable
     protected abstract String getUrl(Context context);
 
     protected abstract String getFilename();
 
-    protected abstract void storeColors(Context context, int primaryColor, int secondaryColor);
+    protected abstract void storeImage(Context context, String url, int primaryColor, int secondaryColor);
 
     protected Bitmap postProcessBitmap(Context context, Bitmap bitmap) {
         return bitmap;

@@ -86,6 +86,10 @@ public class Image implements Parcelable {
         this.secondaryColor = secondaryColor;
     }
 
+    public boolean hasColor() {
+        return primaryColor != 0 || secondaryColor != 0;
+    }
+
     public void setColors(int primaryColor, int secondaryColor) {
         this.primaryColor = primaryColor;
         this.secondaryColor = secondaryColor;

@@ -2,6 +2,7 @@ package ru.radiomayak.podcasts;
 
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.support.annotation.Nullable;
 
 import java.util.Collection;
 
@@ -12,57 +13,134 @@ public class PodcastsReadableDatabase implements AutoCloseable {
     private static final ThreadLocal<String[]> DOUBLE_LEN_ARRAY = new ThreadLocal<>();
 
     static final String DATABASE_NAME = "podcasts";
+    static final int VERSION = 4;
 
-    private static final String SELECT = "SELECT ";
-    private static final String FROM = " FROM ";
-    private static final String WHERE = " WHERE ";
-    private static final String AND = " AND ";
-    private static final String COMMA = ",";
+    protected static final String SELECT = "SELECT ";
+    protected static final String FROM = " FROM ";
+    protected static final String WHERE = " WHERE ";
+    protected static final String AND = " AND ";
+    protected static final String ORDER_BY = " ORDER BY ";
+    protected static final String DESC = " DESC";
+    protected static final String COMMA = ",";
 
-    static class RecordsT {
-        static final String NAME = "records";
+    interface TableField {
+        String key();
 
-        enum Fields {
-            PODCAST_ID("podcast_id"),
-            ID("id"),
-            NAME("name"),
-            URL("url"),
-            DESC("description"),
-            DATE("date"),
-            DURATION("duration");
+        String type();
+    }
 
-            private final String name;
+    static class PodcastsTable {
+        static final String NAME = "podcasts";
 
-            Fields(String name) {
-                this.name = name;
+        static final String CREATE_SQL = "CREATE TABLE " + NAME + " (" + fields(Field.values()) + COMMA
+                + "PRIMARY KEY (" + Field.ID.key() + ")"
+                + ")";
+
+        static final String CREATE_ORD_INDEX_SQL = "CREATE INDEX idx_podcasts__ord"
+                + " ON " + NAME + " (" + Field.ORD.key() + DESC + ")";
+
+        static final String SELECT_SQL = SELECT + join(Field.values()) + FROM + NAME;
+
+        enum Field implements TableField {
+            ID("id", "INTEGER NOT NULL"),
+            NAME("name", "TEXT NOT NULL"),
+            DESC("description", "TEXT"),
+            LENGTH("length", "INTEGER NOT NULL"),
+            SEEN("seen", "INTEGER NOT NULL DEFAULT 0"),
+            ICON_URL("icon_url", "TEXT"),
+            ICON_RGB("icon_rgb", "INTEGER NOT NULL DEFAULT 0"),
+            ICON_RGB2("icon_rgb2", "INTEGER NOT NULL DEFAULT 0"),
+            SPLASH_URL("splash_url", "TEXT"),
+            SPLASH_RGB("splash_rgb", "INTEGER NOT NULL DEFAULT 0"),
+            SPLASH_RGB2("splash_rgb2", "INTEGER NOT NULL DEFAULT 0"),
+            ORD("ord", "INTEGER NOT NULL");
+
+            private final String key;
+            private final String type;
+
+            Field(String key, String type) {
+                this.key = key;
+                this.type = type;
             }
 
             @Override
-            public String toString() {
-                return name;
+            public String key() {
+                return key;
+            }
+
+            @Override
+            public String type() {
+                return type;
             }
         }
     }
 
-    static class Players {
-        static final String NAME = "players";
+    static class RecordsTable {
+        static final String NAME = "records";
 
-        private static final String SELECT_SQL = SELECT + StringUtils.join(Fields.values(), COMMA) + FROM + NAME;
+        static final String CREATE_SQL = "CREATE TABLE " + NAME + " (" + fields(Field.values()) + COMMA
+                + "PRIMARY KEY (" + Field.PODCAST_ID.key() + ", " + Field.ID.key() + ")"
+                + ")";
 
-        enum Fields {
-            PODCAST_ID("podcast_id"),
-            RECORD_ID("record_id"),
-            POSITION("position");
+        enum Field implements TableField {
+            PODCAST_ID("podcast_id", "INTEGER NOT NULL"),
+            ID("id", "INTEGER NOT NULL"),
+            NAME("name", "TEXT NOT NULL"),
+            URL("url", "TEXT NOT NULL"),
+            DESC("description", "TEXT"),
+            DATE("date", "TEXT"),
+            DURATION("duration", "TEXT");
 
-            private final String name;
+            private final String key;
+            private final String type;
 
-            Fields(String name) {
-                this.name = name;
+            Field(String key, String type) {
+                this.key = key;
+                this.type = type;
             }
 
             @Override
-            public String toString() {
-                return name;
+            public String key() {
+                return key;
+            }
+
+            @Override
+            public String type() {
+                return type;
+            }
+        }
+    }
+
+    static class PlayersTable {
+        static final String NAME = "players";
+
+        static final String CREATE_SQL = "CREATE TABLE " + NAME + " (" + fields(Field.values()) + COMMA
+                + "PRIMARY KEY (" + Field.PODCAST_ID.key() + ", " + Field.RECORD_ID.key() + ")"
+                + ")";
+
+        static final String SELECT_SQL = SELECT + join(Field.values()) + FROM + NAME;
+
+        enum Field implements TableField {
+            PODCAST_ID("podcast_id", "INTEGER NOT NULL"),
+            RECORD_ID("record_id", "INTEGER NOT NULL"),
+            POSITION("position", "INTEGER NOT NULL");
+
+            private final String key;
+            private final String type;
+
+            Field(String key, String type) {
+                this.key = key;
+                this.type = type;
+            }
+
+            @Override
+            public String key() {
+                return key;
+            }
+
+            @Override
+            public String type() {
+                return type;
             }
         }
     }
@@ -98,26 +176,80 @@ public class PodcastsReadableDatabase implements AutoCloseable {
         db.setTransactionSuccessful();
     }
 
+    public Podcasts loadPodcasts() {
+        try (Cursor cursor = db.rawQuery(PodcastsTable.SELECT_SQL + WHERE + PodcastsTable.Field.ORD.key() + " > 0" +
+                ORDER_BY + PodcastsTable.Field.ORD.key() + DESC, null)) {
+            Podcasts podcasts = new Podcasts(cursor.getCount());
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(PodcastsTable.Field.ID.ordinal());
+                String name = cursor.getString(PodcastsTable.Field.NAME.ordinal());
+                Podcast podcast = new Podcast(id, name);
+                podcast.setDescription(cursor.getString(PodcastsTable.Field.DESC.ordinal()));
+                podcast.setLength(cursor.getInt(PodcastsTable.Field.LENGTH.ordinal()));
+                podcast.setSeen(cursor.getInt(PodcastsTable.Field.SEEN.ordinal()));
+
+                String iconUrl = cursor.getString(PodcastsTable.Field.ICON_URL.ordinal());
+                if (iconUrl != null) {
+                    int iconPrimaryColor = cursor.getInt(PodcastsTable.Field.ICON_RGB.ordinal());
+                    int iconSecondaryColor = cursor.getInt(PodcastsTable.Field.ICON_RGB2.ordinal());
+                    podcast.setIcon(new Image(iconUrl, iconPrimaryColor, iconSecondaryColor));
+                }
+
+                String splashUrl = cursor.getString(PodcastsTable.Field.SPLASH_URL.ordinal());
+                if (splashUrl != null) {
+                    int imagePrimaryColor = cursor.getInt(PodcastsTable.Field.SPLASH_RGB.ordinal());
+                    int imageSecondaryColor = cursor.getInt(PodcastsTable.Field.SPLASH_RGB2.ordinal());
+                    podcast.setSplash(new Image(splashUrl, imagePrimaryColor, imageSecondaryColor));
+                }
+                podcasts.add(podcast);
+            }
+            return podcasts;
+        }
+    }
+
+    @Nullable
+    public Image loadPodcastIcon(long podcast) {
+        try (Cursor cursor = db.rawQuery(PodcastsTable.SELECT_SQL + WHERE + PodcastsTable.Field.ID + " = ?", args(podcast))) {
+            if (cursor.moveToNext()) {
+                return new Image(cursor.getString(PodcastsTable.Field.ICON_URL.ordinal()),
+                        cursor.getInt(PodcastsTable.Field.ICON_RGB.ordinal()), cursor.getInt(PodcastsTable.Field.ICON_RGB2.ordinal()));
+            }
+        }
+        return null;
+    }
+
+    public Image loadPodcastSplash(long podcast) {
+        try (Cursor cursor = db.rawQuery(PodcastsTable.SELECT_SQL + WHERE + PodcastsTable.Field.ID + " = ?", args(podcast))) {
+            if (cursor.moveToNext()) {
+                String url = cursor.getString(PodcastsTable.Field.SPLASH_URL.ordinal());
+                if (!StringUtils.isEmpty(url)) {
+                    return new Image(url, cursor.getInt(PodcastsTable.Field.SPLASH_RGB.ordinal()), cursor.getInt(PodcastsTable.Field.SPLASH_RGB2.ordinal()));
+                }
+            }
+        }
+        return null;
+    }
+
     public void loadRecordsPosition(long podcast, Records records) {
         if (records.isEmpty()) {
             return;
         }
-        StringBuilder queryBuilder = new StringBuilder(Players.SELECT_SQL);
+        StringBuilder queryBuilder = new StringBuilder(PlayersTable.SELECT_SQL);
         String[] args = new String[records.list().size() + 1];
 
-        queryBuilder.append(WHERE).append(Players.Fields.PODCAST_ID).append(" = ?");
+        queryBuilder.append(WHERE).append(PlayersTable.Field.PODCAST_ID.key()).append(" = ?");
         args[0] = String.valueOf(podcast);
 
-        queryBuilder.append(AND).append(Players.Fields.RECORD_ID).append(" in (");
+        queryBuilder.append(AND).append(PlayersTable.Field.RECORD_ID.key()).append(" in (");
         buildArgs(queryBuilder, args, 1, records.list());
         queryBuilder.append(')');
 
         try (Cursor cursor = db.rawQuery(queryBuilder.toString(), args)) {
             while (cursor.moveToNext()) {
-                long id = cursor.getLong(Players.Fields.RECORD_ID.ordinal());
+                long id = cursor.getLong(PlayersTable.Field.RECORD_ID.ordinal());
                 Record record = records.get(id);
                 if (record != null) {
-                    int position = cursor.getInt(Players.Fields.POSITION.ordinal());
+                    int position = cursor.getInt(PlayersTable.Field.POSITION.ordinal());
                     record.setPosition(position);
                 }
             }
@@ -134,6 +266,28 @@ public class PodcastsReadableDatabase implements AutoCloseable {
             args[index + offset] = String.valueOf(record.getId());
             index++;
         }
+    }
+
+    private static String fields(TableField[] fields) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < fields.length; i++) {
+            if (i > 0) {
+                builder.append(COMMA);
+            }
+            builder.append(fields[i].key()).append(' ').append(fields[i].type());
+        }
+        return builder.toString();
+    }
+
+    protected static String join(TableField[] fields) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < fields.length; i++) {
+            if (i > 0) {
+                builder.append(COMMA);
+            }
+            builder.append(fields[i].key());
+        }
+        return builder.toString();
     }
 
     protected static String[] args(long arg) {

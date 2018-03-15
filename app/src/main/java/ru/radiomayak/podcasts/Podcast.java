@@ -175,7 +175,7 @@ public class Podcast implements Parcelable, Jsonable {
             icon = source;
             return true;
         }
-        if (source != null && icon != null && source.getPrimaryColor() != 0) {
+        if (source != null && icon != null && source.hasColor()) {
             icon.setColors(source.getPrimaryColor(), source.getSecondaryColor());
             return true;
         }
@@ -187,7 +187,7 @@ public class Podcast implements Parcelable, Jsonable {
             splash = source;
             return true;
         }
-        if (source != null && splash != null && source.getPrimaryColor() != 0) {
+        if (source != null && splash != null && source.hasColor()) {
             splash.setColors(source.getPrimaryColor(), source.getSecondaryColor());
             return true;
         }

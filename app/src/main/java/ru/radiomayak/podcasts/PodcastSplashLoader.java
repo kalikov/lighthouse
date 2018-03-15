@@ -9,9 +9,11 @@ class PodcastSplashLoader extends AbstractPodcastImageLoader {
     }
 
     @Override
-    protected boolean shouldExtractColors(Context context) {
-        Image splash = getPodcast().getSplash();
-        return !PodcastsUtils.hasSplashColors(context, getPodcast(), splash == null ? null : splash.getUrl());
+    protected Image loadImage(Context context) {
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
+        try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
+            return database.loadPodcastSplash(getPodcast().getId());
+        }
     }
 
     @Nullable
@@ -31,7 +33,10 @@ class PodcastSplashLoader extends AbstractPodcastImageLoader {
     }
 
     @Override
-    protected void storeColors(Context context, int primaryColor, int secondaryColor) {
-        PodcastsUtils.storePodcastSplashColors(context, getPodcast().getId(), primaryColor, secondaryColor);
+    protected void storeImage(Context context, @Nullable String url, int primaryColor, int secondaryColor) {
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
+        try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
+            database.storePodcastSplash(getPodcast().getId(), url, primaryColor, secondaryColor);
+        }
     }
 }
