@@ -340,6 +340,9 @@ class PodcastLayoutParser extends AbstractLayoutParser {
             }
             value = jsonMatcher.group(1);
         }
-        return value.length() == 5 ? "00:" + value : value;
+        if (value.length() > 5 && value.startsWith("00:")) {
+            return value.substring(3);
+        }
+        return value;
     }
 }

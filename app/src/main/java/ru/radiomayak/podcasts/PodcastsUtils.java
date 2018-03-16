@@ -11,14 +11,20 @@ public final class PodcastsUtils {
     private PodcastsUtils() {
     }
 
-    public static String formatTime(long time) {
-        if (time <= 0) {
+    public static String formatTime(long msecs) {
+        if (msecs <= 0) {
             return ZERO_TIME_TEXT;
         }
-        long totalSecs = time / 1000;
-        long secs = totalSecs % 60;
-        long mins = (totalSecs / 60) % 60;
-        long hours = totalSecs / 3600;
+        return formatSeconds(msecs / 1000);
+    }
+
+    public static String formatSeconds(long seconds) {
+        if (seconds <= 0) {
+            return ZERO_TIME_TEXT;
+        }
+        long secs = seconds % 60;
+        long mins = (seconds / 60) % 60;
+        long hours = seconds / 3600;
         if (hours > 0) {
             return String.format(Locale.ROOT, "%d:%02d:%02d", hours, mins, secs);
         }

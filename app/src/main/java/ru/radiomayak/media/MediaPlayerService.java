@@ -282,10 +282,11 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
 
     public void play() {
         if (mediaPlayer.getPlaybackState() == Player.STATE_IDLE) {
-            if (track == null) {
+            LighthouseTrack playTrack = track;
+            if (playTrack == null) {
                 return;
             }
-            Record record = track.getRecord();
+            Record record = playTrack.getRecord();
             Uri uri = Uri.parse(record.getUrl());
             prepare(uri, record);
         } else {
@@ -328,14 +329,18 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
     }
 
     private void storeRecordPosition(long position) {
-        PodcastsOpenHelper helper = new PodcastsOpenHelper(this);
-        try (PodcastsWritableDatabase db = PodcastsWritableDatabase.get(helper)) {
-            db.storeRecordPosition(track.getPodcast().getId(), track.getRecord().getId(), (int) position);
+        LighthouseTrack currentTrack = track;
+        if (currentTrack == null) {
+            return;
         }
-        track.getRecord().setPosition((int) position);
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(this);
+        try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
+            database.storeRecordPosition(currentTrack.getPodcast().getId(), currentTrack.getRecord().getId(), (int) position);
+        }
+        currentTrack.getRecord().setPosition((int) position);
         Intent intent = new Intent(LighthouseActivity.ACTION_POSITION);
-        intent.putExtra(LighthouseActivity.EXTRA_PODCAST, track.getPodcast().getId());
-        intent.putExtra(LighthouseActivity.EXTRA_RECORD, track.getRecord().getId());
+        intent.putExtra(LighthouseActivity.EXTRA_PODCAST, currentTrack.getPodcast().getId());
+        intent.putExtra(LighthouseActivity.EXTRA_RECORD, currentTrack.getRecord().getId());
         intent.putExtra(LighthouseActivity.EXTRA_POSITION, (int) position);
         sendBroadcast(intent);
     }

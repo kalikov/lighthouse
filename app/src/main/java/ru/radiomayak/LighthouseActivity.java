@@ -81,6 +81,7 @@ public abstract class LighthouseActivity extends AppCompatActivity {
 
         @Override
         public void onPlaybackStateChanged(PlaybackStateCompat state) {
+            PlaybackStateCompat previousState = playbackState;
             playbackState = state;
             if (extras != state.getExtras()) {
                 extras = state.getExtras();
@@ -88,7 +89,9 @@ public abstract class LighthouseActivity extends AppCompatActivity {
             }
             if (state.getState() == PlaybackStateCompat.STATE_ERROR) {
                 isSeeking = false;
-                onFailed();
+                if (previousState == null || previousState.getState() != PlaybackStateCompat.STATE_ERROR) {
+                    onFailed();
+                }
             } else if (state.getState() == PlaybackStateCompat.STATE_PLAYING || state.getState() == PlaybackStateCompat.STATE_PAUSED) {
                 isSeeking = false;
                 updatePlayerView(false);

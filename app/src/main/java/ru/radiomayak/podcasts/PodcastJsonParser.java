@@ -23,7 +23,8 @@ class PodcastJsonParser {
     private static final String NAME_PROPERTY = "title";
     private static final String DESCRIPTION_PROPERTY = "anons";
     private static final String DATE_PROPERTY = "datePub";
-    private static final String DURATION_PROPERTY = "durationHF";
+    private static final String DURATION_STRING_PROPERTY = "durationHF";
+    private static final String DURATION_PROPERTY = "duration";
 
     private static final Pattern RECORD_URL_ID_PATTERN = Pattern.compile(".+listen\\?id=(\\d+).*");
 
@@ -31,7 +32,6 @@ class PodcastJsonParser {
     private static final Pattern HTML_DATE_PATTERN = Pattern.compile("\\:[\\u00A0\\s]*(\\d{2})\\.(\\d{2})\\.(\\d{4})");
 
     private static final Pattern JSON_DURATION_PATTERN = Pattern.compile("((\\d{2}\\:)?\\d{2}\\:\\d{2})");
-    private static final Pattern HTML_DURATION_PATTERN = Pattern.compile("\\:[\\u00A0\\s]*((\\d{2}\\:)?\\d{2}\\:\\d{2})");
 
     PodcastLayoutContent parse(Reader reader, URI uri) throws IOException {
         JsonReader parser = new JsonReader(reader);
@@ -96,7 +96,7 @@ class PodcastJsonParser {
         parser.beginObject();
         while (parser.hasNext()) {
             String prop = parser.nextName();
-            if (AUDIO_PROPERTY.equals(prop)) {
+            if (AUDIO_PROPERTY.equals(prop) && parser.peek() == JsonToken.BEGIN_ARRAY) {
                 parser.beginArray();
                 if (parser.hasNext()) {
                     parser.beginObject();
@@ -118,7 +118,17 @@ class PodcastJsonParser {
                         } else if (DATE_PROPERTY.equals(audioProp)) {
                             date = extractDate(parser.nextString());
                         } else if (DURATION_PROPERTY.equals(audioProp)) {
-                            duration = extractDuration(parser.nextString());
+                            if (duration == null) {
+                                duration = PodcastsUtils.formatSeconds(parser.nextLong());
+                            } else {
+                                parser.skipValue();
+                            }
+                        } else if (DURATION_STRING_PROPERTY.equals(audioProp)) {
+                            if (duration == null) {
+                                duration = extractDuration(parser.nextString());
+                            } else {
+                                parser.skipValue();
+                            }
                         } else {
                             parser.skipValue();
                         }
@@ -187,17 +197,14 @@ class PodcastJsonParser {
         if (string == null || string.isEmpty()) {
             return null;
         }
-        Matcher htmlMatcher = HTML_DURATION_PATTERN.matcher(string);
-        String value;
-        if (htmlMatcher.find()) {
-            value = htmlMatcher.group(1);
-        } else {
-            Matcher jsonMatcher = JSON_DURATION_PATTERN.matcher(string);
-            if (!jsonMatcher.find()) {
-                return null;
-            }
-            value = jsonMatcher.group(1);
+        Matcher matcher = JSON_DURATION_PATTERN.matcher(string);
+        if (!matcher.find()) {
+            return null;
         }
-        return value.length() == 5 ? "00:" + value : value;
+        String value = matcher.group(1);
+        if (value.length() > 5 && value.startsWith("00:")) {
+            return value.substring(3);
+        }
+        return value;
     }
 }
