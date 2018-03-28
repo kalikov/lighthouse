@@ -36,7 +36,7 @@ public class PodcastJsonParserTest {
         }
         try (InputStream resource = getResource("podcasts/page-1.records.json")) {
             String json = IOUtils.toString(resource, "UTF-8");
-            assertEquals(new JSONArray(json), records.toJson());
+            assertEquals(new JSONArray(json), JsonUtils.toJson(records));
         }
     }
 

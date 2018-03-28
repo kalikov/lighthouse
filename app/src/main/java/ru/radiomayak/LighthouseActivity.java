@@ -74,33 +74,7 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         }
     };
 
-    private final MediaControllerCompat.Callback controllerCallback = new MediaControllerCompat.Callback() {
-        @Override
-        public void onMetadataChanged(MediaMetadataCompat metadata) {
-        }
-
-        @Override
-        public void onPlaybackStateChanged(PlaybackStateCompat state) {
-            PlaybackStateCompat previousState = playbackState;
-            playbackState = state;
-            if (extras != state.getExtras()) {
-                extras = state.getExtras();
-                updateTrackFromExtras();
-            }
-            if (state.getState() == PlaybackStateCompat.STATE_ERROR) {
-                isSeeking = false;
-                if (previousState == null || previousState.getState() != PlaybackStateCompat.STATE_ERROR) {
-                    onFailed();
-                }
-            } else if (state.getState() == PlaybackStateCompat.STATE_PLAYING || state.getState() == PlaybackStateCompat.STATE_PAUSED) {
-                isSeeking = false;
-                updatePlayerView(false);
-            } else if (state.getState() != PlaybackStateCompat.STATE_REWINDING) {
-                isSeeking = false;
-                updatePlayerView(true);
-            }
-        }
-    };
+    private MediaControllerCompat.Callback controllerCallback;
 
     private boolean isTracking;
     private boolean isSeeking;
@@ -149,6 +123,8 @@ public abstract class LighthouseActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         unregisterReceiver(broadcastReceiver);
+
+        unsetMediaController();
 
         super.onDestroy();
     }
@@ -461,6 +437,7 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         MediaControllerCompat mediaController = MediaControllerCompat.getMediaController(this);
         if (mediaController != null) {
             mediaController.unregisterCallback(controllerCallback);
+            controllerCallback = null;
             MediaControllerCompat.setMediaController(this, null);
         }
     }
@@ -482,6 +459,9 @@ public abstract class LighthouseActivity extends AppCompatActivity {
                 return;
             }
             MediaControllerCompat.setMediaController(this, mediaController);
+            if (controllerCallback == null) {
+                controllerCallback = new MediaControllerCallback();
+            }
             mediaController.registerCallback(controllerCallback);
         }
         playbackState = mediaController.getPlaybackState();
@@ -503,4 +483,32 @@ public abstract class LighthouseActivity extends AppCompatActivity {
             updateRecordPosition(podcast, record, position);
         }
     }
+
+    private class MediaControllerCallback extends MediaControllerCompat.Callback {
+        @Override
+        public void onMetadataChanged(MediaMetadataCompat metadata) {
+        }
+
+        @Override
+        public void onPlaybackStateChanged(PlaybackStateCompat state) {
+            PlaybackStateCompat previousState = playbackState;
+            playbackState = state;
+            if (extras != state.getExtras()) {
+                extras = state.getExtras();
+                updateTrackFromExtras();
+            }
+            if (state.getState() == PlaybackStateCompat.STATE_ERROR) {
+                isSeeking = false;
+                if (previousState == null || previousState.getState() != PlaybackStateCompat.STATE_ERROR) {
+                    onFailed();
+                }
+            } else if (state.getState() == PlaybackStateCompat.STATE_PLAYING || state.getState() == PlaybackStateCompat.STATE_PAUSED) {
+                isSeeking = false;
+                updatePlayerView(false);
+            } else if (state.getState() != PlaybackStateCompat.STATE_REWINDING) {
+                isSeeking = false;
+                updatePlayerView(true);
+            }
+        }
+    };
 }

@@ -644,7 +644,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
 
     private void updatePodcast(Podcast podcast) {
         boolean hasNoLength = this.podcast.getLength() <= 0;
-        boolean updated = this.podcast.merge(podcast);
+        boolean updated = this.podcast.update(podcast);
         if (updated) {
             if (hasNoLength) {
                 adapter.notifyItemInserted(0);

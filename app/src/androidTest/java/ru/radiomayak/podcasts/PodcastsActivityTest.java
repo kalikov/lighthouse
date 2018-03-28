@@ -112,7 +112,7 @@ public class PodcastsActivityTest {
         });
 
         assertListView(false);
-        Assert.assertEquals(1, activity.adapter.getCount());
+        Assert.assertEquals(1, activity.adapter.getItemCount());
         Mockito.verifyZeroInteractions(activity.podcastsLoaderManager);
     }
 
@@ -130,7 +130,7 @@ public class PodcastsActivityTest {
         });
 
         assertListView(true);
-        Assert.assertEquals(1, activity.adapter.getCount());
+        Assert.assertEquals(1, activity.adapter.getItemCount());
         Mockito.verify(activity.podcastsLoaderManager).execute(Mockito.any(Context.class), Mockito.isA(PodcastsLoader.class), Mockito.eq(activity.podcastsListener));
     }
 
@@ -141,7 +141,7 @@ public class PodcastsActivityTest {
     private void assertLoadingView() {
         Assert.assertEquals(View.VISIBLE, activity.getLoadingView().getVisibility());
         Assert.assertEquals(View.GONE, activity.getErrorView().getVisibility());
-        Assert.assertEquals(View.GONE, activity.getListView().getVisibility());
+        Assert.assertEquals(View.GONE, activity.getRecyclerView().getVisibility());
         Assert.assertFalse(activity.getRefreshView().isRefreshing());
         Assert.assertFalse(activity.getRefreshView().isEnabled());
 
@@ -152,7 +152,7 @@ public class PodcastsActivityTest {
     private void assertErrorView() {
         Assert.assertEquals(View.GONE, activity.getLoadingView().getVisibility());
         Assert.assertEquals(View.VISIBLE, activity.getErrorView().getVisibility());
-        Assert.assertEquals(View.GONE, activity.getListView().getVisibility());
+        Assert.assertEquals(View.GONE, activity.getRecyclerView().getVisibility());
         Assert.assertFalse(activity.getRefreshView().isRefreshing());
         Assert.assertTrue(activity.getRefreshView().isEnabled());
 
@@ -163,7 +163,7 @@ public class PodcastsActivityTest {
     private void assertListView(boolean isBackgroundLoading) {
         Assert.assertEquals(View.GONE, activity.getLoadingView().getVisibility());
         Assert.assertEquals(View.GONE, activity.getErrorView().getVisibility());
-        Assert.assertEquals(View.VISIBLE, activity.getListView().getVisibility());
+        Assert.assertEquals(View.VISIBLE, activity.getRecyclerView().getVisibility());
         Assert.assertFalse(activity.getRefreshView().isRefreshing());
         Assert.assertTrue(activity.getRefreshView().isEnabled());
         if (isBackgroundLoading) {

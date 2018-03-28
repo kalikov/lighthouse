@@ -5,6 +5,11 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
+    private static final PodcastsTable.Field[] PODCASTS_FIELD_V1_4 = {PodcastsTable.Field.ID, PodcastsTable.Field.NAME,
+            PodcastsTable.Field.DESC, PodcastsTable.Field.LENGTH, PodcastsTable.Field.SEEN, PodcastsTable.Field.ORD,
+            PodcastsTable.Field.ICON_URL, PodcastsTable.Field.ICON_RGB, PodcastsTable.Field.ICON_RGB2,
+            PodcastsTable.Field.SPLASH_URL, PodcastsTable.Field.SPLASH_RGB, PodcastsTable.Field.SPLASH_RGB2};
+
     public static PodcastsWritableDatabase get(PodcastsOpenHelper helper) {
         return new PodcastsWritableDatabase(helper.getWritableDatabase());
     }
@@ -38,6 +43,7 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
             values.put(PodcastsTable.Field.DESC.key(), podcast.getDescription());
         }
         values.put(PodcastsTable.Field.LENGTH.key(), podcast.getLength());
+        values.put(PodcastsTable.Field.RATING.key(), podcast.getFavorite());
         values.put(PodcastsTable.Field.ORD.key(), ord);
 
         try (Cursor cursor = db.rawQuery(PodcastsTable.SELECT_SQL + WHERE + PodcastsTable.Field.ID.key() + " = ?", args(id))) {
@@ -108,6 +114,12 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
         db.update(PodcastsTable.NAME, values, PodcastsTable.Field.ID + " = ?", args(podcast));
     }
 
+    public void storePodcastRating(long podcast, int rating) {
+        ContentValues values = new ContentValues();
+        values.put(PodcastsTable.Field.RATING.key(), rating);
+        db.update(PodcastsTable.NAME, values, PodcastsTable.Field.ID + " = ?", args(podcast));
+    }
+
     public void storeRecordPosition(long podcast, long record, int position) {
         ContentValues values = new ContentValues();
         values.put(PlayersTable.Field.PODCAST_ID.toString(), podcast);
@@ -130,7 +142,7 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
 
     public void create() {
         db.execSQL(PodcastsTable.CREATE_SQL);
-        db.execSQL(PodcastsTable.CREATE_ORD_INDEX_SQL);
+        db.execSQL(PodcastsTable.CREATE_RATING_ORD_INDEX_SQL);
         db.execSQL(RecordsTable.CREATE_SQL);
         db.execSQL(PlayersTable.CREATE_SQL);
     }
@@ -152,10 +164,16 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
             db.execSQL("DROP TABLE " + RecordsTable.NAME);
             db.execSQL(RecordsTable.CREATE_SQL);
             db.execSQL("ALTER TABLE " + PodcastsTable.NAME + " RENAME TO old_podcasts");
-            db.execSQL(PodcastsTable.CREATE_SQL);
-            String columns = join(PodcastsTable.Field.values());
+            db.execSQL("CREATE TABLE " + PodcastsTable.NAME + " (" + fields(PODCASTS_FIELD_V1_4) + COMMA
+                    + "PRIMARY KEY (" +  PodcastsTable.Field.ID.key() + "))");
+            String columns = join(PODCASTS_FIELD_V1_4);
             db.execSQL("INSERT INTO " + PodcastsTable.NAME + "(" + columns + ") SELECT " + columns + " FROM old_podcasts");
             db.execSQL("DROP TABLE old_podcasts");
+        }
+        if (oldVersion <= 4) {
+            db.execSQL("ALTER TABLE " + PodcastsTable.NAME + " ADD COLUMN " + PodcastsTable.Field.RATING.key() + " INTEGER NOT NULL DEFAULT 0");
+            db.execSQL("DROP INDEX IF EXISTS idx_podcasts__ord");
+            db.execSQL(PodcastsTable.CREATE_RATING_ORD_INDEX_SQL);
         }
     }
 }

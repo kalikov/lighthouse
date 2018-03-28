@@ -4,24 +4,11 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.annotation.Nullable;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.net.URI;
 
-import ru.radiomayak.JsonUtils;
-import ru.radiomayak.Jsonable;
 import ru.radiomayak.StringUtils;
 
-public class Record implements Parcelable, Jsonable {
-    private static final String PROP_ID = "id";
-    private static final String PROP_NAME = "name";
-    private static final String PROP_URL = "url";
-    private static final String PROP_DESC = "description";
-    private static final String PROP_DATE = "date";
-    private static final String PROP_DURATION = "duration";
-    private static final String PROP_POSITION = "position";
-
+public class Record implements Parcelable {
     public static final int POSITION_UNDEFINED = -1;
 
     public static final Creator<Record> CREATOR = new Creator<Record>() {
@@ -157,46 +144,5 @@ public class Record implements Parcelable, Jsonable {
             position = record.getPosition();
         }
         return updated;
-    }
-
-    @Override
-    public JSONObject toJson() {
-        JSONObject json = new JSONObject();
-        try {
-            json.put(PROP_ID, id);
-            json.put(PROP_NAME, name);
-            json.put(PROP_URL, url);
-            json.put(PROP_DESC, description);
-            json.put(PROP_DATE, date);
-            json.put(PROP_DURATION, duration);
-            if (position != POSITION_UNDEFINED) {
-                json.put(PROP_POSITION, position);
-            }
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
-        }
-        return json;
-    }
-
-    @Nullable
-    public static Record fromJson(JSONObject json) {
-        long id = JsonUtils.getOptLong(json, PROP_ID, 0);
-        if (id <= 0) {
-            return null;
-        }
-        String name = JsonUtils.getOptString(json, PROP_NAME);
-        if (name == null || name.isEmpty()) {
-            return null;
-        }
-        String url = JsonUtils.getOptString(json, PROP_URL);
-        if (url == null || url.isEmpty()) {
-            return null;
-        }
-        Record record = new Record(id, name, url);
-        record.setDescription(StringUtils.nonEmpty(JsonUtils.getOptString(json, PROP_DESC)));
-        record.setDate(StringUtils.nonEmpty(JsonUtils.getOptString(json, PROP_DATE)));
-        record.setDuration(StringUtils.nonEmpty(JsonUtils.getOptString(json, PROP_DURATION)));
-        record.setPosition(JsonUtils.getOptInt(json, PROP_POSITION, POSITION_UNDEFINED));
-        return record;
     }
 }

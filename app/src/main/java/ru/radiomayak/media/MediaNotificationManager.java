@@ -168,7 +168,7 @@ public class MediaNotificationManager extends BroadcastReceiver {
         remoteViews.setTextViewText(android.R.id.text1, record.getName());
 
         BitmapInfo bitmapInfo = PodcastImageCache.getInstance().getIcon(podcast.getId());
-        if (bitmapInfo != null) {
+        if (bitmapInfo != null && !bitmapInfo.getBitmap().isRecycled()) {
             remoteViews.setImageViewBitmap(android.R.id.icon, bitmapInfo.getBitmap());
         }
     }

@@ -52,7 +52,7 @@ public class PodcastsLayoutParserTest {
         }
         try (InputStream resource = getResource(resourceName + ".json")) {
             String json = IOUtils.toString(resource, "UTF-8");
-            assertEquals(new JSONArray(json), podcasts.toJson());
+            assertEquals(new JSONArray(json), JsonUtils.toJson(podcasts));
         }
     }
 

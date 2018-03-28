@@ -4,12 +4,9 @@ import android.app.Application;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.graphics.Typeface;
-import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v4.media.MediaBrowserCompat;
-import android.util.Log;
 
-import java.io.File;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -24,8 +21,6 @@ import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.media.MediaPlayerService;
 
 public class LighthouseApplication extends Application {
-    private static final String TAG = LighthouseApplication.class.getSimpleName();
-
     private static final ThreadFactory threadFactory = new ThreadFactory() {
         private final AtomicInteger counter = new AtomicInteger(1);
 
@@ -72,8 +67,6 @@ public class LighthouseApplication extends Application {
     private Typeface fontNormal;
     private Typeface fontLight;
 
-    private File podcastsDir;
-
     @Override
     public void onCreate() {
         super.onCreate();
@@ -88,15 +81,6 @@ public class LighthouseApplication extends Application {
 
         mediaBrowser = new MediaBrowserCompat(this, new ComponentName(this, MediaPlayerService.class), connectionCallbacks, null);
         mediaBrowser.connect();
-
-        File dir = getExternalFilesDir(Environment.DIRECTORY_PODCASTS);
-        if (dir == null) {
-            dir = getFilesDir();
-        }
-        podcastsDir = dir;
-        if (!podcastsDir.mkdirs()) {
-            Log.e(TAG, "Storage directories not created");
-        }
     }
 
     public LighthouseModule getModule() {
@@ -132,14 +116,6 @@ public class LighthouseApplication extends Application {
 
     public MediaBrowserCompat getMediaBrowser() {
         return mediaBrowser;
-    }
-
-    public File getPodcastsDir() {
-        return podcastsDir;
-    }
-
-    public File getPodcastDir(long podcast) {
-        return new File(getPodcastsDir(), String.valueOf(podcast));
     }
 
     private void broadcastUpdate() {

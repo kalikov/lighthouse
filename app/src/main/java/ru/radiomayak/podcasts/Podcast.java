@@ -4,14 +4,9 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.support.annotation.Nullable;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import ru.radiomayak.JsonUtils;
-import ru.radiomayak.Jsonable;
 import ru.radiomayak.StringUtils;
 
-public class Podcast implements Parcelable, Jsonable {
+public class Podcast implements Parcelable {
     private static final byte IMAGE_NONE = 0;
     private static final byte IMAGE_DEFAULT = 1;
 
@@ -34,6 +29,7 @@ public class Podcast implements Parcelable, Jsonable {
     private int seen;
     private Image icon;
     private Image splash;
+    private int favorite;
 
     protected Podcast(Parcel in) {
         id = in.readLong();
@@ -151,10 +147,18 @@ public class Podcast implements Parcelable, Jsonable {
         this.splash = splash;
     }
 
-    public boolean merge(Podcast podcast) {
+    public int getFavorite() {
+        return favorite;
+    }
+
+    public void setFavorite(int favorite) {
+        this.favorite = favorite;
+    }
+
+    public boolean update(Podcast podcast) {
         boolean updated = false;
-        if (podcast.getLength() > 0) {
-            updated = length != podcast.getLength();
+        if (podcast.getLength() > length) {
+            updated = true;
             length = podcast.getLength();
         }
         if (podcast.getSeen() > seen) {
@@ -165,24 +169,29 @@ public class Podcast implements Parcelable, Jsonable {
             updated = updated || !StringUtils.equals(podcast.getDescription(), description);
             description = StringUtils.nonEmpty(podcast.getDescription());
         }
-        updated = mergeIcon(podcast.getIcon()) || updated;
-        updated = mergeSplash(podcast.getSplash()) || updated;
+        if (podcast.getFavorite() != favorite) {
+            updated = true;
+            favorite = podcast.getFavorite();
+        }
+        updated = updateIcon(podcast.getIcon()) || updated;
+        updated = updateSplash(podcast.getSplash()) || updated;
         return updated;
     }
 
-    private boolean mergeIcon(@Nullable Image source) {
+    private boolean updateIcon(@Nullable Image source) {
         if (source != null && (icon == null || !icon.getUrl().equalsIgnoreCase(source.getUrl()))) {
             icon = source;
             return true;
         }
-        if (source != null && icon != null && source.hasColor()) {
+        if (source != null && icon != null && source.hasColor() &&
+                (icon.getPrimaryColor() != source.getPrimaryColor() || icon.getSecondaryColor() != source.getSecondaryColor())) {
             icon.setColors(source.getPrimaryColor(), source.getSecondaryColor());
             return true;
         }
         return false;
     }
 
-    private boolean mergeSplash(@Nullable Image source) {
+    private boolean updateSplash(@Nullable Image source) {
         if (source != null && (splash == null || !splash.getUrl().equalsIgnoreCase(source.getUrl()))) {
             splash = source;
             return true;
@@ -195,64 +204,16 @@ public class Podcast implements Parcelable, Jsonable {
     }
 
     @Override
-    public JSONObject toJson() {
-        JSONObject json = new JSONObject();
-        try {
-            json.put("id", id);
-            json.put("name", name);
-            if (description != null) {
-                json.put("description", description);
-            }
-            if (length > 0) {
-                json.put("length", length);
-            }
-            if (seen > 0) {
-                json.put("seen", seen);
-            }
-            if (icon != null) {
-                json.put("icon", icon.toJson());
-            }
-            if (splash != null) {
-                json.put("splash", splash.toJson());
-            }
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
-        }
-        return json;
-    }
-
-    @Nullable
-    public static Podcast fromJson(JSONObject json) {
-        long id = JsonUtils.getOptLong(json, "id", 0);
-        if (id <= 0) {
-            return null;
-        }
-        String name = JsonUtils.getOptString(json, "name");
-        if (name == null || name.isEmpty()) {
-            return null;
-        }
-        Podcast podcast = new Podcast(id, name);
-        podcast.setDescription(StringUtils.nonEmpty(JsonUtils.getOptString(json, "description")));
-        podcast.setLength(JsonUtils.getOptInt(json, "length", 0));
-        podcast.setSeen(JsonUtils.getOptInt(json, "seen", 0));
-        podcast.setIcon(getOptImage(json, "icon"));
-        podcast.setSplash(getOptImage(json, "splash"));
-        return podcast;
-    }
-
-    @Nullable
-    private static Image getOptImage(JSONObject json, String property) {
-        if (json.has(property)) {
-            Object element;
-            try {
-                element = json.get(property);
-            } catch (JSONException e) {
-                return null;
-            }
-            if (element instanceof JSONObject) {
-                return Image.fromJson((JSONObject) element);
-            }
-        }
-        return null;
+    public String toString() {
+        return "Podcast{" +
+                "id: " + id +
+                ", name: '" + name + '\'' +
+                ", description: '" + description + '\'' +
+                ", length: " + length +
+                ", seen: " + seen +
+                ", icon: " + icon +
+                ", splash: " + splash +
+                ", favorite: " + favorite +
+                '}';
     }
 }

@@ -34,7 +34,7 @@ public class PodcastLayoutParserTest {
         }
         try (InputStream resource = getResource("podcasts/podcast-1.records.json")) {
             String json = IOUtils.toString(resource, "UTF-8");
-            assertEquals(new JSONArray(json), records.toJson());
+            assertEquals(new JSONArray(json), JsonUtils.toJson(records));
         }
     }
 
@@ -47,7 +47,7 @@ public class PodcastLayoutParserTest {
         }
         try (InputStream resource = getResource("podcasts/podcast-2.records.json")) {
             String json = IOUtils.toString(resource, "UTF-8");
-            assertEquals(new JSONArray(json), records.toJson());
+            assertEquals(new JSONArray(json), JsonUtils.toJson(records));
         }
     }
 
@@ -61,7 +61,7 @@ public class PodcastLayoutParserTest {
         Assert.assertNotNull(podcast);
         try (InputStream resource = getResource("podcasts/podcast-1.podcast.json")) {
             String json = IOUtils.toString(resource, "UTF-8");
-            assertEquals(new JSONObject(json), podcast.toJson());
+            assertEquals(new JSONObject(json), JsonUtils.toJson(podcast));
         }
     }
 

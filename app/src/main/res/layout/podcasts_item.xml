@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="@dimen/podcast_padding"
+    android:background="@drawable/row_background_selector"
+    android:paddingBottom="@dimen/podcast_padding"
+    android:paddingEnd="0dp"
+    android:paddingStart="@dimen/podcast_padding"
+    android:paddingTop="@dimen/podcast_padding"
     tools:context="ru.radiomayak.podcasts.PodcastsActivity">
 
     <RelativeLayout
@@ -23,58 +26,72 @@
             android:id="@android:id/progress"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:background="@color/colorForegroundTransparent"
             android:scaleType="center"
             android:src="@drawable/equalizer"
             android:tint="@color/colorPrimary"
-            android:background="@color/colorForegroundTransparent"
-            android:visibility="gone"
             tools:ignore="contentDescription"/>
+
+        <TextView
+            android:id="@id/length"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:background="@drawable/length_background_selector"
+            android:maxLines="1"
+            android:gravity="center"
+            android:paddingBottom="1sp"
+            android:paddingEnd="@dimen/podcast_length_padding"
+            android:paddingStart="@dimen/podcast_length_padding"
+            android:minWidth="20sp"
+            android:minHeight="20sp"
+            android:text="@string/zero"
+            android:textAppearance="@style/AppTheme.Text.Small"
+            android:textColor="@color/titleTextColor"
+            android:textSize="@dimen/text_ultra_small_size"
+            tools:ignore="RelativeOverlap"/>
     </RelativeLayout>
 
     <LinearLayout
-        android:layout_width="fill_parent"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
         android:layout_marginStart="@dimen/podcast_padding"
         android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="@dimen/podcast_title_padding"
+            android:text="@string/lorem_ipsum"
+            android:textAppearance="@style/AppTheme.Title"/>
 
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
             <TextView
-                android:id="@+id/name"
-                android:layout_width="match_parent"
+                android:id="@+id/description"
+                android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
-                android:layout_toStartOf="@+id/length"
-                android:paddingBottom="@dimen/podcast_title_padding"
+                android:layout_toStartOf="@id/favorite"
+                android:ellipsize="end"
+                android:maxLines="3"
                 android:text="@string/lorem_ipsum"
-                android:textAppearance="@style/AppTheme.Title"/>
+                android:textAppearance="@style/AppTheme.Text.Small"/>
 
-            <TextView
-                android:id="@id/length"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignBaseline="@id/name"
+            <ImageView
+                android:id="@+id/favorite"
+                android:layout_width="42dp"
+                android:layout_height="30dp"
                 android:layout_alignParentEnd="true"
-                android:background="@drawable/length_background"
-                android:maxLines="1"
-                android:paddingEnd="@dimen/podcast_length_padding"
-                android:paddingStart="@dimen/podcast_length_padding"
-                android:text="@string/zero"
-                android:textAppearance="@style/AppTheme.Text.Small"
-                android:textColor="@color/titleTextColor"
-                android:textSize="@dimen/text_ultra_small_size"
-                app:layout_constraintEnd_toEndOf="parent"/>
+                android:layout_centerVertical="true"
+                android:scaleType="centerInside"
+                android:src="@drawable/favorite"
+                tools:ignore="contentDescription"/>
         </RelativeLayout>
 
-        <TextView
-            android:id="@+id/description"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="3"
-            android:text="@string/lorem_ipsum_large"
-            android:textAppearance="@style/AppTheme.Text.Small"/>
     </LinearLayout>
+
 </LinearLayout>

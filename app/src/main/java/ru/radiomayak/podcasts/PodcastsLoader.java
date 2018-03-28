@@ -27,33 +27,13 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
     private static final String PODCASTS_URL = "http://radiomayak.ru/podcasts/";
 
     private final PodcastsLayoutParser parser = new PodcastsLayoutParser();
-    private final Podcasts loopbackPodcasts;
-
-    PodcastsLoader(Podcasts loopbackPodcasts) {
-        this.loopbackPodcasts = loopbackPodcasts;
-    }
 
     @Override
     protected Podcasts onExecute(Context context, LoaderState state) {
         try {
             if (NetworkUtils.isConnected(context)) {
                 try {
-                    Podcasts podcasts = requestPodcasts(PODCASTS_URL);
-                    if (podcasts != null && !podcasts.list().isEmpty()) {
-                        for (Podcast podcast : podcasts.list()) {
-                            if (loopbackPodcasts.list().isEmpty()) {
-                                podcast.setSeen(podcast.getLength());
-                            } else {
-                                Podcast loopbackPodcast = loopbackPodcasts.get(podcast.getId());
-                                if (loopbackPodcast != null) {
-                                    podcast.setSeen(loopbackPodcast.getSeen());
-                                    copyColors(podcast.getIcon(), loopbackPodcast.getIcon());
-                                    copyColors(podcast.getSplash(), loopbackPodcast.getSplash());
-                                }
-                            }
-                        }
-                        return podcasts;
-                    }
+                    return requestPodcasts(PODCASTS_URL);
                 } catch (IOException | HttpException ignored) {
                 }
             }
@@ -63,20 +43,12 @@ class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
         return new Podcasts();
     }
 
-    private static void copyColors(Image target, Image source) {
-        if (target != null && source != null && target.getUrl().equalsIgnoreCase(source.getUrl())) {
-            target.setPrimaryColor(source.getPrimaryColor());
-            target.setSecondaryColor(source.getSecondaryColor());
-        }
-    }
-
     private Podcasts requestPodcasts(String spec) throws IOException, HttpException {
         URL url = new URL(spec);
         HttpRequest request = new BasicHttpRequest("GET", url.getPath(), HttpVersion.HTTP_1_1);
         request.setHeader(HttpHeaders.ACCEPT, "text/html,*/*");
         request.setHeader(HttpHeaders.ACCEPT_ENCODING, "gzip, deflate");
         request.setHeader(HttpHeaders.HOST, url.getAuthority());
-        // If-Modified-Since: Thu, 24 Nov 2016 10:13:10 GMT
         try (HttpClientConnection connection = DefaultHttpClientConnectionFactory.INSTANCE.openConnection(url)) {
             HttpResponse response = getEntityResponse(connection, request);
             if (response == null) {

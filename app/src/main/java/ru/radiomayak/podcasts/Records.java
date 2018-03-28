@@ -4,18 +4,11 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.LongSparseArray;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import ru.radiomayak.JsonUtils;
-import ru.radiomayak.Jsonable;
-
-public class Records implements Parcelable, Jsonable {
+public class Records implements Parcelable {
     public static final Creator<Records> CREATOR = new Creator<Records>() {
         @Override
         public Records createFromParcel(Parcel in) {
@@ -95,31 +88,5 @@ public class Records implements Parcelable, Jsonable {
     @Override
     public void writeToParcel(Parcel out, int flags) {
         out.writeTypedList(records);
-    }
-
-    @Override
-    public JSONArray toJson() {
-        return JsonUtils.toJsonArray(records);
-    }
-
-    public static Records fromJson(JSONArray array) {
-        int n = array.length();
-        Records records = new Records(n);
-        for (int i = 0; i < n; i++) {
-            Object item;
-            try {
-                item = array.get(i);
-            } catch (JSONException e) {
-                continue;
-            }
-            if (!(item instanceof JSONObject)) {
-                continue;
-            }
-            Record record = Record.fromJson((JSONObject) item);
-            if (record != null) {
-                records.add(record);
-            }
-        }
-        return records;
     }
 }

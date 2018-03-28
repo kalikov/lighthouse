@@ -1,18 +1,17 @@
 package ru.radiomayak.podcasts;
 
-import android.util.LongSparseArray;
 import android.util.LruCache;
 
 import ru.radiomayak.graphics.BitmapInfo;
 
 public class PodcastImageCache {
-    private static final int DEFAULT_IMAGES_CAPACITY = 100;
+    private static final int IMAGE_CACHE_SIZE = 100;
 
-    private static final int SPLASH_CACHE_SIZE = 10 * 1024 * 1024;
+    private static final int SPLASH_CACHE_SIZE = 4;
 
     private static final PodcastImageCache instance = new PodcastImageCache();
 
-    private final LongSparseArray<BitmapInfo> icons = new LongSparseArray<>(DEFAULT_IMAGES_CAPACITY);
+    private final LruCache<Long, BitmapInfo> icons = new LruCache<>(IMAGE_CACHE_SIZE);
     private final LruCache<Long, BitmapInfo> splashs = new LruCache<>(SPLASH_CACHE_SIZE);
 
     public static PodcastImageCache getInstance() {

@@ -13,7 +13,7 @@ public class PodcastsReadableDatabase implements AutoCloseable {
     private static final ThreadLocal<String[]> DOUBLE_LEN_ARRAY = new ThreadLocal<>();
 
     static final String DATABASE_NAME = "podcasts";
-    static final int VERSION = 4;
+    static final int VERSION = 5;
 
     protected static final String SELECT = "SELECT ";
     protected static final String FROM = " FROM ";
@@ -36,8 +36,8 @@ public class PodcastsReadableDatabase implements AutoCloseable {
                 + "PRIMARY KEY (" + Field.ID.key() + ")"
                 + ")";
 
-        static final String CREATE_ORD_INDEX_SQL = "CREATE INDEX idx_podcasts__ord"
-                + " ON " + NAME + " (" + Field.ORD.key() + DESC + ")";
+        static final String CREATE_RATING_ORD_INDEX_SQL = "CREATE INDEX idx_podcasts__rating_ord"
+                + " ON " + NAME + " (" + Field.RATING.key() + DESC + COMMA + Field.ORD.key() + DESC + ")";
 
         static final String SELECT_SQL = SELECT + join(Field.values()) + FROM + NAME;
 
@@ -53,7 +53,8 @@ public class PodcastsReadableDatabase implements AutoCloseable {
             SPLASH_URL("splash_url", "TEXT"),
             SPLASH_RGB("splash_rgb", "INTEGER NOT NULL DEFAULT 0"),
             SPLASH_RGB2("splash_rgb2", "INTEGER NOT NULL DEFAULT 0"),
-            ORD("ord", "INTEGER NOT NULL");
+            ORD("ord", "INTEGER NOT NULL"),
+            RATING("rating", "INTEGER NOT NULL DEFAULT 0");
 
             private final String key;
             private final String type;
@@ -178,7 +179,7 @@ public class PodcastsReadableDatabase implements AutoCloseable {
 
     public Podcasts loadPodcasts() {
         try (Cursor cursor = db.rawQuery(PodcastsTable.SELECT_SQL + WHERE + PodcastsTable.Field.ORD.key() + " > 0" +
-                ORDER_BY + PodcastsTable.Field.ORD.key() + DESC, null)) {
+                ORDER_BY + PodcastsTable.Field.RATING.key() + DESC + COMMA + PodcastsTable.Field.ORD.key() + DESC, null)) {
             Podcasts podcasts = new Podcasts(cursor.getCount());
             while (cursor.moveToNext()) {
                 long id = cursor.getLong(PodcastsTable.Field.ID.ordinal());
@@ -187,6 +188,7 @@ public class PodcastsReadableDatabase implements AutoCloseable {
                 podcast.setDescription(cursor.getString(PodcastsTable.Field.DESC.ordinal()));
                 podcast.setLength(cursor.getInt(PodcastsTable.Field.LENGTH.ordinal()));
                 podcast.setSeen(cursor.getInt(PodcastsTable.Field.SEEN.ordinal()));
+                podcast.setFavorite(cursor.getInt(PodcastsTable.Field.RATING.ordinal()));
 
                 String iconUrl = cursor.getString(PodcastsTable.Field.ICON_URL.ordinal());
                 if (iconUrl != null) {
@@ -268,7 +270,7 @@ public class PodcastsReadableDatabase implements AutoCloseable {
         }
     }
 
-    private static String fields(TableField[] fields) {
+    protected static String fields(TableField[] fields) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < fields.length; i++) {
             if (i > 0) {
