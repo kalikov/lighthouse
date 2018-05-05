@@ -119,6 +119,10 @@ class OnlineRecordsPaginator implements RecordsPaginator {
         if (records.list().isEmpty()) {
             throw new UnsupportedFormatException();
         }
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
+        try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
+            database.loadRecordsPosition(podcast, records);
+        }
 //        PodcastsUtils.storeRecords(context, podcast, records.list());
         return new OnlineRecordsPaginator(podcast, records, content.getNextPage());
     }
