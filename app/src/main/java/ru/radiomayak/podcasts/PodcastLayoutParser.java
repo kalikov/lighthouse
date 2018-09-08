@@ -26,13 +26,14 @@ class PodcastLayoutParser extends AbstractLayoutParser {
 
     private static final String RECORDS_LIST_CLASS = "b-podcast__records";
     private static final String RECORD_ITEM_CLASS = "b-podcast__records-item";
-    private static final String RECORD_ANCHOR_CLASS = "b-podcast__records-listen";
+    private static final String RECORD_LISTEN_ANCHOR_CLASS = "b-podcast__records-listen";
+    private static final String RECORD_SCHEDULE_ANCHOR_CLASS = "b-schedule__list-item__url";
     private static final String RECORD_NAME_CLASS = "b-podcast__records-name";
     private static final String RECORD_DESCRIPTION_CLASS = "b-podcast__records-description__text";
     private static final String RECORD_DATE_CLASS = "b-podcast__records-date";
     private static final String RECORD_DURATION_CLASS = "b-podcast__records-time";
 
-    private static final Pattern RECORD_URL_ID_PATTERN = Pattern.compile(".+listen\\?id=(\\d+).*");
+    private static final Pattern RECORD_URL_ID_PATTERN = Pattern.compile(".+(?:listen|download)\\?id=(\\d+).*");
 
     private static final Pattern JSON_DATE_PATTERN = Pattern.compile("(\\d{2})\\-(\\d{2})\\-(\\d{4})");
     private static final Pattern HTML_DATE_PATTERN = Pattern.compile("\\:[\\u00A0\\s]*(\\d{2})\\.(\\d{2})\\.(\\d{4})");
@@ -184,21 +185,34 @@ class PodcastLayoutParser extends AbstractLayoutParser {
                 String tag = xpp.getName();
                 push(path, xpp);
                 if (!failure) {
-                    if (id == 0 && LayoutUtils.isAnchor(tag) && hasClass(xpp, RECORD_ANCHOR_CLASS)) {
-                        url = xpp.getAttributeValue(null, "data-url");
-                        if (url == null || url.isEmpty()) {
-                            failure = true;
-                        } else {
-                            id = StringUtils.parseLong(xpp.getAttributeValue(null, "data-id"), 0);
-                            if (id == 0) {
-                                id = parseIdentifier(url);
-                            }
-                            if (id == 0) {
-                                failure = true;
-                            } else {
-                                anchorName = StringUtils.nonEmpty(xpp.getAttributeValue(null, "data-title"));
-                            }
-                        }
+                    if (id == 0 && LayoutUtils.isAnchor(tag)) {
+                       if (hasClass(xpp, RECORD_LISTEN_ANCHOR_CLASS)) {
+                           url = xpp.getAttributeValue(null, "data-url");
+                           if (url == null || url.isEmpty()) {
+                               failure = true;
+                           } else {
+                               id = StringUtils.parseLong(xpp.getAttributeValue(null, "data-id"), 0);
+                               if (id == 0) {
+                                   id = parseIdentifier(url);
+                               }
+                               if (id == 0) {
+                                   failure = true;
+                               } else {
+                                   anchorName = StringUtils.nonEmpty(xpp.getAttributeValue(null, "data-title"));
+                               }
+                           }
+                       } else if (hasClass(xpp, RECORD_SCHEDULE_ANCHOR_CLASS) && url == null) {
+                           String href = xpp.getAttributeValue(null, "href");
+                           Matcher matcher = RECORD_URL_ID_PATTERN.matcher(href);
+                           if (matcher.find()) {
+                               id = StringUtils.parseLong(matcher.group(1), 0);
+                               if (id == 0) {
+                                   failure = true;
+                               } else {
+                                   url = href;
+                               }
+                           }
+                       }
                     } else if (isNameTag(tag, getClass(xpp))) {
                         nameNesting++;
                         nesting++;
