@@ -120,11 +120,12 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
         db.update(PodcastsTable.NAME, values, PodcastsTable.Field.ID + " = ?", args(podcast));
     }
 
-    public void storeRecordPosition(long podcast, long record, int position) {
+    public void storeRecordPosition(long podcast, long record, long position, long length) {
         ContentValues values = new ContentValues();
         values.put(PlayersTable.Field.PODCAST_ID.toString(), podcast);
         values.put(PlayersTable.Field.RECORD_ID.toString(), record);
         values.put(PlayersTable.Field.POSITION.toString(), position);
+        values.put(PlayersTable.Field.LENGTH.toString(), length);
         db.insertWithOnConflict(PlayersTable.NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
@@ -174,6 +175,9 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
             db.execSQL("ALTER TABLE " + PodcastsTable.NAME + " ADD COLUMN " + PodcastsTable.Field.RATING.key() + " INTEGER NOT NULL DEFAULT 0");
             db.execSQL("DROP INDEX IF EXISTS idx_podcasts__ord");
             db.execSQL(PodcastsTable.CREATE_RATING_ORD_INDEX_SQL);
+        }
+        if (oldVersion <= 5) {
+            db.execSQL("ALTER TABLE " + PlayersTable.NAME + " ADD COLUMN " + PlayersTable.Field.LENGTH.key() + " INTEGER NOT NULL DEFAULT 0");
         }
     }
 }

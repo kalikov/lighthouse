@@ -13,7 +13,7 @@ public class PodcastsReadableDatabase implements AutoCloseable {
     private static final ThreadLocal<String[]> DOUBLE_LEN_ARRAY = new ThreadLocal<>();
 
     static final String DATABASE_NAME = "podcasts";
-    static final int VERSION = 5;
+    static final int VERSION = 6;
 
     protected static final String SELECT = "SELECT ";
     protected static final String FROM = " FROM ";
@@ -124,7 +124,8 @@ public class PodcastsReadableDatabase implements AutoCloseable {
         enum Field implements TableField {
             PODCAST_ID("podcast_id", "INTEGER NOT NULL"),
             RECORD_ID("record_id", "INTEGER NOT NULL"),
-            POSITION("position", "INTEGER NOT NULL");
+            POSITION("position", "INTEGER NOT NULL"),
+            LENGTH("length", "INTEGER NOT NULL");
 
             private final String key;
             private final String type;
@@ -232,7 +233,7 @@ public class PodcastsReadableDatabase implements AutoCloseable {
         return null;
     }
 
-    public void loadRecordsPosition(long podcast, Records records) {
+    public void loadRecordsPositionAndLength(long podcast, Records records) {
         if (records.isEmpty()) {
             return;
         }
@@ -252,7 +253,9 @@ public class PodcastsReadableDatabase implements AutoCloseable {
                 Record record = records.get(id);
                 if (record != null) {
                     int position = cursor.getInt(PlayersTable.Field.POSITION.ordinal());
+                    int length = cursor.getInt(PlayersTable.Field.LENGTH.ordinal());
                     record.setPosition(position);
+                    record.setLength(length);
                 }
             }
         }

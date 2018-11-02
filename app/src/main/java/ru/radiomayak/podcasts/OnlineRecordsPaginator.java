@@ -121,7 +121,7 @@ class OnlineRecordsPaginator implements RecordsPaginator {
         }
         PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
         try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
-            database.loadRecordsPosition(podcast, records);
+            database.loadRecordsPositionAndLength(podcast, records);
         }
 //        PodcastsUtils.storeRecords(context, podcast, records.list());
         return new OnlineRecordsPaginator(podcast, records, content.getNextPage());

@@ -41,7 +41,7 @@
                     android:gravity="center_vertical"
                     android:maxLines="1"
                     android:text="@string/lorem_ipsum"
-                    android:textAppearance="@style/TextAppearance.AppCompat.Notification.Title"/>
+                    android:textAppearance="@style/TextAppearance.Compat.Notification.Title"/>
 
             </LinearLayout>
 
@@ -83,7 +83,7 @@
             android:paddingEnd="@dimen/notification_padding"
             android:paddingStart="@dimen/notification_padding"
             android:text="@string/lorem_ipsum_large"
-            android:textAppearance="@style/TextAppearance.AppCompat.Notification"/>
+            android:textAppearance="@style/TextAppearance.Compat.Notification"/>
 
         <TextView
             android:id="@android:id/text2"
@@ -97,7 +97,7 @@
             android:paddingBottom="@dimen/notification_padding"
             android:paddingTop="@dimen/record_title_padding"
             android:text="@string/lorem_ipsum"
-            android:textAppearance="@style/TextAppearance.AppCompat.Notification.Time"/>
+            android:textAppearance="@style/TextAppearance.Compat.Notification.Time"/>
 
     </LinearLayout>
 

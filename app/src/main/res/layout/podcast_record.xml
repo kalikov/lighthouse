@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -36,7 +35,7 @@
                     android:paddingStart="@dimen/record_title_padding"
                     android:paddingTop="@dimen/podcast_title_padding"
                     android:text="@string/lorem_ipsum_large"
-                    android:textAppearance="@style/AppTheme.Title"/>
+                    android:textAppearance="@style/AppTheme.Title" />
 
                 <ImageView
                     android:id="@android:id/icon"
@@ -45,7 +44,7 @@
                     android:layout_centerVertical="true"
                     android:src="@drawable/record_play"
                     android:tint="#000"
-                    tools:ignore="ContentDescription"/>
+                    tools:ignore="ContentDescription" />
 
             </RelativeLayout>
 
@@ -58,7 +57,7 @@
                 android:paddingEnd="0sp"
                 android:paddingStart="@dimen/record_title_padding"
                 android:text="@string/lorem_ipsum"
-                android:textAppearance="@style/AppTheme.Text.Small"/>
+                android:textAppearance="@style/AppTheme.Text.Small" />
 
         </LinearLayout>
 
@@ -73,7 +72,7 @@
             android:scaleType="center"
             android:src="@drawable/menu"
             android:tint="@color/colorAccent"
-            tools:ignore="ContentDescription"/>
+            tools:ignore="ContentDescription" />
 
     </RelativeLayout>
 
@@ -94,7 +93,7 @@
             android:paddingTop="@dimen/podcast_padding"
             android:text="@string/lorem_ipsum_large"
             android:textAppearance="@style/AppTheme.Text.Small"
-            android:textColor="@color/textColor"/>
+            android:textColor="@color/textColor" />
 
         <RelativeLayout
             android:layout_width="match_parent"
@@ -109,7 +108,7 @@
                 android:layout_alignTop="@id/duration"
                 android:layout_toStartOf="@id/duration"
                 android:src="@drawable/record_played"
-                tools:ignore="ContentDescription"/>
+                tools:ignore="ContentDescription" />
 
             <TextView
                 android:id="@+id/duration"
@@ -120,17 +119,28 @@
                 android:lines="1"
                 android:text="@string/lorem_ipsum"
                 android:textAlignment="textEnd"
-                android:textAppearance="@style/AppTheme.Text.Small"/>
+                android:textAppearance="@style/AppTheme.Text.Small" />
 
         </RelativeLayout>
 
     </LinearLayout>
+
+    <ProgressBar
+        android:id="@android:id/progress"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:max="1000"
+        android:progress="0"
+        android:secondaryProgress="0"
+        android:progressDrawable="@drawable/record_progressbar"
+        android:padding="0dp"
+        style="@android:style/Widget.ProgressBar.Horizontal" />
 
     <ImageView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/colorBackground"
         android:src="@drawable/record_divider"
-        tools:ignore="contentDescription"/>
+        tools:ignore="contentDescription" />
 
 </LinearLayout>

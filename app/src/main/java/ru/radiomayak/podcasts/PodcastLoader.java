@@ -44,7 +44,7 @@ class PodcastLoader extends AbstractHttpLoader<PodcastResponse> {
                     if (response != null && !response.getRecords().isEmpty()) {
                         PodcastsOpenHelper helper = new PodcastsOpenHelper(context);
                         try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
-                            database.loadRecordsPosition(id, response.getRecords());
+                            database.loadRecordsPositionAndLength(id, response.getRecords());
                         }
                         RecordsPaginator paginator = new OnlineRecordsPaginator(id, response.getRecords(), response.getNextPage());
                         return new PodcastResponse(response.getPodcast(), paginator);

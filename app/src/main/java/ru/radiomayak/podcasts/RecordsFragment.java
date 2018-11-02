@@ -23,16 +23,19 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.graphics.ColorUtils;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBar;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.ContextMenu;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
@@ -46,6 +49,7 @@ import java.util.concurrent.Future;
 
 import ru.radiomayak.LighthouseActivity;
 import ru.radiomayak.LighthouseApplication;
+import ru.radiomayak.LighthouseFragment;
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.R;
@@ -56,19 +60,19 @@ import ru.radiomayak.content.LoaderManager;
 import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.widget.ToolbarCompat;
 
-public class RecordsActivity extends LighthouseActivity implements PageAsyncTask.Listener,
+public class RecordsFragment extends LighthouseFragment implements PageAsyncTask.Listener,
         PopupMenu.OnDismissListener, PopupMenu.OnMenuItemClickListener {
+    public static final String TAG = RecordsFragment.class.getName() + "$";
 
-    public static final String ACTION_VIEW = RecordsActivity.class.getPackage().getName() + ".view";
+    public static final String ACTION_VIEW = RecordsFragment.class.getPackage().getName() + ".view";
 
-    public static final String EXTRA_PODCAST = RecordsActivity.class.getPackage().getName() + ".PODCAST";
-    public static final String EXTRA_PODCAST_ID = RecordsActivity.class.getPackage().getName() + ".PODCAST_ID";
-    public static final String EXTRA_SEEN = RecordsActivity.class.getPackage().getName() + ".SEEN";
+    public static final String EXTRA_PODCAST = RecordsFragment.class.getPackage().getName() + ".PODCAST";
+    public static final String EXTRA_PODCAST_ID = RecordsFragment.class.getPackage().getName() + ".PODCAST_ID";
+    public static final String EXTRA_SEEN = RecordsFragment.class.getPackage().getName() + ".SEEN";
 
     private static final String STATE_CONTENT_VIEW = PodcastsActivity.class.getName() + "$contentView";
-    private static final String STATE_PAGE_FAILED = RecordsActivity.class.getName() + "pageFailed";
+    private static final String STATE_PAGE_FAILED = RecordsFragment.class.getName() + "pageFailed";
 
-    private static final String FRAGMENT_TAG = RecordsActivity.class.getName() + "$data";
 
     private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 501;
 
@@ -128,32 +132,39 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     private Record permissionRecord;
 
     @Override
-    protected void onCreate(@Nullable Bundle state) {
+    public void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
+        setRetainInstance(true);
 
-        podcastLoaderManager = getLighthouseApplication().getModule().createLoaderManager();
+        podcastLoaderManager = requireLighthouseActivity().getLighthouseApplication().getModule().createLoaderManager();
+    }
 
-        boolean requestList = true;
+    @Override
+    public void onActivityCreated(Bundle state) {
+        super.onActivityCreated(state);
+
+        boolean requestList = records == null || records.list().isEmpty();
 
         if (state != null) {
             boolean isContentView = state.getBoolean(STATE_CONTENT_VIEW, true);
-            if (isContentView) {
-                FragmentManager fragmentManager = getSupportFragmentManager();
-                RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
-                if (dataFragment != null) {
-                    podcast = state.getParcelable(Podcast.class.getName());
-                    records = dataFragment.getRecords();
-                    paginator = dataFragment.getPaginator();
-                    requestList = records == null || records.list().isEmpty();
-                    pageFailed = state.getBoolean(STATE_PAGE_FAILED, false);
-                }
-            }
+//            if (isContentView) {
+//                FragmentManager fragmentManager = requireFragmentManager();
+//                RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
+//                if (dataFragment != null) {
+//                    podcast = state.getParcelable(Podcast.class.getName());
+//                    records = dataFragment.getRecords();
+//                    paginator = dataFragment.getPaginator();
+            requestList = !isContentView;//records == null || records.list().isEmpty();
+            pageFailed = state.getBoolean(STATE_PAGE_FAILED, false);
+//                }
+//            }
+            getAppBarLayout().setExpanded(false);
         }
         if (podcast == null) {
             podcast = getPodcast();
         }
         if (podcast == null) {
-            finish();
+            requireFragmentManager().popBackStack();
             return;
         }
         BitmapInfo splashInfo = PodcastImageCache.getInstance().getSplash(podcast.getId());
@@ -161,7 +172,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
             records = new Records();
         }
 
-//        adapter = new RecordsAdapter(this, podcast, records.list());
+        adapter = new RecordsAdapter(this, podcast, records.list());
 
         initializeView();
 
@@ -180,10 +191,11 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     public boolean onContextItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.download:
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                LighthouseActivity activity = requireLighthouseActivity();
+                if (ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     permissionRecord = contextRecord;
-                    ActivityCompat.requestPermissions(this,
-                            new String[] {Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    ActivityCompat.requestPermissions(activity,
+                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                             MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
                 } else {
                     download(contextRecord);
@@ -214,16 +226,16 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
         request.setDestinationInExternalPublicDir(Environment.DIRECTORY_PODCASTS, filename);
 
-        DownloadManager downloadManager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+        DownloadManager downloadManager = (DownloadManager) requireContext().getSystemService(Context.DOWNLOAD_SERVICE);
         if (downloadManager == null) {
-            Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
         } else {
             downloadManager.enqueue(request);
         }
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         if (alphaAnimator != null) {
             alphaAnimator.cancel();
         }
@@ -242,11 +254,17 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
 
     @Nullable
     private Podcast getPodcast() {
-        return getIntent().getParcelableExtra(EXTRA_PODCAST);
+        Bundle arguments = getArguments();
+        return arguments != null ? (Podcast) arguments.getParcelable(EXTRA_PODCAST) : null;
+    }
+
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
+        return inflater.inflate(R.layout.podcast, container, false);
     }
 
     private void initializeView() {
-        setContentView(R.layout.podcast);
+//        setContentView(R.layout.podcast);
 
         initializeToolbar();
 
@@ -256,16 +274,18 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
 
         initializeRefreshView();
 
-        initializePlayerView();
+//        initializePlayerView();
     }
 
     private void initializeToolbar() {
         final Toolbar toolbar = getToolbar();
         toolbar.setTitle("");
         toolbar.setBackgroundColor(Color.TRANSPARENT);
-        setSupportActionBar(toolbar);
 
-        ActionBar actionBar = Objects.requireNonNull(getSupportActionBar());
+        LighthouseActivity activity = requireLighthouseActivity();
+        activity.setSupportActionBar(toolbar);
+
+        ActionBar actionBar = Objects.requireNonNull(activity.getSupportActionBar());
         actionBar.setDisplayHomeAsUpEnabled(true);
         actionBar.setDisplayShowHomeEnabled(true);
 
@@ -275,14 +295,14 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
         final TextView toolbarTitle = getToolbarTitle();
         toolbarTitle.setText(podcast.getName());
         toolbarTitle.setVisibility(View.GONE);
-        toolbarTitle.setTypeface(getLighthouseApplication().getFontNormal());
+        toolbarTitle.setTypeface(activity.getLighthouseApplication().getFontNormal());
 
         final ImageView toolbarImage = getToolbarImage();
 
         final CollapsingToolbarLayout toolbarLayout = getToolbarLayout();
         toolbarLayout.setTitleEnabled(false);
 
-        getAppBarLayout().addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
+        appBarLayout.addOnOffsetChangedListener(new AppBarLayout.OnOffsetChangedListener() {
             private int scrollRange = -1;
 
             @Override
@@ -364,10 +384,11 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
             secondaryColor = podcast.getIcon().getSecondaryColor();
         }
 
+        LighthouseActivity activity = requireLighthouseActivity();
         if (primaryColor != 0) {
             if (secondaryColor == 0) {
-                int textColor = ResourcesCompat.getColor(getResources(), R.color.titleTextColor, getTheme());
-                int textColorInverse = ResourcesCompat.getColor(getResources(), R.color.titleTextColorInverse, getTheme());
+                int textColor = ResourcesCompat.getColor(getResources(), R.color.titleTextColor, activity.getTheme());
+                int textColorInverse = ResourcesCompat.getColor(getResources(), R.color.titleTextColorInverse, activity.getTheme());
                 if (ColorUtils.calculateContrast(textColor, primaryColor) >= ColorUtils.calculateContrast(textColorInverse, primaryColor)) {
                     secondaryColor = textColor;
                 } else {
@@ -382,7 +403,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
 
             Toolbar toolbar = getToolbar();
             toolbar.setTitleTextColor(secondaryColor);
-            ToolbarCompat.setTitleTypeface(toolbar, getLighthouseApplication().getFontBold());
+            ToolbarCompat.setTitleTypeface(toolbar, activity.getLighthouseApplication().getFontBold());
 
             Drawable homeIcon = toolbar.getNavigationIcon();
             if (homeIcon != null) {
@@ -398,7 +419,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
             Toolbar toolbar = getToolbar();
             Drawable homeIcon = toolbar.getNavigationIcon();
             if (homeIcon != null) {
-                int textColor = ResourcesCompat.getColor(getResources(), R.color.titleTextColor, getTheme());
+                int textColor = ResourcesCompat.getColor(getResources(), R.color.titleTextColor, activity.getTheme());
                 homeIcon.setColorFilter(textColor, PorterDuff.Mode.MULTIPLY);
             }
         }
@@ -407,17 +428,17 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     private void initializeLoadingView() {
         TextView text = getLoadingView().findViewById(android.R.id.progress);
         text.setText(R.string.records_loading);
-        text.setTypeface(getLighthouseApplication().getFontNormal());
+        text.setTypeface(requireLighthouseActivity().getLighthouseApplication().getFontNormal());
     }
 
     private void initializeErrorView() {
         View errorView = getErrorView();
         TextView text = errorView.findViewById(android.R.id.text1);
         text.setText(R.string.records_error);
-        text.setTypeface(getLighthouseApplication().getFontNormal());
+        text.setTypeface(requireLighthouseActivity().getLighthouseApplication().getFontNormal());
 
         Button retryButton = errorView.findViewById(R.id.retry);
-        retryButton.setTypeface(getLighthouseApplication().getFontNormal());
+        retryButton.setTypeface(requireLighthouseActivity().getLighthouseApplication().getFontNormal());
         retryButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -429,7 +450,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     private void initializeRecyclerView() {
         final RecyclerView view = getRecyclerView();
         view.setNestedScrollingEnabled(false);
-        view.setLayoutManager(new LinearLayoutManager(this) {
+        view.setLayoutManager(new LinearLayoutManager(getContext()) {
             @Override
             public void onLayoutCompleted(RecyclerView.State state) {
                 super.onLayoutCompleted(state);
@@ -443,11 +464,11 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
         view.setAdapter(adapter);
         view.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
-            public void onScrollStateChanged(RecyclerView view, int scrollState) {
+            public void onScrollStateChanged(@NonNull RecyclerView view, int scrollState) {
             }
 
             @Override
-            public void onScrolled(RecyclerView view, int dx, int dy) {
+            public void onScrolled(@NonNull RecyclerView view, int dx, int dy) {
                 if (pageAsyncTask == null && adapter.getFooterMode() == RecordsAdapter.FooterMode.LOADING && isFooterVisible(view)) {
                     requestNextPage();
                 }
@@ -489,80 +510,81 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
 
     @VisibleForTesting
     AppBarLayout getAppBarLayout() {
-        return findViewById(R.id.app_bar);
+        return requireActivity().findViewById(R.id.app_bar);
     }
 
     private Toolbar getToolbar() {
-        return findViewById(R.id.toolbar);
+        return requireActivity().findViewById(R.id.toolbar);
     }
 
     private CollapsingToolbarLayout getToolbarLayout() {
-        return (CollapsingToolbarLayout) findViewById(R.id.toolbar_layout);
+        return (CollapsingToolbarLayout) requireActivity().findViewById(R.id.toolbar_layout);
     }
 
     private TextView getToolbarTitle() {
-        return findViewById(android.R.id.title);
+        return requireActivity().findViewById(android.R.id.title);
     }
 
     private ImageView getToolbarImage() {
-        return findViewById(android.R.id.icon);
+        return requireActivity().findViewById(android.R.id.icon);
     }
 
     @VisibleForTesting
     RecyclerView getRecyclerView() {
-        return findViewById(android.R.id.list);
+        return requireActivity().findViewById(android.R.id.list);
     }
 
     @VisibleForTesting
     View getLoadingView() {
-        return findViewById(R.id.loading);
+        return requireActivity().findViewById(R.id.loading);
     }
 
     @VisibleForTesting
     View getErrorView() {
-        return findViewById(R.id.error);
+        return requireActivity().findViewById(R.id.error);
     }
 
     @VisibleForTesting
     SwipeRefreshLayout getRefreshView() {
-        return findViewById(R.id.refresh);
+        return requireActivity().findViewById(R.id.refresh);
     }
 
     @Override
-    public void onSaveInstanceState(Bundle state) {
+    public void onSaveInstanceState(@NonNull Bundle state) {
         if (records.list().isEmpty()) {
             state.putBoolean(STATE_CONTENT_VIEW, getErrorView().getVisibility() == View.VISIBLE);
         } else {
             state.putBoolean(STATE_CONTENT_VIEW, true);
-            state.putParcelable(Podcast.class.getName(), podcast);
+//            state.putParcelable(Podcast.class.getName(), podcast);
 
-            FragmentManager fragmentManager = getSupportFragmentManager();
-            RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
-            if (dataFragment == null) {
-                dataFragment = new RecordsDataFragment();
-                fragmentManager.beginTransaction().add(dataFragment, FRAGMENT_TAG).commit();
-            }
-            dataFragment.setRecords(records);
-            dataFragment.setPaginator(paginator);
+//            FragmentManager fragmentManager = requireFragmentManager();
+//            RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
+//            if (dataFragment == null) {
+//                dataFragment = new RecordsDataFragment();
+//                fragmentManager.beginTransaction().add(dataFragment, FRAGMENT_TAG).commit();
+//            }
+//            dataFragment.setRecords(records);
+//            dataFragment.setPaginator(paginator);
             state.putBoolean(STATE_PAGE_FAILED, pageFailed);
         }
         super.onSaveInstanceState(state);
     }
 
-    @Override
-    public void onRestoreInstanceState(Bundle state) {
-        super.onRestoreInstanceState(state);
-        getAppBarLayout().setExpanded(false);
-    }
+//    @Override
+//    public void onRestoreInstanceState(Bundle state) {
+//        super.onRestoreInstanceState(state);
+//        getAppBarLayout().setExpanded(false);
+//    }
 
     private void requestPodcast() {
         if (podcastFuture != null) {
             return;
         }
-        if (records.isEmpty() || NetworkUtils.isConnected(this)) {
-            podcastFuture = podcastLoaderManager.execute(this, new PodcastLoader(podcast.getId()), podcastListener);
+        Context context = requireContext();
+        if (records.isEmpty() || NetworkUtils.isConnected(context)) {
+            podcastFuture = podcastLoaderManager.execute(context, new PodcastLoader(podcast.getId()), podcastListener);
         } else {
-            Toast.makeText(this, R.string.toast_no_connection, Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, R.string.toast_no_connection, Toast.LENGTH_SHORT).show();
             getRefreshView().setRefreshing(false);
         }
     }
@@ -571,7 +593,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
         if (paginator == null || pageAsyncTask != null) {
             return;
         }
-        pageAsyncTask = new PageAsyncTask(getLighthouseApplication(), this);
+        pageAsyncTask = new PageAsyncTask(requireLighthouseActivity().getLighthouseApplication(), this);
         pageAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, paginator);
     }
 
@@ -627,11 +649,11 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
 
     public void onPodcastLoaded(PodcastResponse response) {
         podcastFuture = null;
-        if (isDestroyed()) {
+        if (isDetached()) {
             return;
         }
         if (response.getPaginator() == null && !records.isEmpty()) {
-            Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
         } else {
             if (response.getPodcast() != null) {
                 updatePodcast(response.getPodcast());
@@ -644,6 +666,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
 
     private void updatePodcast(Podcast podcast) {
         boolean hasNoLength = this.podcast.getLength() <= 0;
+        podcast.setFavorite(this.podcast.getFavorite());
         boolean updated = this.podcast.update(podcast);
         if (updated) {
             if (hasNoLength) {
@@ -682,7 +705,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
                     records.remove(record);
                 }
             }
-            new PodcastViewAsyncTask(this).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcast);
+            new PodcastViewAsyncTask(getContext()).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcast);
         }
         if (notifyDataSetChanged) {
             adapter.notifyDataSetChanged();
@@ -717,9 +740,9 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     public void onPageLoaded(RecordsPaginator response, boolean isCancelled) {
         pageAsyncTask = null;
         pageFailed = response == null;
-        if (!isCancelled && !isDestroyed()) {
+        if (!isCancelled && !isDetached()) {
             if (response == null) {
-                Toast.makeText(this, R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
+                Toast.makeText(getContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
             } else {
                 updatePageRecords(response);
             }
@@ -767,12 +790,12 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
             return;
         }
         PodcastSplashLoader loader = new PodcastSplashLoader(podcast);
-        splashFuture = getLighthouseApplication().getImageLoaderManager().execute(this, loader, splashListener);
+        splashFuture = requireLighthouseActivity().getLighthouseApplication().getImageLoaderManager().execute(getContext(), loader, splashListener);
     }
 
     public void onSplashLoadComplete(BitmapInfo bitmapInfo) {
         splashFuture = null;
-        if (bitmapInfo == null || isDestroyed()) {
+        if (bitmapInfo == null || isDetached()) {
             return;
         }
         PodcastImageCache.getInstance().setSplash(podcast.getId(), bitmapInfo);
@@ -816,20 +839,21 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     }
 
     void playRecord(Record record) {
-        LighthouseTrack track = getTrack();
+        LighthouseActivity activity = requireLighthouseActivity();
+        LighthouseTrack track = activity.getTrack();
         if (track != null && track.getRecord().getId() == record.getId()) {
-            if (isPlaying()) {
-                pause();
+            if (activity.isPlaying()) {
+                activity.pause();
             } else {
-                play();
+                activity.play();
             }
             return;
         }
 
         try {
-            setTrack(new LighthouseTrack(podcast, record));
+            activity.setTrack(new LighthouseTrack(podcast, record));
         } catch (Exception e) {
-            Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();
+            Toast.makeText(activity, R.string.player_failed, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -843,29 +867,24 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
         updateView();
     }
 
-    @Override
-    protected void updatePlayerView(boolean animate) {
-        super.updatePlayerView(animate);
-
-        adapter.updateEqualizerAnimation();
-        updateRecordsRows();
-    }
-
-    @Override
-    protected void updateRecordPlaybackAttributes(int state, long podcast, long record, long position, long duration) {
-        super.updateRecordPlaybackAttributes(state, podcast, record, position, duration);
-        if (this.podcast.getId() == podcast) {
-            Record podcastRecord = records.get(record);
-            if (podcastRecord != null) {
-                podcastRecord.setPosition((int) position);
-                podcastRecord.setLength((int) duration);
-            }
-        }
-    }
-
-    @Override
-    public void openPodcast(Podcast podcast) {
-    }
+//    @Override
+//    protected void updatePlayerView(boolean animate) {
+//        super.updatePlayerView(animate);
+//
+//        adapter.updateEqualizerAnimation();
+//        updateRecordsRows();
+//    }
+//
+//    @Override
+//    protected void updateRecordPlaybackAttributes(long podcast, long record, int position) {
+//        super.updateRecordPlaybackAttributes(podcast, record, position);
+//        if (this.podcast.getId() == podcast) {
+//            Record podcastRecord = records.get(record);
+//            if (podcastRecord != null) {
+//                podcastRecord.setPosition(position);
+//            }
+//        }
+//    }
 
     private void updateRecordsRows() {
         RecyclerView recyclerView = getRecyclerView();
@@ -891,13 +910,13 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
         if (contextRecord == null) {
             return;
         }
-        getMenuInflater().inflate(R.menu.record_menu, menu);
+        requireActivity().getMenuInflater().inflate(R.menu.record_menu, menu);
         menu.setHeaderTitle(contextRecord.getName());
     }
 
     public void onCreatePopupMenu(Record record, View view) {
         contextRecord = record;
-        PopupMenu popup = new PopupMenu(this, view);
+        PopupMenu popup = new PopupMenu(getContext(), view);
         MenuInflater inflater = popup.getMenuInflater();
         inflater.inflate(R.menu.record_menu, popup.getMenu());
         popup.setOnMenuItemClickListener(this);
@@ -905,12 +924,12 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
         popup.show();
     }
 
-    @Override
-    public void onContextMenuClosed(Menu menu) {
-        contextRecord = null;
-
-        super.onContextMenuClosed(menu);
-    }
+//    @Override
+//    public void onContextMenuClosed(Menu menu) {
+//        contextRecord = null;
+//
+//        super.onContextMenuClosed(menu);
+//    }
 
     @Override
     public boolean onMenuItemClick(MenuItem item) {
@@ -920,5 +939,22 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     @Override
     public void onDismiss(PopupMenu menu) {
         contextRecord = null;
+    }
+
+    @Override
+    public void updatePlayerState() {
+        adapter.updateEqualizerAnimation();
+        updateRecordsRows();
+    }
+
+    void updateRecordPlaybackAttributes(int state, long record, long position, long duration) {
+        Record podcastRecord = records.get(record);
+        if (podcastRecord != null) {
+            podcastRecord.setPosition((int) position);
+            podcastRecord.setLength((int) duration);
+            if (state == PlaybackStateCompat.STATE_STOPPED || state == PlaybackStateCompat.STATE_ERROR || state == PlaybackStateCompat.STATE_NONE) {
+                updateRecordRow(podcastRecord);
+            }
+        }
     }
 }

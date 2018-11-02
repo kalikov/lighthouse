@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.TransitionDrawable;
+import android.support.annotation.NonNull;
 import android.support.graphics.drawable.AnimatedVectorDrawableCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.graphics.drawable.RoundedBitmapDrawable;
@@ -17,6 +18,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.util.List;
+import java.util.Objects;
 
 import ru.radiomayak.LighthouseActivity;
 import ru.radiomayak.LighthouseTrack;
@@ -57,12 +59,16 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
         setHasStableIds(true);
 
         int size = activity.getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
-        Drawable micResourceDrawable = ResourcesCompat.getDrawable(activity.getResources(), R.drawable.mic, activity.getTheme());
+        Drawable micResourceDrawable = Objects.requireNonNull(ResourcesCompat.getDrawable(activity.getResources(), R.drawable.mic, activity.getTheme()));
         Bitmap micBitmap = createBitmap(micResourceDrawable, size);
         micDrawable = RoundedBitmapDrawableFactory.create(activity.getResources(), micBitmap);
         micDrawable.setCircular(true);
 
         equalizerDrawable = AnimatedVectorDrawableCompat.create(activity, R.drawable.equalizer_animated);
+    }
+
+    public LighthouseActivity getActivity() {
+        return activity;
     }
 
     public void setFavoriteClickListener(View.OnClickListener favoriteClickListener) {
@@ -82,8 +88,13 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
     }
 
     void updateEqualizerAnimation() {
-        if (equalizerDrawable != null && equalizerDrawable.isRunning() && !activity.isPlaying()) {
-            equalizerDrawable.stop();
+        if (equalizerDrawable != null) {
+            boolean isPlaying = activity.isPlaying();
+            if (equalizerDrawable.isRunning() && !isPlaying) {
+                equalizerDrawable.stop();
+            } else if (!equalizerDrawable.isRunning() && isPlaying) {
+                equalizerDrawable.start();
+            }
         }
     }
 
@@ -105,14 +116,15 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
         return podcasts.get(position).getId();
     }
 
+    @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(activity).inflate(R.layout.podcasts_item, parent, false);
         return new ViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Podcast podcast = getItem(position);
         holder.bind(podcast);
     }
@@ -224,7 +236,7 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
                 RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(activity.getResources(), bitmapInfo.getBitmap());
                 rounded.setCircular(true);
 
-                Drawable[] layers = new Drawable[] {icon, rounded};
+                Drawable[] layers = new Drawable[]{icon, rounded};
                 TransitionDrawable transitionDrawable = new TransitionDrawable(layers);
                 transitionDrawable.startTransition(400);
                 drawable = transitionDrawable;

@@ -1,7 +1,7 @@
 package ru.radiomayak.podcasts;
 
-import android.app.Fragment;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
 
 public class RecordsDataFragment extends Fragment {
     private Records records;

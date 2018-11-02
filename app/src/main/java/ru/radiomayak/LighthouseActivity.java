@@ -26,8 +26,6 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.IOException;
-
 import ru.radiomayak.animation.Interpolators;
 import ru.radiomayak.podcasts.Podcast;
 import ru.radiomayak.podcasts.PodcastsUtils;
@@ -40,7 +38,9 @@ public abstract class LighthouseActivity extends AppCompatActivity {
 
     public static final String EXTRA_PODCAST = "ru.radiomayak.podcasts.extra.PODCAST";
     public static final String EXTRA_RECORD = "ru.radiomayak.podcasts.extra.RECORD";
+    public static final String EXTRA_STATE = "ru.radiomayak.podcasts.extra.STATE";
     public static final String EXTRA_POSITION = "ru.radiomayak.podcasts.extra.POSITION";
+    public static final String EXTRA_DURATION = "ru.radiomayak.podcasts.extra.DURATION";
 
     private static final String ZERO_TIME_TEXT = "00:00";
 
@@ -104,6 +104,13 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         filter.addAction(ACTION_UPDATE);
         filter.addAction(ACTION_POSITION);
         registerReceiver(broadcastReceiver, filter);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        initializePlayerView();
     }
 
     @Override
@@ -224,12 +231,15 @@ public abstract class LighthouseActivity extends AppCompatActivity {
             getSongPositionView().setText(position <= duration ? PodcastsUtils.formatTime(position) : ZERO_TIME_TEXT);
             getSongDurationView().setText(PodcastsUtils.formatTime(duration));
             updateProgress();
+//            if (duration > 0) {
+//                updateRecordPlaybackAttributes(track.getPodcast().getId(), record.getId(), position, duration);
+//            }
         }
         if (valueAnimator != null) {
             valueAnimator.cancel();
             valueAnimator = null;
         }
-        if (!animate || playerHeight >= playerMaxHeight) {
+        if (!animate || playerHeight > playerMaxHeight) {
             playerHeight = playerMaxHeight;
             playerView.setVisibility(View.VISIBLE);
             containerView.setVisibility(View.VISIBLE);
@@ -282,7 +292,7 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         return track;
     }
 
-    public void setTrack(LighthouseTrack track) throws IOException {
+    public void setTrack(LighthouseTrack track) {
         Record record = track.getRecord();
         Bundle bundle = new Bundle();
         bundle.putParcelable(Record.class.getName(), record);
@@ -389,7 +399,7 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         } else if (isError()) {
             try {
                 setTrack(getTrack());
-            } catch (IOException e) {
+            } catch (RuntimeException e) {
                 Toast.makeText(this, R.string.player_failed, Toast.LENGTH_SHORT).show();
             }
         } else {
@@ -422,9 +432,10 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         return position;
     }
 
-    protected void updateRecordPosition(long podcast, long record, int position) {
+    protected void updateRecordPlaybackAttributes(int state, long podcast, long record, long position, long duration) {
         if (track != null && track.getPodcast().getId() == podcast && track.getRecord().getId() == record) {
-            track.getRecord().setPosition(position);
+            track.getRecord().setPosition((int) position);
+            track.getRecord().setLength((int) duration);
         }
     }
 
@@ -478,11 +489,15 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         } else if (ACTION_POSITION.equals(action)) {
             long podcast = intent.getLongExtra(EXTRA_PODCAST, 0);
             long record = intent.getLongExtra(EXTRA_RECORD, 0);
-            int position = intent.getIntExtra(EXTRA_POSITION, 0);
+            int state = intent.getIntExtra(EXTRA_STATE, PlaybackStateCompat.STATE_NONE);
+            long position = intent.getLongExtra(EXTRA_POSITION, 0);
+            long duration = intent.getLongExtra(EXTRA_DURATION, 0);
 
-            updateRecordPosition(podcast, record, position);
+            updateRecordPlaybackAttributes(state, podcast, record, position, duration);
         }
     }
+
+    public abstract void openPodcast(Podcast podcast);
 
     private class MediaControllerCallback extends MediaControllerCompat.Callback {
         @Override

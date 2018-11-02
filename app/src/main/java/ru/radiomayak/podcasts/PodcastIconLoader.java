@@ -7,18 +7,22 @@ import android.support.annotation.Nullable;
 import ru.radiomayak.R;
 
 class PodcastIconLoader extends AbstractPodcastImageLoader {
-    private final PodcastsActivity activity;
+    public interface Listener {
+        void onIconLoadStarted(long id);
+    }
 
-    PodcastIconLoader(PodcastsActivity activity, Podcast podcast) {
+    private final Listener listener;
+
+    PodcastIconLoader(Listener listener, Podcast podcast) {
         super(podcast);
-        this.activity = activity;
+        this.listener = listener;
     }
 
     @Override
     protected void onStartLoading() {
         super.onStartLoading();
 
-        activity.onIconLoadStarted(getPodcast().getId());
+        listener.onIconLoadStarted(getPodcast().getId());
     }
 
     @Override

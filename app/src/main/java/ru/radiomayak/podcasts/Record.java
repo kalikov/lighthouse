@@ -30,6 +30,7 @@ public class Record implements Parcelable {
     private String date;
     private String duration;
     private int position = POSITION_UNDEFINED;
+    private int length;
 
     protected Record(Parcel in) {
         id = in.readLong();
@@ -39,6 +40,7 @@ public class Record implements Parcelable {
         date = readStringFromParcel(in);
         duration = readStringFromParcel(in);
         position = in.readInt();
+        length = in.readInt();
     }
 
     public Record(long id, String name, String url, @Nullable URI uri) {
@@ -65,6 +67,7 @@ public class Record implements Parcelable {
         writeStringToParcel(out, date);
         writeStringToParcel(out, duration);
         out.writeInt(position);
+        out.writeInt(length);
     }
 
     @Nullable
@@ -125,6 +128,14 @@ public class Record implements Parcelable {
         this.position = position;
     }
 
+    public int getLength() {
+        return length;
+    }
+
+    public void setLength(int length) {
+        this.length = length;
+    }
+
     public boolean merge(Record record) {
         boolean updated = false;
         if (record.getDescription() != null) {
@@ -142,6 +153,10 @@ public class Record implements Parcelable {
         if (record.getPosition() != position) {
             updated = true;
             position = record.getPosition();
+        }
+        if (record.getLength() != length) {
+            updated = true;
+            length = record.getLength();
         }
         return updated;
     }

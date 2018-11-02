@@ -2,13 +2,16 @@ package ru.radiomayak.media;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Color;
 import android.os.Build;
 import android.support.annotation.Nullable;
+import android.support.annotation.RequiresApi;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
 import android.support.v4.app.TaskStackBuilder;
@@ -16,9 +19,12 @@ import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
 
+import java.util.Objects;
+
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.R;
 import ru.radiomayak.graphics.BitmapInfo;
+import ru.radiomayak.podcasts.MainActivity;
 import ru.radiomayak.podcasts.Podcast;
 import ru.radiomayak.podcasts.PodcastImageCache;
 import ru.radiomayak.podcasts.PodcastsUtils;
@@ -52,7 +58,7 @@ public class MediaNotificationManager extends BroadcastReceiver {
         notificationManager = NotificationManagerCompat.from(service);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            channelId = NotificationChannel.DEFAULT_CHANNEL_ID;
+            channelId = createNotificationChannel(service, "my_service", "My Background Service");
         } else {
             channelId = "default";
         }
@@ -62,6 +68,18 @@ public class MediaNotificationManager extends BroadcastReceiver {
         playIntent = PendingIntent.getBroadcast(service, REQUEST_CODE, new Intent(ACTION_PLAY).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
         stopIntent = PendingIntent.getBroadcast(service, REQUEST_CODE, new Intent(ACTION_STOP).setPackage(pkg), PendingIntent.FLAG_CANCEL_CURRENT);
         notificationManager.cancelAll();
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private String createNotificationChannel(Context context, String channelId, String channelName) {
+        NotificationChannel chan = new NotificationChannel(channelId, channelName, NotificationManagerCompat.IMPORTANCE_NONE);
+        chan.setLightColor(Color.BLUE);
+        chan.setLockscreenVisibility( Notification.VISIBILITY_PRIVATE);
+        NotificationManager service = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        Objects.requireNonNull(service);
+        service.createNotificationChannel(chan);
+
+        return channelId;
     }
 
     public boolean startNotification() {
@@ -123,14 +141,11 @@ public class MediaNotificationManager extends BroadcastReceiver {
     }
 
     private PendingIntent createContentIntent(Podcast podcast, Record record) {
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(service.getApplicationContext());
-        stackBuilder.addParentStack(RecordsActivity.class);
-
-        Intent intent = new Intent(service.getApplicationContext(), RecordsActivity.class);
+        Intent intent = new Intent(service.getApplicationContext(), MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        intent.putExtra(RecordsActivity.EXTRA_PODCAST, podcast);
-        stackBuilder.addNextIntent(intent);
-        return stackBuilder.getPendingIntent(REQUEST_CODE, PendingIntent.FLAG_UPDATE_CURRENT);
+        intent.putExtra(MainActivity.EXTRA_PODCAST, podcast);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        return PendingIntent.getActivity(service.getApplicationContext(), REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     @Nullable
@@ -159,6 +174,7 @@ public class MediaNotificationManager extends BroadcastReceiver {
         setPlayPauseState(bigRemoteViews);
 
         setNotificationPlaybackState(bigRemoteViews);
+        builder.setOngoing(service.isPlaying());
 
         return builder.build();
     }

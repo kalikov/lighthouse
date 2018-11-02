@@ -5,15 +5,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.VisibleForTesting;
-import android.support.v4.app.FragmentManager;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.LongSparseArray;
-import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.widget.Toolbar;
+import android.util.LongSparseArray;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,6 +28,7 @@ import java.util.concurrent.Future;
 
 import ru.radiomayak.LighthouseActivity;
 import ru.radiomayak.LighthouseApplication;
+import ru.radiomayak.LighthouseFragment;
 import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.R;
 import ru.radiomayak.content.Loader;
@@ -33,10 +36,10 @@ import ru.radiomayak.content.LoaderManager;
 import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.widget.ToolbarCompat;
 
-public class PodcastsActivity extends LighthouseActivity implements PodcastIconLoader.Listener {
-    private static final String STATE_CONTENT_VIEW = PodcastsActivity.class.getName() + "$contentView";
+public class PodcastsFragment extends LighthouseFragment implements PodcastIconLoader.Listener {
+    public static final String TAG = PodcastsFragment.class.getName();
 
-    static final String FRAGMENT_TAG = PodcastsActivity.class.getName() + "$data";
+    private static final String STATE_CONTENT_VIEW = PodcastsFragment.class.getName() + "$contentView";
 
     private static final int DEFAULT_IMAGES_CAPACITY = 100;
 
@@ -89,7 +92,9 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
         @Override
         public void onException(Loader<Podcasts> loader, Throwable exception) {
             podcastsFuture = null;
-            showErrorView();
+            if (!isDetached()) {
+                showErrorView();
+            }
         }
     };
 
@@ -98,7 +103,7 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
         @Override
         public void onComplete(Loader<Podcasts> loader, Podcasts data) {
             podcastsFuture = null;
-            if (isDestroyed()) {
+            if (isDetached()) {
                 return;
             }
             if (data != null && !data.list().isEmpty()) {
@@ -145,32 +150,41 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
     };
 
     @Override
-    protected void onCreate(@Nullable Bundle state) {
+    public void onCreate(Bundle state) {
         super.onCreate(state);
+        setRetainInstance(true);
 
-        podcastsLoaderManager = getLighthouseApplication().getModule().createLoaderManager();
+        LighthouseActivity activity = requireLighthouseActivity();
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(RecordsActivity.ACTION_VIEW);
-        registerReceiver(viewReceiver, filter);
+        activity.registerReceiver(viewReceiver, filter);
 
-        boolean requestList = true;
+        podcastsLoaderManager = activity.getLighthouseApplication().getModule().createLoaderManager();
+    }
+
+    @Override
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle state) {
+        return inflater.inflate(R.layout.podcasts, container, false);
+    }
+
+    @Override
+    public void onActivityCreated(Bundle state) {
+        super.onActivityCreated(state);
+
+        boolean requestList = podcasts == null || podcasts.list().isEmpty();
         if (state != null) {
-            boolean isContentView = state.getBoolean(STATE_CONTENT_VIEW, true);
-            if (isContentView) {
-                FragmentManager fragmentManager = getSupportFragmentManager();
-                PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
-                if (dataFragment != null) {
-                    podcasts = dataFragment.getPodcasts();
-                    requestList = podcasts == null || podcasts.list().isEmpty();
-                }
-            }
+            requestList = !state.getBoolean(STATE_CONTENT_VIEW, true);
         }
         if (podcasts == null) {
             podcasts = new Podcasts();
         }
 
-        adapter = new PodcastsAdapter(this, podcasts.list());
+        LighthouseActivity activity = requireLighthouseActivity();
+        if (adapter == null || adapter.getActivity() != activity) {
+            adapter = new PodcastsAdapter(activity, podcasts.list());
+            initializeAdapter();
+        }
         initializeView();
 
         if (requestList) {
@@ -180,19 +194,21 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
         }
     }
 
-    private void togglePodcastRating(final Podcast podcast) {
-        hasFavoriteChanges = true;
-        podcast.setFavorite(podcast.getFavorite() == 0 ? 1 : 0);
-        updatePodcastRow(podcast);
-        LighthouseApplication.NETWORK_POOL_EXECUTOR.execute(new Runnable() {
-            @Override
-            public void run() {
-                PodcastsOpenHelper helper = new PodcastsOpenHelper(PodcastsActivity.this);
-                try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
-                    database.storePodcastRating(podcast.getId(), podcast.getFavorite());
-                }
-            }
-        });
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle state) {
+        if (podcasts.list().isEmpty()) {
+            state.putBoolean(STATE_CONTENT_VIEW, getErrorView().getVisibility() == View.VISIBLE);
+        } else {
+            state.putBoolean(STATE_CONTENT_VIEW, true);
+//            FragmentManager fragmentManager = requireFragmentManager();
+//            PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
+//            if (dataFragment == null) {
+//                dataFragment = new PodcastsDataFragment();
+//                fragmentManager.beginTransaction().add(dataFragment, FRAGMENT_TAG).commit();
+//            }
+//            dataFragment.setPodcasts(podcasts);
+        }
+        super.onSaveInstanceState(state);
     }
 
 //    @Override
@@ -214,8 +230,9 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
 //    }
 
     @Override
-    protected void onDestroy() {
-        unregisterReceiver(viewReceiver);
+    public void onDestroy() {
+        LighthouseActivity activity = requireLighthouseActivity();
+        activity.unregisterReceiver(viewReceiver);
 
         if (podcastsFuture != null && !podcastsFuture.isDone()) {
             podcastsFuture.cancel(true);
@@ -225,57 +242,7 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
         super.onDestroy();
     }
 
-    private void initializeView() {
-        setContentView(R.layout.podcasts);
-
-        initializeToolbar();
-
-        initializeLoadingView();
-        initializeErrorView();
-        initializeRecyclerView();
-
-        initializeRefreshView();
-
-        initializePlayerView();
-    }
-
-    @VisibleForTesting
-    Toolbar getToolbar() {
-        return findViewById(R.id.toolbar);
-    }
-
-    private void initializeToolbar() {
-        Toolbar actionBar = getToolbar();
-        actionBar.setTitle(R.string.podcasts);
-        ToolbarCompat.setTitleTypeface(actionBar, getLighthouseApplication().getFontNormal());
-        toolbarTextSize = ToolbarCompat.getTitleTextSize(actionBar);
-
-        setSupportActionBar(actionBar);
-    }
-
-    private void initializeLoadingView() {
-        TextView text = getLoadingView().findViewById(android.R.id.progress);
-        text.setText(R.string.podcasts_loading);
-        text.setTypeface(getLighthouseApplication().getFontNormal());
-    }
-
-    private void initializeErrorView() {
-        View errorView = getErrorView();
-        TextView text = errorView.findViewById(android.R.id.text1);
-        text.setText(R.string.podcasts_error);
-        text.setTypeface(getLighthouseApplication().getFontNormal());
-
-        Button retryButton = errorView.findViewById(R.id.retry);
-        retryButton.setTypeface(getLighthouseApplication().getFontNormal());
-        retryButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                requestRemoteList();
-            }
-        });
-    }
-
-    private void initializeRecyclerView() {
+    private void initializeAdapter() {
         adapter.setItemClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -294,32 +261,63 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
                 }
             }
         });
+    }
 
-        RecyclerView view = getRecyclerView();
-        view.setLayoutManager(new LinearLayoutManager(this));
-        view.setAdapter(adapter);
-        view.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(RecyclerView view, int scrollState) {
-            }
+    private void initializeView() {
+        initializeToolbar();
 
+        initializeLoadingView();
+        initializeErrorView();
+        initializeRecyclerView();
+
+        initializeRefreshView();
+    }
+
+    private void initializeToolbar() {
+        Toolbar actionBar = getToolbar();
+        actionBar.setTitle(R.string.podcasts);
+        ToolbarCompat.setTitleTypeface(actionBar, requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+        toolbarTextSize = ToolbarCompat.getTitleTextSize(actionBar);
+
+        requireLighthouseActivity().setSupportActionBar(actionBar);
+    }
+
+    private void initializeLoadingView() {
+        TextView text = getLoadingView().findViewById(android.R.id.progress);
+        text.setText(R.string.podcasts_loading);
+        text.setTypeface(requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+    }
+
+    private void initializeErrorView() {
+        View errorView = getErrorView();
+        TextView text = errorView.findViewById(android.R.id.text1);
+        text.setText(R.string.podcasts_error);
+        text.setTypeface(requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+
+        Button retryButton = errorView.findViewById(R.id.retry);
+        retryButton.setTypeface(requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+        retryButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onScrolled(RecyclerView view, int dx, int dy) {
-                requestIcons(false);
+            public void onClick(View view) {
+                requestRemoteList();
             }
         });
     }
 
-    private boolean isRefreshViewEnabled() {
-        return getRefreshView().isRefreshing() || isListViewScrollOnTop(getRecyclerView());
-    }
+    private void initializeRecyclerView() {
+        RecyclerView view = getRecyclerView();
+        view.setLayoutManager(new LinearLayoutManager(requireActivity()));
+        view.setAdapter(adapter);
+        view.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView view, int scrollState) {
+            }
 
-    private static boolean isListViewScrollOnTop(RecyclerView listView) {
-        if (listView.getChildCount() == 0) {
-            return true;
-        }
-        View firstChild = listView.getChildAt(0);
-        return listView.getChildAdapterPosition(firstChild) <= 0 && firstChild.getTop() >= 0;
+            @Override
+            public void onScrolled(@NonNull RecyclerView view, int dx, int dy) {
+                requestIcons(false);
+            }
+        });
     }
 
     private void initializeRefreshView() {
@@ -334,89 +332,28 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
     }
 
     @VisibleForTesting
+    Toolbar getToolbar() {
+        return requireActivity().findViewById(R.id.toolbar);
+    }
+
+    @VisibleForTesting
     RecyclerView getRecyclerView() {
-        return findViewById(android.R.id.list);
+        return requireActivity().findViewById(android.R.id.list);
     }
 
     @VisibleForTesting
     View getLoadingView() {
-        return findViewById(R.id.loading);
+        return requireActivity().findViewById(R.id.loading);
     }
 
     @VisibleForTesting
     View getErrorView() {
-        return findViewById(R.id.error);
+        return requireActivity().findViewById(R.id.error);
     }
 
     @VisibleForTesting
     SwipeRefreshLayout getRefreshView() {
-        return (SwipeRefreshLayout) findViewById(R.id.refresh);
-    }
-
-    @Override
-    public void onSaveInstanceState(Bundle state) {
-        if (podcasts.list().isEmpty()) {
-            state.putBoolean(STATE_CONTENT_VIEW, getErrorView().getVisibility() == View.VISIBLE);
-        } else {
-            state.putBoolean(STATE_CONTENT_VIEW, true);
-            FragmentManager fragmentManager = getSupportFragmentManager();
-            PodcastsDataFragment dataFragment = (PodcastsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
-            if (dataFragment == null) {
-                dataFragment = new PodcastsDataFragment();
-                fragmentManager.beginTransaction().add(dataFragment, FRAGMENT_TAG).commit();
-            }
-            dataFragment.setPodcasts(podcasts);
-        }
-        super.onSaveInstanceState(state);
-    }
-
-    @Override
-    public void onRestoreInstanceState(Bundle state) {
-        super.onRestoreInstanceState(state);
-    }
-
-    @VisibleForTesting
-    void requestLoopback() {
-        if (podcastsFuture != null) {
-            return;
-        }
-        podcastsFuture = podcastsLoaderManager.execute(this, podcastsLoopback, podcastsLoopbackListener);
-        showLoadingView();
-    }
-
-    @VisibleForTesting
-    void requestLoopbackSorting(int messageId) {
-        if (podcastsFuture != null) {
-            return;
-        }
-        if (!hasFavoriteChanges) {
-            toast(messageId, Toast.LENGTH_SHORT);
-            getRefreshView().setRefreshing(false);
-        } else {
-            sortingMessage = messageId;
-            podcastsFuture = podcastsLoaderManager.execute(this, podcastsLoopback, podcastsSortingListener);
-        }
-    }
-
-    @VisibleForTesting
-    void requestRemoteList() {
-        if (podcastsFuture != null) {
-            return;
-        }
-        boolean isConnected = NetworkUtils.isConnected(this);
-        if (adapter.isEmpty() || isConnected) {
-            podcastsFuture = podcastsLoaderManager.execute(this, new PodcastsLoader(), podcastsListener);
-            if (adapter.isEmpty()) {
-                showLoadingView();
-            }
-        } else {
-            requestLoopbackSorting(R.string.toast_no_connection);
-        }
-    }
-
-    @VisibleForTesting
-    void toast(int id, int duration) {
-        Toast.makeText(this, id, duration).show();
+        return (SwipeRefreshLayout) requireActivity().findViewById(R.id.refresh);
     }
 
     private void showLoadingView() {
@@ -450,45 +387,90 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
         }
     }
 
-    @Override
-    public void openPodcast(Podcast podcast) {
-        Intent intent = new Intent(this, RecordsActivity.class);
-        intent.putExtra(RecordsActivity.EXTRA_PODCAST, podcast);
-        startActivity(intent);
+    private boolean isRefreshViewEnabled() {
+        return getRefreshView().isRefreshing() || isListViewScrollOnTop(getRecyclerView());
+    }
+
+    private static boolean isListViewScrollOnTop(RecyclerView listView) {
+        if (listView.getChildCount() == 0) {
+            return true;
+        }
+        View firstChild = listView.getChildAt(0);
+        return listView.getChildAdapterPosition(firstChild) <= 0 && firstChild.getTop() >= 0;
+    }
+
+    private void requestLoopback() {
+        if (podcastsFuture != null) {
+            return;
+        }
+        podcastsFuture = podcastsLoaderManager.execute(requireActivity(), podcastsLoopback, podcastsLoopbackListener);
+        showLoadingView();
+    }
+
+    @VisibleForTesting
+    void requestLoopbackSorting(int messageId) {
+        if (podcastsFuture != null) {
+            return;
+        }
+        if (!hasFavoriteChanges) {
+            toast(messageId, Toast.LENGTH_SHORT);
+            getRefreshView().setRefreshing(false);
+        } else {
+            sortingMessage = messageId;
+            podcastsFuture = podcastsLoaderManager.execute(getContext(), podcastsLoopback, podcastsSortingListener);
+        }
+    }
+
+    private void requestRemoteList() {
+        if (podcastsFuture != null) {
+            return;
+        }
+        boolean isConnected = NetworkUtils.isConnected(requireActivity());
+        if (adapter.isEmpty() || isConnected) {
+            podcastsFuture = podcastsLoaderManager.execute(requireActivity(), new PodcastsLoader(), podcastsListener);
+            if (adapter.isEmpty()) {
+                showLoadingView();
+            }
+        } else {
+            requestLoopbackSorting(R.string.toast_no_connection);
+        }
     }
 
     private void onLoopbackComplete(@Nullable Podcasts data) {
         podcastsFuture = null;
-        if (!isDestroyed()) {
+        LighthouseActivity activity = getLighthouseActivity();
+        if (activity != null) {
             if (data != null && !data.list().isEmpty()) {
                 updatePodcasts(data.list());
             }
-        }
-        boolean isConnected = NetworkUtils.isConnected(this);
-        if (!adapter.isEmpty() || !isConnected) {
-            showContentView();
-        }
-        if (isConnected) {
-            if (!adapter.isEmpty()) {
-                getToolbar().setTitle(R.string.refreshing);
-                if (toolbarTextSize > 3) {
-                    ToolbarCompat.setTitleTextSize(getToolbar(), toolbarTextSize - 3);
-                }
+            boolean isConnected = NetworkUtils.isConnected(requireActivity());
+            if (!adapter.isEmpty() || !isConnected) {
+                showContentView();
             }
-            requestRemoteList();
+            if (isConnected) {
+                if (!adapter.isEmpty()) {
+                    getToolbar().setTitle(R.string.refreshing);
+                    if (toolbarTextSize > 3) {
+                        ToolbarCompat.setTitleTextSize(getToolbar(), toolbarTextSize - 3);
+                    }
+                }
+                requestRemoteList();
+            }
         }
     }
 
     private void onRemoteListComplete(@Nullable final Podcasts data) {
         podcastsFuture = null;
-        if (isDestroyed()) {
+        if (isDetached()) {
             return;
         }
-        getToolbar().setTitle(R.string.podcasts);
-        ToolbarCompat.setTitleTextSize(getToolbar(), toolbarTextSize);
+        if (isVisible()) {
+            getToolbar().setTitle(R.string.podcasts);
+            ToolbarCompat.setTitleTextSize(getToolbar(), toolbarTextSize);
+        }
         if ((data == null || data.list().isEmpty()) && !adapter.isEmpty()) {
             requestLoopbackSorting(R.string.toast_loading_error);
-        } else{
+        } else {
             if (data != null && !data.list().isEmpty()) {
                 if (adapter.isEmpty()) {
                     for (Podcast podcast : data.list()) {
@@ -499,7 +481,7 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
                 LighthouseApplication.NETWORK_POOL_EXECUTOR.execute(new Runnable() {
                     @Override
                     public void run() {
-                        PodcastsOpenHelper helper = new PodcastsOpenHelper(PodcastsActivity.this);
+                        PodcastsOpenHelper helper = new PodcastsOpenHelper(getContext());
                         try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
                             database.storePodcasts(data);
                         }
@@ -594,9 +576,10 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
             return;
         }
         PodcastIconLoader loader = new PodcastIconLoader(this, podcast);
-        futures.put(id, getLighthouseApplication().getImageLoaderManager().execute(this, loader, podcastIconListener));
+        futures.put(id, requireLighthouseActivity().getLighthouseApplication().getImageLoaderManager().execute(getContext(), loader, podcastIconListener));
     }
 
+    @Override
     public void onIconLoadStarted(long id) {
         if (!isRowInIconLoadingRange(id)) {
             Future<BitmapInfo> future = futures.get(id);
@@ -609,7 +592,7 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
 
     public void onIconLoadComplete(long id, BitmapInfo bitmapInfo) {
         futures.remove(id);
-        if (isDestroyed()) {
+        if (isDetached()) {
             return;
         }
         if (bitmapInfo != null) {
@@ -638,14 +621,6 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
         return false;
     }
 
-    private void updatePodcastRow(Podcast podcast) {
-        RecyclerView recyclerView = getRecyclerView();
-        RecyclerView.ViewHolder viewHolder = recyclerView.findViewHolderForItemId(podcast.getId());
-        if (viewHolder != null && viewHolder instanceof PodcastsAdapter.ViewHolder) {
-            ((PodcastsAdapter.ViewHolder) viewHolder).bind(podcast);
-        }
-    }
-
     private void updatePodcastRows() {
         RecyclerView recyclerView = getRecyclerView();
         for (int i = 0, n = recyclerView.getChildCount(); i < n; i++) {
@@ -660,12 +635,39 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
         }
     }
 
-    @Override
-    protected void updatePlayerView(boolean animate) {
-        super.updatePlayerView(animate);
+    private void updatePodcastRow(Podcast podcast) {
+        RecyclerView recyclerView = getRecyclerView();
+        RecyclerView.ViewHolder viewHolder = recyclerView.findViewHolderForItemId(podcast.getId());
+        if (viewHolder != null && viewHolder instanceof PodcastsAdapter.ViewHolder) {
+            ((PodcastsAdapter.ViewHolder) viewHolder).bind(podcast);
+        }
+    }
 
-        adapter.updateEqualizerAnimation();
-        updatePodcastRows();
+    @VisibleForTesting
+    void toast(int id, int duration) {
+        Toast.makeText(getContext(), id, duration).show();
+    }
+
+    private void openPodcast(Podcast podcast) {
+//        Intent intent = new Intent(getContext(), RecordsActivity.class);
+//        intent.putExtra(RecordsActivity.EXTRA_PODCAST, podcast);
+//        startActivity(intent);
+        requireLighthouseActivity().openPodcast(podcast);
+    }
+
+    private void togglePodcastRating(final Podcast podcast) {
+        hasFavoriteChanges = true;
+        podcast.setFavorite(podcast.getFavorite() == 0 ? 1 : 0);
+        updatePodcastRow(podcast);
+        LighthouseApplication.NETWORK_POOL_EXECUTOR.execute(new Runnable() {
+            @Override
+            public void run() {
+                PodcastsOpenHelper helper = new PodcastsOpenHelper(getContext());
+                try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
+                    database.storePodcastRating(podcast.getId(), podcast.getFavorite());
+                }
+            }
+        });
     }
 
     @Nullable
@@ -679,6 +681,13 @@ public class PodcastsActivity extends LighthouseActivity implements PodcastIconL
             return adapter.getItem(position);
         }
         return null;
+    }
+
+    @Override
+    public void updatePlayerState() {
+        adapter.updateEqualizerAnimation();
+
+        updatePodcastRows();
     }
 
 //    private void openSettings() {

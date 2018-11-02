@@ -1,5 +1,6 @@
 package ru.radiomayak.podcasts;
 
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.graphics.drawable.AnimatedVectorDrawableCompat;
 import android.support.v7.widget.RecyclerView;
@@ -27,7 +28,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
     static final int HEADER_VIEW_TYPE = 1;
     static final int FOOTER_VIEW_TYPE = 2;
 
-    private final RecordsActivity activity;
+    private final RecordsFragment activity;
     private final Podcast podcast;
     private final List<Record> records;
     private final AnimatedVectorDrawableCompat equalizerDrawable;
@@ -43,7 +44,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         ERROR
     }
 
-    RecordsAdapter(RecordsActivity activity, Podcast podcast, List<Record> records) {
+    RecordsAdapter(RecordsFragment activity, Podcast podcast, List<Record> records) {
         this.activity = activity;
         this.podcast = podcast;
         this.records = records;
@@ -52,11 +53,11 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
         months = activity.getString(R.string.months).split(",");
 
-        equalizerDrawable = AnimatedVectorDrawableCompat.create(activity, R.drawable.record_equalizer_animated);
+        equalizerDrawable = AnimatedVectorDrawableCompat.create(activity.requireContext(), R.drawable.record_equalizer_animated);
     }
 
     void updateEqualizerAnimation() {
-        if (equalizerDrawable != null && equalizerDrawable.isRunning() && !activity.isPlaying()) {
+        if (equalizerDrawable != null && equalizerDrawable.isRunning() && !activity.requireLighthouseActivity().isPlaying()) {
             equalizerDrawable.stop();
         }
     }
@@ -103,22 +104,23 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         }
     }
 
+    @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         if (viewType == ITEM_VIEW_TYPE) {
-            View view = LayoutInflater.from(activity).inflate(R.layout.podcast_record, parent, false);
+            View view = LayoutInflater.from(activity.getContext()).inflate(R.layout.podcast_record, parent, false);
             return new ItemViewHolder(view);
         }
         if (viewType == HEADER_VIEW_TYPE) {
-            View view = LayoutInflater.from(activity).inflate(R.layout.podcast_header, parent, false);
+            View view = LayoutInflater.from(activity.getContext()).inflate(R.layout.podcast_header, parent, false);
             return new HeaderViewHolder(view);
         }
-        View view = LayoutInflater.from(activity).inflate(R.layout.podcast_footer, parent, false);
+        View view = LayoutInflater.from(activity.getContext()).inflate(R.layout.podcast_footer, parent, false);
         return new FooterViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         if (holder instanceof ItemViewHolder) {
             int index = podcast.getLength() > 0 ? position - 1 : position;
             ((ItemViewHolder) holder).bind(records.get(index));
@@ -170,7 +172,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         void bind(final Record record) {
             TextView nameView = getNameView(itemView);
             nameView.setText(record.getName());
-            nameView.setTypeface(activity.getLighthouseApplication().getFontBold());
+            nameView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontBold());
 
             TextView descriptionView = getDescriptionView(itemView);
             if (record.getDescription() != null) {
@@ -179,7 +181,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             } else {
                 descriptionView.setVisibility(View.GONE);
             }
-            descriptionView.setTypeface(activity.getLighthouseApplication().getFontNormal());
+            descriptionView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
 
             TextView dateView = getDateView(itemView);
             if (record.getDate() != null) {
@@ -196,7 +198,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             } else {
                 dateView.setVisibility(View.GONE);
             }
-            dateView.setTypeface(activity.getLighthouseApplication().getFontLight());
+            dateView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontLight());
 
             TextView durationView = getDurationView(itemView);
             if (record.getDuration() != null) {
@@ -205,7 +207,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             } else {
                 durationView.setVisibility(View.GONE);
             }
-            durationView.setTypeface(activity.getLighthouseApplication().getFontLight());
+            durationView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontLight());
 
             updatePlayPauseState(record);
 
@@ -231,17 +233,27 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                 }
             });
             itemView.setOnCreateContextMenuListener(activity);
+
+            ProgressBar progressBar = getProgressBar(itemView);
+            if (record.getPosition() == Record.POSITION_UNDEFINED) {
+                progressBar.setProgress(0);
+            } else if (record.getLength() == 0) {
+                progressBar.setProgress(1000);
+            } else {
+                int progress = (int) ((long) record.getPosition() * 1000 / record.getLength());
+                progressBar.setProgress(progress);
+            }
         }
 
         void updatePlayPauseState(Record record) {
             if (equalizerDrawable == null) {
                 return;
             }
-            LighthouseTrack track = activity.getTrack();
+            LighthouseTrack track = activity.requireLighthouseActivity().getTrack();
             ImageView iconView = getIconView(itemView);
             if (track == null || track.getPodcast().getId() != podcast.getId() || track.getRecord().getId() != record.getId()) {
                 iconView.setImageResource(R.drawable.record_play);
-            } else if (activity.isPlaying()) {
+            } else if (activity.requireLighthouseActivity().isPlaying()) {
                 iconView.setImageDrawable(equalizerDrawable);
                 equalizerDrawable.start();
             } else {
@@ -278,6 +290,10 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         private ImageView getMenuView(View view) {
             return view.findViewById(R.id.menu);
         }
+
+        private ProgressBar getProgressBar(View view) {
+            return view.findViewById(android.R.id.progress);
+        }
     }
 
     class HeaderViewHolder extends ViewHolder {
@@ -287,7 +303,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
         void bind(Podcast podcast) {
             TextView lengthView = getLengthView(itemView);
-            lengthView.setTypeface(activity.getLighthouseApplication().getFontNormal());
+            lengthView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
             String format = activity.getString(R.string.records_count);
             lengthView.setText(String.format(format, String.valueOf(podcast.getLength())));
         }
@@ -304,7 +320,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
         void bind(FooterMode footerMode) {
             TextView moreView = getMoreView(itemView);
-            moreView.setTypeface(activity.getLighthouseApplication().getFontNormal());
+            moreView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
             moreView.setVisibility(footerMode == FooterMode.MORE ? View.VISIBLE : View.INVISIBLE);
             moreView.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -313,10 +329,10 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                 }
             });
 
-            getErrorTextView(itemView).setTypeface(activity.getLighthouseApplication().getFontNormal());
+            getErrorTextView(itemView).setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
 
             Button retryButton = getRetryButton(itemView);
-            retryButton.setTypeface(activity.getLighthouseApplication().getFontNormal());
+            retryButton.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
             retryButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
