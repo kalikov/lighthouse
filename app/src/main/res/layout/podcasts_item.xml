@@ -8,8 +8,7 @@
     android:paddingBottom="@dimen/podcast_padding"
     android:paddingEnd="0dp"
     android:paddingStart="@dimen/podcast_padding"
-    android:paddingTop="@dimen/podcast_padding"
-    tools:context="ru.radiomayak.podcasts.PodcastsActivity">
+    android:paddingTop="@dimen/podcast_padding">
 
     <RelativeLayout
         android:layout_width="@dimen/podcast_icon_size"

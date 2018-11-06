@@ -26,15 +26,7 @@
 
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-        </activity>
-        <activity
-            android:name=".podcasts.PodcastsActivity"
-            android:launchMode="singleTop">
-            <!--<intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
 
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>-->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
 
@@ -48,17 +40,12 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".podcasts.RecordsActivity"
-            android:parentActivityName=".podcasts.PodcastsActivity">
-
-            <meta-data
-                android:name="android.support.PARENT_ACTIVITY"
-                android:value=".podcasts.PodcastsActivity"/>
+            android:name=".podcasts.RecordsActivity">
         </activity>
         <activity
             android:name=".podcasts.SettingsActivity"
             android:label="@string/settings"
-            android:parentActivityName=".podcasts.PodcastsActivity">
+            android:parentActivityName=".podcasts.MainActivity">
         </activity>
 
         <service android:name=".media.MediaPlayerService" android:exported="false">

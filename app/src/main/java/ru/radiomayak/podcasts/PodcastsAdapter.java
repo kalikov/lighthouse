@@ -1,5 +1,6 @@
 package ru.radiomayak.podcasts;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
@@ -26,7 +27,7 @@ import ru.radiomayak.R;
 import ru.radiomayak.graphics.BitmapInfo;
 
 class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
-    private final LighthouseActivity activity;
+    private final PodcastsFragment fragment;
     private final List<Podcast> podcasts;
     private final RoundedBitmapDrawable micDrawable;
     private final LongSparseArray<Drawable> icons = new LongSparseArray<>();
@@ -52,23 +53,20 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
     private View.OnClickListener favoriteClickListener;
     private View.OnClickListener itemClickListener;
 
-    PodcastsAdapter(LighthouseActivity activity, List<Podcast> podcasts) {
-        this.activity = activity;
+    PodcastsAdapter(PodcastsFragment fragment, List<Podcast> podcasts) {
+        this.fragment = fragment;
         this.podcasts = podcasts;
 
         setHasStableIds(true);
 
-        int size = activity.getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
-        Drawable micResourceDrawable = Objects.requireNonNull(ResourcesCompat.getDrawable(activity.getResources(), R.drawable.mic, activity.getTheme()));
+        Context context = fragment.requireContext();
+        int size = context.getResources().getDimensionPixelSize(R.dimen.podcast_icon_size);
+        Drawable micResourceDrawable = Objects.requireNonNull(ResourcesCompat.getDrawable(context.getResources(), R.drawable.mic, context.getTheme()));
         Bitmap micBitmap = createBitmap(micResourceDrawable, size);
-        micDrawable = RoundedBitmapDrawableFactory.create(activity.getResources(), micBitmap);
+        micDrawable = RoundedBitmapDrawableFactory.create(context.getResources(), micBitmap);
         micDrawable.setCircular(true);
 
-        equalizerDrawable = AnimatedVectorDrawableCompat.create(activity, R.drawable.equalizer_animated);
-    }
-
-    public LighthouseActivity getActivity() {
-        return activity;
+        equalizerDrawable = AnimatedVectorDrawableCompat.create(context, R.drawable.equalizer_animated);
     }
 
     public void setFavoriteClickListener(View.OnClickListener favoriteClickListener) {
@@ -89,7 +87,7 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
 
     void updateEqualizerAnimation() {
         if (equalizerDrawable != null) {
-            boolean isPlaying = activity.isPlaying();
+            boolean isPlaying = fragment.requireLighthouseActivity().isPlaying();
             if (equalizerDrawable.isRunning() && !isPlaying) {
                 equalizerDrawable.stop();
             } else if (!equalizerDrawable.isRunning() && isPlaying) {
@@ -119,7 +117,7 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(activity).inflate(R.layout.podcasts_item, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.podcasts_item, parent, false);
         return new ViewHolder(view);
     }
 
@@ -159,6 +157,7 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
         }
 
         public void bind(Podcast podcast) {
+            LighthouseActivity activity = fragment.requireLighthouseActivity();
             TextView nameView = getNameView(itemView);
             nameView.setText(podcast.getName());
             nameView.setTypeface(activity.getLighthouseApplication().getFontBold());
@@ -229,11 +228,11 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
             if (icon == null && bitmapInfo == null) {
                 drawable = micDrawable;
             } else if (icon == null) {
-                RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(activity.getResources(), bitmapInfo.getBitmap());
+                RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(view.getContext().getResources(), bitmapInfo.getBitmap());
                 rounded.setCircular(true);
                 drawable = rounded;
             } else {
-                RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(activity.getResources(), bitmapInfo.getBitmap());
+                RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(view.getContext().getResources(), bitmapInfo.getBitmap());
                 rounded.setCircular(true);
 
                 Drawable[] layers = new Drawable[]{icon, rounded};

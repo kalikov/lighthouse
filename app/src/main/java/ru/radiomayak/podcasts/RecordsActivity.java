@@ -65,7 +65,7 @@ public class RecordsActivity extends LighthouseActivity implements PageAsyncTask
     public static final String EXTRA_PODCAST_ID = RecordsActivity.class.getPackage().getName() + ".PODCAST_ID";
     public static final String EXTRA_SEEN = RecordsActivity.class.getPackage().getName() + ".SEEN";
 
-    private static final String STATE_CONTENT_VIEW = PodcastsActivity.class.getName() + "$contentView";
+    private static final String STATE_CONTENT_VIEW = RecordsActivity.class.getName() + "$contentView";
     private static final String STATE_PAGE_FAILED = RecordsActivity.class.getName() + "pageFailed";
 
     private static final String FRAGMENT_TAG = RecordsActivity.class.getName() + "$data";

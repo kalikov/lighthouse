@@ -70,7 +70,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     public static final String EXTRA_PODCAST_ID = RecordsFragment.class.getPackage().getName() + ".PODCAST_ID";
     public static final String EXTRA_SEEN = RecordsFragment.class.getPackage().getName() + ".SEEN";
 
-    private static final String STATE_CONTENT_VIEW = PodcastsActivity.class.getName() + "$contentView";
+    private static final String STATE_CONTENT_VIEW = RecordsFragment.class.getName() + "$contentView";
     private static final String STATE_PAGE_FAILED = RecordsFragment.class.getName() + "pageFailed";
 
 

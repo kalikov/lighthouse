@@ -23,7 +23,7 @@ public final class NetworkUtils {
             return false;
         }
         NetworkInfo networkInfo = connectivityManager.getActiveNetworkInfo();
-        return networkInfo != null && networkInfo.isConnectedOrConnecting();
+        return networkInfo != null && networkInfo.isConnected();
     }
 
     public static long getContentLength(URLConnection connection) {

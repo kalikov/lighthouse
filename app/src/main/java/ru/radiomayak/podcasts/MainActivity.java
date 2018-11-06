@@ -2,6 +2,7 @@ package ru.radiomayak.podcasts;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.VisibleForTesting;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
@@ -11,6 +12,9 @@ import ru.radiomayak.LighthouseFragment;
 import ru.radiomayak.R;
 
 public class MainActivity extends LighthouseActivity {
+    @VisibleForTesting
+    PodcastsFragment podcastsFragment;
+
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -18,7 +22,7 @@ public class MainActivity extends LighthouseActivity {
         setContentView(R.layout.main);
 
         FragmentManager fragmentManager = getSupportFragmentManager();
-        Fragment podcastsFragment = fragmentManager.findFragmentByTag(PodcastsFragment.TAG);
+        podcastsFragment = (PodcastsFragment) fragmentManager.findFragmentByTag(PodcastsFragment.TAG);
         if (podcastsFragment == null) {
             podcastsFragment = new PodcastsFragment();
 
