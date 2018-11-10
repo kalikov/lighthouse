@@ -70,10 +70,10 @@ public class PodcastsFragment extends LighthouseFragment implements PodcastIconL
     private final BroadcastReceiver viewReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            long id = intent.getLongExtra(RecordsActivity.EXTRA_PODCAST_ID, 0);
+            long id = intent.getLongExtra(RecordsFragment.EXTRA_PODCAST_ID, 0);
             Podcast podcast = podcasts.get(id);
             if (podcast != null) {
-                int seen = intent.getIntExtra(RecordsActivity.EXTRA_SEEN, 0);
+                int seen = intent.getIntExtra(RecordsFragment.EXTRA_SEEN, 0);
                 if (seen > 0) {
                     podcast.setSeen(seen);
                     updatePodcastRow(podcast);
@@ -150,7 +150,7 @@ public class PodcastsFragment extends LighthouseFragment implements PodcastIconL
         LighthouseActivity activity = requireLighthouseActivity();
 
         IntentFilter filter = new IntentFilter();
-        filter.addAction(RecordsActivity.ACTION_VIEW);
+        filter.addAction(RecordsFragment.ACTION_VIEW);
         activity.registerReceiver(viewReceiver, filter);
 
         podcastsLoaderManager = activity.getLighthouseApplication().getModule().createLoaderManager();
@@ -552,21 +552,29 @@ public class PodcastsFragment extends LighthouseFragment implements PodcastIconL
         int count = adapter.getItemCount();
         int first = Math.max(0, firstVisiblePosition - visibleItemsCount / 2);
         int last = Math.min(count - 1, firstVisiblePosition + visibleItemsCount - 1 + visibleItemsCount / 2);
+        RecyclerView view = getRecyclerView();
         for (int i = Math.max(0, firstVisiblePosition); i <= last; i++) {
-            requestIcon(adapter.getItem(i));
+            requestIcon(adapter.getItem(i), view.findViewHolderForAdapterPosition(i));
         }
         for (int i = first; i < firstVisiblePosition; i++) {
-            requestIcon(adapter.getItem(i));
+            requestIcon(adapter.getItem(i), view.findViewHolderForAdapterPosition(i));
         }
     }
 
-    private void requestIcon(final Podcast podcast) {
+    private void requestIcon(final Podcast podcast, RecyclerView.ViewHolder viewHolder) {
         Image image = podcast.getIcon();
         if (image == null) {
             return;
         }
         long id = podcast.getId();
-        if (futures.indexOfKey(id) >= 0 || PodcastImageCache.getInstance().getIcon(id) != null) {
+        if (futures.indexOfKey(id) >= 0) {
+            return;
+        }
+        BitmapInfo bitmapInfo = PodcastImageCache.getInstance().getIcon(id);
+        if (bitmapInfo != null) {
+            if (viewHolder != null && viewHolder instanceof PodcastsAdapter.ViewHolder) {
+                ((PodcastsAdapter.ViewHolder) viewHolder).updateIcon(podcast.getId(), bitmapInfo);
+            }
             return;
         }
         PodcastIconLoader loader = new PodcastIconLoader(this, podcast);
@@ -595,6 +603,8 @@ public class PodcastsFragment extends LighthouseFragment implements PodcastIconL
             }
             if (getView() != null) {
                 updatePodcastRow(podcast);
+            } else {
+                int i = 0;
             }
         }
     }
@@ -622,7 +632,7 @@ public class PodcastsFragment extends LighthouseFragment implements PodcastIconL
             if (viewHolder != null && viewHolder instanceof PodcastsAdapter.ViewHolder) {
                 Podcast podcast = podcasts.get(viewHolder.getItemId());
                 if (podcast != null) {
-                    ((PodcastsAdapter.ViewHolder) viewHolder).bind(podcast);
+                    ((PodcastsAdapter.ViewHolder) viewHolder).update(podcast);
                 }
             }
         }
@@ -632,7 +642,9 @@ public class PodcastsFragment extends LighthouseFragment implements PodcastIconL
         RecyclerView recyclerView = getRecyclerView();
         RecyclerView.ViewHolder viewHolder = recyclerView.findViewHolderForItemId(podcast.getId());
         if (viewHolder != null && viewHolder instanceof PodcastsAdapter.ViewHolder) {
-            ((PodcastsAdapter.ViewHolder) viewHolder).bind(podcast);
+            ((PodcastsAdapter.ViewHolder) viewHolder).update(podcast);
+        } else {
+            int i = 0;
         }
     }
 
@@ -676,7 +688,7 @@ public class PodcastsFragment extends LighthouseFragment implements PodcastIconL
 
     @Override
     public void updatePlayerState() {
-        adapter.updateEqualizerAnimation();
+        adapter.updateEqualizerAnimation(requireLighthouseActivity().isPlaying());
 
         updatePodcastRows();
     }

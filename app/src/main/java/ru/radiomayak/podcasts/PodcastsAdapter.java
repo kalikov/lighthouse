@@ -85,9 +85,8 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
         return bitmap;
     }
 
-    void updateEqualizerAnimation() {
+    void updateEqualizerAnimation(boolean isPlaying) {
         if (equalizerDrawable != null) {
-            boolean isPlaying = fragment.requireLighthouseActivity().isPlaying();
             if (equalizerDrawable.isRunning() && !isPlaying) {
                 equalizerDrawable.stop();
             } else if (!equalizerDrawable.isRunning() && isPlaying) {
@@ -124,7 +123,7 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         Podcast podcast = getItem(position);
-        holder.bind(podcast);
+        holder.bind(podcast, false);
     }
 
     private static TextView getNameView(View view) {
@@ -156,7 +155,11 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
             super(itemView);
         }
 
-        public void bind(Podcast podcast) {
+        public void update(Podcast podcast) {
+            bind(podcast, true);
+        }
+
+        private void bind(Podcast podcast, boolean animate) {
             LighthouseActivity activity = fragment.requireLighthouseActivity();
             TextView nameView = getNameView(itemView);
             nameView.setText(podcast.getName());
@@ -175,7 +178,7 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
 
             ImageView iconView = getIconView(itemView);
             iconView.setContentDescription(podcast.getName());
-            setIcon(iconView, podcast.getId());
+            setIcon(iconView, podcast.getId(), animate);
 
             if (equalizerDrawable != null) {
                 ImageView equalizerView = getEqualizerView(itemView);
@@ -213,7 +216,7 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
             itemView.setOnClickListener(adapterItemClickListener);
         }
 
-        private void setIcon(ImageView view, long id) {
+        private void setIcon(ImageView view, long id, boolean animate) {
             Drawable icon = icons.get(id);
             if (icon != null && icon != micDrawable) {
                 view.setImageDrawable(icon);
@@ -227,7 +230,7 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
             Drawable drawable;
             if (icon == null && bitmapInfo == null) {
                 drawable = micDrawable;
-            } else if (icon == null) {
+            } else if (icon == null || !animate) {
                 RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(view.getContext().getResources(), bitmapInfo.getBitmap());
                 rounded.setCircular(true);
                 drawable = rounded;
@@ -241,6 +244,31 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
                 drawable = transitionDrawable;
             }
             view.setImageDrawable(drawable);
+
+            icons.put(id, drawable);
+        }
+
+        public void updateIcon(long id, BitmapInfo bitmapInfo) {
+            ImageView iconView = getIconView(itemView);
+            Drawable icon = icons.get(id);
+            if (icon != null && icon != micDrawable) {
+                return;
+            }
+            Drawable drawable;
+            if (icon == null) {
+                RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(iconView.getContext().getResources(), bitmapInfo.getBitmap());
+                rounded.setCircular(true);
+                drawable = rounded;
+            } else {
+                RoundedBitmapDrawable rounded = RoundedBitmapDrawableFactory.create(iconView.getContext().getResources(), bitmapInfo.getBitmap());
+                rounded.setCircular(true);
+
+                Drawable[] layers = new Drawable[]{icon, rounded};
+                TransitionDrawable transitionDrawable = new TransitionDrawable(layers);
+                transitionDrawable.startTransition(400);
+                drawable = transitionDrawable;
+            }
+            iconView.setImageDrawable(drawable);
 
             icons.put(id, drawable);
         }

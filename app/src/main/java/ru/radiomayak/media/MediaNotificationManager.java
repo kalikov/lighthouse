@@ -29,7 +29,6 @@ import ru.radiomayak.podcasts.Podcast;
 import ru.radiomayak.podcasts.PodcastImageCache;
 import ru.radiomayak.podcasts.PodcastsUtils;
 import ru.radiomayak.podcasts.Record;
-import ru.radiomayak.podcasts.RecordsActivity;
 
 public class MediaNotificationManager extends BroadcastReceiver {
     private static final String TAG = MediaNotificationManager.class.getSimpleName();

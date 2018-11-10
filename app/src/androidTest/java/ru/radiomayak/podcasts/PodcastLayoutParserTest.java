@@ -72,7 +72,7 @@ public class PodcastLayoutParserTest {
         }
     }
 
-    private static void assertEquals(JSONObject expected, JSONObject actual) throws JSONException {
+    private static void assertEquals(JSONObject expected, JSONObject actual) {
         Assert.assertEquals(expected.toString(), actual.toString());
     }
 

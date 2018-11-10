@@ -19,7 +19,6 @@ import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.CollapsingToolbarLayout;
 import android.support.design.widget.CoordinatorLayout;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.FragmentManager;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.graphics.ColorUtils;
@@ -31,7 +30,6 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
-import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
@@ -72,7 +70,6 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
 
     private static final String STATE_CONTENT_VIEW = RecordsFragment.class.getName() + "$contentView";
     private static final String STATE_PAGE_FAILED = RecordsFragment.class.getName() + "pageFailed";
-
 
     private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 501;
 
@@ -147,17 +144,8 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
 
         if (state != null) {
             boolean isContentView = state.getBoolean(STATE_CONTENT_VIEW, true);
-//            if (isContentView) {
-//                FragmentManager fragmentManager = requireFragmentManager();
-//                RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
-//                if (dataFragment != null) {
-//                    podcast = state.getParcelable(Podcast.class.getName());
-//                    records = dataFragment.getRecords();
-//                    paginator = dataFragment.getPaginator();
-            requestList = !isContentView;//records == null || records.list().isEmpty();
+            requestList = !isContentView;
             pageFailed = state.getBoolean(STATE_PAGE_FAILED, false);
-//                }
-//            }
             getAppBarLayout().setExpanded(false);
         }
         if (podcast == null) {
@@ -172,7 +160,9 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
             records = new Records();
         }
 
-        adapter = new RecordsAdapter(this, podcast, records.list());
+        if (adapter == null) {
+            adapter = new RecordsAdapter(this, podcast, records.list());
+        }
 
         initializeView();
 
@@ -194,9 +184,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
                 LighthouseActivity activity = requireLighthouseActivity();
                 if (ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     permissionRecord = contextRecord;
-                    ActivityCompat.requestPermissions(activity,
-                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                            MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
+                    ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
                 } else {
                     download(contextRecord);
                 }
@@ -264,8 +252,6 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     }
 
     private void initializeView() {
-//        setContentView(R.layout.podcast);
-
         initializeToolbar();
 
         initializeLoadingView();
@@ -273,8 +259,6 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
         initializeRecyclerView();
 
         initializeRefreshView();
-
-//        initializePlayerView();
     }
 
     private void initializeToolbar() {
@@ -486,6 +470,9 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     }
 
     private void updateView() {
+        if (getView() == null) {
+            return;
+        }
         if (splash == null && records.isEmpty()) {
             if (podcastFuture != null) {
                 showLoadingView();
@@ -555,26 +542,10 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
             state.putBoolean(STATE_CONTENT_VIEW, getErrorView().getVisibility() == View.VISIBLE);
         } else {
             state.putBoolean(STATE_CONTENT_VIEW, true);
-//            state.putParcelable(Podcast.class.getName(), podcast);
-
-//            FragmentManager fragmentManager = requireFragmentManager();
-//            RecordsDataFragment dataFragment = (RecordsDataFragment) fragmentManager.findFragmentByTag(FRAGMENT_TAG);
-//            if (dataFragment == null) {
-//                dataFragment = new RecordsDataFragment();
-//                fragmentManager.beginTransaction().add(dataFragment, FRAGMENT_TAG).commit();
-//            }
-//            dataFragment.setRecords(records);
-//            dataFragment.setPaginator(paginator);
             state.putBoolean(STATE_PAGE_FAILED, pageFailed);
         }
         super.onSaveInstanceState(state);
     }
-
-//    @Override
-//    public void onRestoreInstanceState(Bundle state) {
-//        super.onRestoreInstanceState(state);
-//        getAppBarLayout().setExpanded(false);
-//    }
 
     private void requestPodcast() {
         if (podcastFuture != null) {
@@ -649,18 +620,18 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
 
     public void onPodcastLoaded(PodcastResponse response) {
         podcastFuture = null;
-        if (isDetached()) {
-            return;
-        }
-        if (response.getPaginator() == null && !records.isEmpty()) {
-            Toast.makeText(getContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
-        } else {
-            if (response.getPodcast() != null) {
-                updatePodcast(response.getPodcast());
+        if (getView() != null) {
+            if (response.getPaginator() == null && !records.isEmpty()) {
+                Toast.makeText(requireContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
+            } else {
+                if (response.getPodcast() != null) {
+                    updatePodcast(response.getPodcast());
+                }
+                updateFirstPageRecords(response.getPaginator());
             }
-            updateFirstPageRecords(response.getPaginator());
+            getRefreshView().setEnabled(true);
+            updateView();
         }
-        updateView();
     }
 
 
@@ -740,14 +711,16 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     public void onPageLoaded(RecordsPaginator response, boolean isCancelled) {
         pageAsyncTask = null;
         pageFailed = response == null;
-        if (!isCancelled && !isDetached()) {
-            if (response == null) {
-                Toast.makeText(getContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
-            } else {
-                updatePageRecords(response);
+        if (getView() != null) {
+            if (!isCancelled) {
+                if (response == null) {
+                    Toast.makeText(getContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
+                } else {
+                    updatePageRecords(response);
+                }
             }
+            updateView();
         }
-        updateView();
     }
 
     private void updatePageRecords(RecordsPaginator paginator) {
@@ -795,7 +768,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
 
     public void onSplashLoadComplete(BitmapInfo bitmapInfo) {
         splashFuture = null;
-        if (bitmapInfo == null || isDetached()) {
+        if (bitmapInfo == null || getView() == null) {
             return;
         }
         PodcastImageCache.getInstance().setSplash(podcast.getId(), bitmapInfo);
@@ -867,25 +840,6 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
         updateView();
     }
 
-//    @Override
-//    protected void updatePlayerView(boolean animate) {
-//        super.updatePlayerView(animate);
-//
-//        adapter.updateEqualizerAnimation();
-//        updateRecordsRows();
-//    }
-//
-//    @Override
-//    protected void updateRecordPlaybackAttributes(long podcast, long record, int position) {
-//        super.updateRecordPlaybackAttributes(podcast, record, position);
-//        if (this.podcast.getId() == podcast) {
-//            Record podcastRecord = records.get(record);
-//            if (podcastRecord != null) {
-//                podcastRecord.setPosition(position);
-//            }
-//        }
-//    }
-
     private void updateRecordsRows() {
         RecyclerView recyclerView = getRecyclerView();
         for (int i = 0, n = recyclerView.getChildCount(); i < n; i++) {
@@ -924,13 +878,6 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
         popup.show();
     }
 
-//    @Override
-//    public void onContextMenuClosed(Menu menu) {
-//        contextRecord = null;
-//
-//        super.onContextMenuClosed(menu);
-//    }
-
     @Override
     public boolean onMenuItemClick(MenuItem item) {
         return onContextItemSelected(item);
@@ -943,7 +890,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
 
     @Override
     public void updatePlayerState() {
-        adapter.updateEqualizerAnimation();
+        adapter.updateEqualizerAnimation(requireLighthouseActivity().isPlaying());
         updateRecordsRows();
     }
 

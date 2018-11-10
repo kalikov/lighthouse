@@ -20,6 +20,7 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Locale;
 
+import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.R;
 
@@ -28,7 +29,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
     static final int HEADER_VIEW_TYPE = 1;
     static final int FOOTER_VIEW_TYPE = 2;
 
-    private final RecordsFragment activity;
+    private final RecordsFragment fragment;
     private final Podcast podcast;
     private final List<Record> records;
     private final AnimatedVectorDrawableCompat equalizerDrawable;
@@ -44,20 +45,20 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         ERROR
     }
 
-    RecordsAdapter(RecordsFragment activity, Podcast podcast, List<Record> records) {
-        this.activity = activity;
+    RecordsAdapter(RecordsFragment fragment, Podcast podcast, List<Record> records) {
+        this.fragment = fragment;
         this.podcast = podcast;
         this.records = records;
         footerMode = FooterMode.HIDDEN;
         setHasStableIds(true);
 
-        months = activity.getString(R.string.months).split(",");
+        months = this.fragment.getString(R.string.months).split(",");
 
-        equalizerDrawable = AnimatedVectorDrawableCompat.create(activity.requireContext(), R.drawable.record_equalizer_animated);
+        equalizerDrawable = AnimatedVectorDrawableCompat.create(this.fragment.requireContext(), R.drawable.record_equalizer_animated);
     }
 
-    void updateEqualizerAnimation() {
-        if (equalizerDrawable != null && equalizerDrawable.isRunning() && !activity.requireLighthouseActivity().isPlaying()) {
+    void updateEqualizerAnimation(boolean isPlaying) {
+        if (equalizerDrawable != null && equalizerDrawable.isRunning() && !isPlaying) {
             equalizerDrawable.stop();
         }
     }
@@ -108,14 +109,14 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         if (viewType == ITEM_VIEW_TYPE) {
-            View view = LayoutInflater.from(activity.getContext()).inflate(R.layout.podcast_record, parent, false);
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.podcast_record, parent, false);
             return new ItemViewHolder(view);
         }
         if (viewType == HEADER_VIEW_TYPE) {
-            View view = LayoutInflater.from(activity.getContext()).inflate(R.layout.podcast_header, parent, false);
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.podcast_header, parent, false);
             return new HeaderViewHolder(view);
         }
-        View view = LayoutInflater.from(activity.getContext()).inflate(R.layout.podcast_footer, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.podcast_footer, parent, false);
         return new FooterViewHolder(view);
     }
 
@@ -170,9 +171,11 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         }
 
         void bind(final Record record) {
+            LighthouseApplication application = fragment.requireLighthouseActivity().getLighthouseApplication();
+
             TextView nameView = getNameView(itemView);
             nameView.setText(record.getName());
-            nameView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontBold());
+            nameView.setTypeface(application.getFontBold());
 
             TextView descriptionView = getDescriptionView(itemView);
             if (record.getDescription() != null) {
@@ -181,7 +184,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             } else {
                 descriptionView.setVisibility(View.GONE);
             }
-            descriptionView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+            descriptionView.setTypeface(application.getFontNormal());
 
             TextView dateView = getDateView(itemView);
             if (record.getDate() != null) {
@@ -198,16 +201,16 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             } else {
                 dateView.setVisibility(View.GONE);
             }
-            dateView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontLight());
+            dateView.setTypeface(application.getFontLight());
 
             TextView durationView = getDurationView(itemView);
             if (record.getDuration() != null) {
                 durationView.setVisibility(View.VISIBLE);
-                durationView.setText(activity.getResources().getString(R.string.record_duration, record.getDuration()));
+                durationView.setText(fragment.getResources().getString(R.string.record_duration, record.getDuration()));
             } else {
                 durationView.setVisibility(View.GONE);
             }
-            durationView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontLight());
+            durationView.setTypeface(application.getFontLight());
 
             updatePlayPauseState(record);
 
@@ -215,14 +218,14 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             menuView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    activity.onCreatePopupMenu(record, view);
+                    fragment.onCreatePopupMenu(record, view);
                 }
             });
 
             itemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    activity.playRecord(record);
+                    fragment.playRecord(record);
                 }
             });
             itemView.setOnLongClickListener(new View.OnLongClickListener() {
@@ -232,7 +235,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                     return true;
                 }
             });
-            itemView.setOnCreateContextMenuListener(activity);
+            itemView.setOnCreateContextMenuListener(fragment);
 
             ProgressBar progressBar = getProgressBar(itemView);
             if (record.getPosition() == Record.POSITION_UNDEFINED) {
@@ -249,11 +252,11 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             if (equalizerDrawable == null) {
                 return;
             }
-            LighthouseTrack track = activity.requireLighthouseActivity().getTrack();
+            LighthouseTrack track = fragment.requireLighthouseActivity().getTrack();
             ImageView iconView = getIconView(itemView);
             if (track == null || track.getPodcast().getId() != podcast.getId() || track.getRecord().getId() != record.getId()) {
                 iconView.setImageResource(R.drawable.record_play);
-            } else if (activity.requireLighthouseActivity().isPlaying()) {
+            } else if (fragment.requireLighthouseActivity().isPlaying()) {
                 iconView.setImageDrawable(equalizerDrawable);
                 equalizerDrawable.start();
             } else {
@@ -303,8 +306,8 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
         void bind(Podcast podcast) {
             TextView lengthView = getLengthView(itemView);
-            lengthView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
-            String format = activity.getString(R.string.records_count);
+            lengthView.setTypeface(fragment.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+            String format = fragment.getString(R.string.records_count);
             lengthView.setText(String.format(format, String.valueOf(podcast.getLength())));
         }
 
@@ -319,24 +322,26 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         }
 
         void bind(FooterMode footerMode) {
+            LighthouseApplication application = fragment.requireLighthouseActivity().getLighthouseApplication();
+
             TextView moreView = getMoreView(itemView);
-            moreView.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+            moreView.setTypeface(application.getFontNormal());
             moreView.setVisibility(footerMode == FooterMode.MORE ? View.VISIBLE : View.INVISIBLE);
             moreView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    activity.loadMore();
+                    fragment.loadMore();
                 }
             });
 
-            getErrorTextView(itemView).setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+            getErrorTextView(itemView).setTypeface(application.getFontNormal());
 
             Button retryButton = getRetryButton(itemView);
-            retryButton.setTypeface(activity.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+            retryButton.setTypeface(application.getFontNormal());
             retryButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    activity.refreshPodcast();
+                    fragment.refreshPodcast();
                 }
             });
 

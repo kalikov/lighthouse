@@ -1,21 +1,17 @@
 package ru.radiomayak.podcasts;
 
-import android.content.Context;
-
 import org.apache.commons.io.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.io.InputStream;
 
 public class PodcastSplashAsyncTaskTest {
-    private PodcastSplashLoader task;
 
     @Before
     public void before() {
-        task = new PodcastSplashLoader(null);
+        PodcastSplashLoader task = new PodcastSplashLoader(null);
     }
 
     @Test

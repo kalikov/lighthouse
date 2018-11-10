@@ -23,10 +23,10 @@ class PodcastViewAsyncTask extends AsyncTask<Podcast, Void, Void> {
                 try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
                     database.storePodcastSeen(podcast.getId(), podcast.getLength());
                 }
-                Intent intent = new Intent(RecordsActivity.ACTION_VIEW)
+                Intent intent = new Intent(RecordsFragment.ACTION_VIEW)
                         .setPackage(context.getPackageName())
-                        .putExtra(RecordsActivity.EXTRA_PODCAST_ID, podcast.getId())
-                        .putExtra(RecordsActivity.EXTRA_SEEN, podcast.getLength());
+                        .putExtra(RecordsFragment.EXTRA_PODCAST_ID, podcast.getId())
+                        .putExtra(RecordsFragment.EXTRA_SEEN, podcast.getLength());
                 context.sendBroadcast(intent);
             }
         }

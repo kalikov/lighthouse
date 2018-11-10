@@ -40,9 +40,6 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".podcasts.RecordsActivity">
-        </activity>
-        <activity
             android:name=".podcasts.SettingsActivity"
             android:label="@string/settings"
             android:parentActivityName=".podcasts.MainActivity">

@@ -5,7 +5,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
-    private static final PodcastsTable.Field[] PODCASTS_FIELD_V1_4 = {PodcastsTable.Field.ID, PodcastsTable.Field.NAME,
+    private static final PodcastsTable.Field[] PODCASTS_FIELDS_V1_4 = {PodcastsTable.Field.ID, PodcastsTable.Field.NAME,
             PodcastsTable.Field.DESC, PodcastsTable.Field.LENGTH, PodcastsTable.Field.SEEN, PodcastsTable.Field.ORD,
             PodcastsTable.Field.ICON_URL, PodcastsTable.Field.ICON_RGB, PodcastsTable.Field.ICON_RGB2,
             PodcastsTable.Field.SPLASH_URL, PodcastsTable.Field.SPLASH_RGB, PodcastsTable.Field.SPLASH_RGB2};
@@ -160,24 +160,25 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
         if (oldVersion <= 3) {
             db.execSQL(PlayersTable.CREATE_SQL);
             db.execSQL("INSERT INTO " + PlayersTable.NAME
-                    + "(" + PlayersTable.Field.PODCAST_ID + ", " + PlayersTable.Field.RECORD_ID + ", " + PlayersTable.Field.POSITION + ")"
-                    + " SELECT " + RecordsTable.Field.PODCAST_ID + ", " + RecordsTable.Field.ID + ", 0 FROM " + RecordsTable.NAME + " WHERE played = 1");
+                    + "(" + join(PlayersTable.Field.values()) + ")"
+                    + " SELECT " + RecordsTable.Field.PODCAST_ID + ", " + RecordsTable.Field.ID + ", 0, 0 FROM " + RecordsTable.NAME + " WHERE played = 1");
             db.execSQL("DROP TABLE " + RecordsTable.NAME);
             db.execSQL(RecordsTable.CREATE_SQL);
             db.execSQL("ALTER TABLE " + PodcastsTable.NAME + " RENAME TO old_podcasts");
-            db.execSQL("CREATE TABLE " + PodcastsTable.NAME + " (" + fields(PODCASTS_FIELD_V1_4) + COMMA
+            db.execSQL("CREATE TABLE " + PodcastsTable.NAME + " (" + fields(PODCASTS_FIELDS_V1_4) + COMMA
                     + "PRIMARY KEY (" +  PodcastsTable.Field.ID.key() + "))");
-            String columns = join(PODCASTS_FIELD_V1_4);
+            String columns = join(PODCASTS_FIELDS_V1_4);
             db.execSQL("INSERT INTO " + PodcastsTable.NAME + "(" + columns + ") SELECT " + columns + " FROM old_podcasts");
             db.execSQL("DROP TABLE old_podcasts");
+        } else {
+            if (oldVersion <= 5) {
+                db.execSQL("ALTER TABLE " + PlayersTable.NAME + " ADD COLUMN " + PlayersTable.Field.LENGTH.key() + " INTEGER NOT NULL DEFAULT 0");
+            }
         }
         if (oldVersion <= 4) {
             db.execSQL("ALTER TABLE " + PodcastsTable.NAME + " ADD COLUMN " + PodcastsTable.Field.RATING.key() + " INTEGER NOT NULL DEFAULT 0");
             db.execSQL("DROP INDEX IF EXISTS idx_podcasts__ord");
             db.execSQL(PodcastsTable.CREATE_RATING_ORD_INDEX_SQL);
-        }
-        if (oldVersion <= 5) {
-            db.execSQL("ALTER TABLE " + PlayersTable.NAME + " ADD COLUMN " + PlayersTable.Field.LENGTH.key() + " INTEGER NOT NULL DEFAULT 0");
         }
     }
 }
