@@ -69,7 +69,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     public static final String EXTRA_SEEN = RecordsFragment.class.getPackage().getName() + ".SEEN";
 
     private static final String STATE_CONTENT_VIEW = RecordsFragment.class.getName() + "$contentView";
-    private static final String STATE_PAGE_FAILED = RecordsFragment.class.getName() + "pageFailed";
+    private static final String STATE_PAGE_FAILED = RecordsFragment.class.getName() + "$pageFailed";
 
     private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 501;
 
@@ -178,6 +178,11 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     }
 
     @Override
+    public void onViewStateRestored(Bundle state) {
+        super.onViewStateRestored(state);
+    }
+
+    @Override
     public boolean onContextItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.download:
@@ -249,6 +254,11 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle state) {
         return inflater.inflate(R.layout.podcast, container, false);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
     }
 
     private void initializeView() {
@@ -663,7 +673,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
                     index++;
                 } else {
                     remainingRecords.remove(record);
-                    boolean updated = record.merge(item);
+                    boolean updated = record.update(item);
                     if (updated && !notifyDataSetChanged) {
                         updateRecordRow(record);
                     }
@@ -705,6 +715,12 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
             }
         }
         getRecyclerView().setNestedScrollingEnabled(isEnabled);
+
+//        if (isEnabled && params != null) {
+//            AppBarLayout.Behavior behavior = (AppBarLayout.Behavior) params.getBehavior();
+//            behavior.onNestedPreScroll((CoordinatorLayout) requireActivity().findViewById(android.R.id.button3), getAppBarLayout(), null, 0, 30, new int[]{0, 0}, 0);
+//            getAppBarLayout().requestLayout();
+//        }
     }
 
     @Override
@@ -751,7 +767,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     private void updateRecordRow(Record record) {
         RecyclerView view = getRecyclerView();
         RecyclerView.ViewHolder viewHolder = view.findViewHolderForItemId(record.getId());
-        if (viewHolder != null && viewHolder instanceof RecordsAdapter.ItemViewHolder) {
+        if (viewHolder instanceof RecordsAdapter.ItemViewHolder) {
             ((RecordsAdapter.ItemViewHolder) viewHolder).bind(record);
         }
     }

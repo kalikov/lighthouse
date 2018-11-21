@@ -1,0 +1,14 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/podcasts"
+        android:title="@string/podcasts"
+        android:icon="@drawable/podcasts" />
+    <item
+        android:id="@+id/archive"
+        android:title="@string/archive"
+        android:icon="@drawable/archive" />
+    <item
+        android:id="@+id/history"
+        android:title="@string/history"
+        android:icon="@drawable/history" />
+</menu>

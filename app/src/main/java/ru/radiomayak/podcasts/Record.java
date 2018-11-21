@@ -8,7 +8,7 @@ import java.net.URI;
 
 import ru.radiomayak.StringUtils;
 
-public class Record implements Parcelable {
+public class Record implements Parcelable, Identifiable {
     public static final int POSITION_UNDEFINED = -1;
 
     public static final Creator<Record> CREATOR = new Creator<Record>() {
@@ -84,6 +84,7 @@ public class Record implements Parcelable {
         }
     }
 
+    @Override
     public long getId() {
         return id;
     }
@@ -136,7 +137,7 @@ public class Record implements Parcelable {
         this.length = length;
     }
 
-    public boolean merge(Record record) {
+    public boolean update(Record record) {
         boolean updated = false;
         if (record.getDescription() != null) {
             updated = !StringUtils.equals(description, record.getDescription());

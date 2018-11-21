@@ -44,4 +44,8 @@
     <string name="settings_cache">Кэш</string>
     <string name="setting_cache_images">Кэш изображений</string>
     <string name="setting_clear_images_cache">Очистить кэш изображений</string>
+
+    <string name="archive">Архив</string>
+
+    <string name="history">История</string>
 </resources>

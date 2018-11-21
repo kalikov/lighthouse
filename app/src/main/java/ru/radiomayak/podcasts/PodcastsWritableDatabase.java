@@ -10,6 +10,9 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
             PodcastsTable.Field.ICON_URL, PodcastsTable.Field.ICON_RGB, PodcastsTable.Field.ICON_RGB2,
             PodcastsTable.Field.SPLASH_URL, PodcastsTable.Field.SPLASH_RGB, PodcastsTable.Field.SPLASH_RGB2};
 
+    private static final PlayersTable.Field[] PLAYERS_FIELDS_V1_6 = {PlayersTable.Field.PODCAST_ID, PlayersTable.Field.RECORD_ID,
+            PlayersTable.Field.POSITION, PlayersTable.Field.LENGTH};
+
     public static PodcastsWritableDatabase get(PodcastsOpenHelper helper) {
         return new PodcastsWritableDatabase(helper.getWritableDatabase());
     }
@@ -19,12 +22,19 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
     }
 
     public void storePodcasts(Podcasts podcasts) {
+        storePodcasts(podcasts, PodcastsTable.Field.ORD + " > 0", podcasts.list().size());
+    }
+
+    public void storeArchivePodcasts(Podcasts podcasts) {
+        storePodcasts(podcasts, PodcastsTable.Field.ORD + " < 0", -1);
+    }
+
+    public void storePodcasts(Podcasts podcasts, String resetClause, int index) {
         beginTransaction();
         try {
             ContentValues resetValues = new ContentValues();
             resetValues.put(PodcastsTable.Field.ORD.key(), 0);
-            int updated = db.update(PodcastsTable.NAME, resetValues, null, null);
-            int index = podcasts.list().size();
+            int updated = db.update(PodcastsTable.NAME, resetValues, resetClause, null);
             for (Podcast podcast : podcasts.list()) {
                 storePodcast(podcast, index, updated == 0);
                 index--;
@@ -122,23 +132,38 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
 
     public void storeRecordPosition(long podcast, long record, long position, long length) {
         ContentValues values = new ContentValues();
-        values.put(PlayersTable.Field.PODCAST_ID.toString(), podcast);
-        values.put(PlayersTable.Field.RECORD_ID.toString(), record);
-        values.put(PlayersTable.Field.POSITION.toString(), position);
-        values.put(PlayersTable.Field.LENGTH.toString(), length);
+        values.put(PlayersTable.Field.PODCAST_ID.key(), podcast);
+        values.put(PlayersTable.Field.RECORD_ID.key(), record);
+        values.put(PlayersTable.Field.POSITION.key(), position);
+        values.put(PlayersTable.Field.LENGTH.key(), length);
         db.insertWithOnConflict(PlayersTable.NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
     public void storeRecord(long podcast, Record record) {
-        ContentValues values = new ContentValues();
-        values.put(RecordsTable.Field.PODCAST_ID.toString(), podcast);
-        values.put(RecordsTable.Field.ID.toString(), record.getId());
-        values.put(RecordsTable.Field.NAME.toString(), record.getName());
-        values.put(RecordsTable.Field.URL.toString(), record.getUrl());
-        values.put(RecordsTable.Field.DESC.toString(), record.getDescription());
-        values.put(RecordsTable.Field.DATE.toString(), record.getDate());
-        values.put(RecordsTable.Field.DURATION.toString(), record.getDuration());
-        db.insertWithOnConflict(RecordsTable.NAME, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        ContentValues recordValues = new ContentValues();
+        recordValues.put(RecordsTable.Field.PODCAST_ID.key(), podcast);
+        recordValues.put(RecordsTable.Field.ID.key(), record.getId());
+        recordValues.put(RecordsTable.Field.NAME.key(), record.getName());
+        recordValues.put(RecordsTable.Field.URL.key(), record.getUrl());
+        recordValues.put(RecordsTable.Field.DESC.key(), record.getDescription());
+        recordValues.put(RecordsTable.Field.DATE.key(), record.getDate());
+        recordValues.put(RecordsTable.Field.DURATION.key(), record.getDuration());
+
+        ContentValues playerValues = new ContentValues();
+        playerValues.put(PlayersTable.Field.PODCAST_ID.key(), podcast);
+        playerValues.put(PlayersTable.Field.RECORD_ID.key(), record.getId());
+        playerValues.put(PlayersTable.Field.POSITION.key(), record.getPosition());
+        playerValues.put(PlayersTable.Field.LENGTH.key(), record.getLength());
+        playerValues.put(PlayersTable.Field.PLAYED.key(), System.currentTimeMillis());
+
+        beginTransaction();
+        try {
+            db.insertWithOnConflict(RecordsTable.NAME, null, recordValues, SQLiteDatabase.CONFLICT_REPLACE);
+            db.insertWithOnConflict(PlayersTable.NAME, null, playerValues, SQLiteDatabase.CONFLICT_REPLACE);
+            commit();
+        } finally {
+            endTransaction();
+        }
     }
 
     public void create() {
@@ -161,7 +186,8 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
             db.execSQL(PlayersTable.CREATE_SQL);
             db.execSQL("INSERT INTO " + PlayersTable.NAME
                     + "(" + join(PlayersTable.Field.values()) + ")"
-                    + " SELECT " + RecordsTable.Field.PODCAST_ID + ", " + RecordsTable.Field.ID + ", 0, 0 FROM " + RecordsTable.NAME + " WHERE played = 1");
+                    + " SELECT " + RecordsTable.Field.PODCAST_ID + ", " + RecordsTable.Field.ID + ", 0, 0, 0 FROM " + RecordsTable.NAME + " WHERE played = 1");
+            db.execSQL(PlayersTable.CREATE_PLAYED_ORD_INDEX_SQL);
             db.execSQL("DROP TABLE " + RecordsTable.NAME);
             db.execSQL(RecordsTable.CREATE_SQL);
             db.execSQL("ALTER TABLE " + PodcastsTable.NAME + " RENAME TO old_podcasts");
@@ -173,6 +199,10 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
         } else {
             if (oldVersion <= 5) {
                 db.execSQL("ALTER TABLE " + PlayersTable.NAME + " ADD COLUMN " + PlayersTable.Field.LENGTH.key() + " INTEGER NOT NULL DEFAULT 0");
+            }
+            if (oldVersion <= 6) {
+                db.execSQL("ALTER TABLE " + PlayersTable.NAME + " ADD COLUMN " + PlayersTable.Field.PLAYED.key() + " INTEGER NOT NULL DEFAULT 0");
+                db.execSQL(PlayersTable.CREATE_PLAYED_ORD_INDEX_SQL);
             }
         }
         if (oldVersion <= 4) {

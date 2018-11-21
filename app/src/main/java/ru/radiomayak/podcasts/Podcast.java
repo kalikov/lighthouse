@@ -6,7 +6,7 @@ import android.support.annotation.Nullable;
 
 import ru.radiomayak.StringUtils;
 
-public class Podcast implements Parcelable {
+public class Podcast implements Parcelable, Identifiable {
     private static final byte IMAGE_NONE = 0;
     private static final byte IMAGE_DEFAULT = 1;
 
@@ -30,6 +30,7 @@ public class Podcast implements Parcelable {
     private Image icon;
     private Image splash;
     private int favorite;
+    private boolean archived;
 
     protected Podcast(Parcel in) {
         id = in.readLong();
@@ -39,6 +40,7 @@ public class Podcast implements Parcelable {
         }
         length = in.readInt();
         seen = in.readInt();
+        archived = in.readByte() == 1;
         icon = readImageFromParcel(in);
         splash = readImageFromParcel(in);
     }
@@ -60,6 +62,7 @@ public class Podcast implements Parcelable {
         writeStringToParcel(out, description);
         out.writeInt(length);
         out.writeInt(seen);
+        out.writeByte((byte) (archived ? 1 : 0));
         writeImageToParcel(out, icon, flags);
         writeImageToParcel(out, splash, flags);
     }
@@ -90,6 +93,7 @@ public class Podcast implements Parcelable {
         return null;
     }
 
+    @Override
     public long getId() {
         return id;
     }
@@ -155,6 +159,14 @@ public class Podcast implements Parcelable {
         this.favorite = favorite;
     }
 
+    public boolean isArchived() {
+        return archived;
+    }
+
+    public void setArchived(boolean archived) {
+        this.archived = archived;
+    }
+
     public boolean update(Podcast podcast) {
         boolean updated = false;
         if (podcast.getLength() > length) {
@@ -173,6 +185,10 @@ public class Podcast implements Parcelable {
             updated = true;
             favorite = podcast.getFavorite();
         }
+        if (podcast.isArchived() != archived) {
+            updated = true;
+            archived = podcast.archived;
+        }
         updated = updateIcon(podcast.getIcon()) || updated;
         updated = updateSplash(podcast.getSplash()) || updated;
         return updated;
@@ -183,8 +199,7 @@ public class Podcast implements Parcelable {
             icon = source;
             return true;
         }
-        if (source != null && icon != null && source.hasColor() &&
-                (icon.getPrimaryColor() != source.getPrimaryColor() || icon.getSecondaryColor() != source.getSecondaryColor())) {
+        if (source != null && icon != null && source.hasColor() && (icon.getPrimaryColor() != source.getPrimaryColor() || icon.getSecondaryColor() != source.getSecondaryColor())) {
             icon.setColors(source.getPrimaryColor(), source.getSecondaryColor());
             return true;
         }
@@ -214,6 +229,7 @@ public class Podcast implements Parcelable {
                 ", icon: " + icon +
                 ", splash: " + splash +
                 ", favorite: " + favorite +
+                ", archived: " + archived +
                 '}';
     }
 }

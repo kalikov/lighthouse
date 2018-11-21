@@ -263,6 +263,69 @@ public class PodcastsOpenHelperTest {
             records.add(record);
             database.loadRecordsPositionAndLength(podcastVersion1.getId(), records);
             Assert.assertEquals(100, record.getPosition());
+            Assert.assertEquals(0, record.getLength());
+        }
+    }
+
+    @Test
+    public void shouldUpgradeFromVersion6() {
+        Podcast podcastVersion1 = new Podcast(1, "name");
+        podcastVersion1.setDescription("description");
+        podcastVersion1.setLength(100);
+        podcastVersion1.setIcon(new Image("icon_url", 1, 2));
+        podcastVersion1.setSplash(new Image("splash_url", 3, 4));
+        podcastVersion1.setSeen(50);
+
+        Context context = InstrumentationRegistry.getTargetContext();
+        PodcastsOpenHelperVersion6 helperVersion6 = new PodcastsOpenHelperVersion6(context);
+        try (SQLiteDatabase database = helperVersion6.getWritableDatabase()) {
+            ContentValues podcast1 = new ContentValues();
+            podcast1.put("id", 1);
+            podcast1.put("name", "name");
+            podcast1.put("description", "description");
+            podcast1.put("length", 100);
+            podcast1.put("seen", 50);
+            podcast1.put("icon_url", "icon_url");
+            podcast1.put("icon_rgb", 1);
+            podcast1.put("icon_rgb2", 2);
+            podcast1.put("splash_url", "splash_url");
+            podcast1.put("splash_rgb", 3);
+            podcast1.put("splash_rgb2", 4);
+            podcast1.put("ord", 1);
+            database.insert("podcasts", null, podcast1);
+
+            ContentValues record = new ContentValues();
+            record.put("podcast_id", 1);
+            record.put("id", 1);
+            record.put("name", "name");
+            record.put("url", "url");
+            record.put("description", "description");
+            record.put("date", "date");
+            record.put("duration", "duration");
+            record.put("played", 1);
+            database.insert("records", null, record);
+
+            ContentValues player = new ContentValues();
+            player.put("podcast_id", 1);
+            player.put("record_id", 1);
+            player.put("position", 100);
+            player.put("length", 1000);
+            database.insert("players", null, player);
+        }
+
+        PodcastsOpenHelper helper = new PodcastsOpenHelper(context, TEST_DATABASE_NAME);
+        try (PodcastsReadableDatabase database = PodcastsReadableDatabase.get(helper)) {
+            Podcasts podcasts = database.loadPodcasts();
+            Assert.assertEquals(1, podcasts.list().size());
+            Assert.assertTrue(PodcastsTestUtils.equals(podcasts.get(1), podcastVersion1));
+
+            Record record = new Record(1, "name", "url");
+
+            Records records = new Records();
+            records.add(record);
+            database.loadRecordsPositionAndLength(podcastVersion1.getId(), records);
+            Assert.assertEquals(100, record.getPosition());
+            Assert.assertEquals(1000, record.getLength());
         }
     }
 
@@ -432,6 +495,56 @@ public class PodcastsOpenHelperTest {
                     + "podcast_id INTEGER NOT NULL,"
                     + "record_id INTEGER NOT NULL,"
                     + "position INTEGER NOT NULL,"
+                    + "PRIMARY KEY (podcast_id, record_id)"
+                    + ")");
+
+            db.execSQL(PodcastsReadableDatabase.PodcastsTable.CREATE_RATING_ORD_INDEX_SQL);
+        }
+
+        @Override
+        public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    public class PodcastsOpenHelperVersion6 extends SQLiteOpenHelper {
+        PodcastsOpenHelperVersion6(Context context) {
+            super(context, TEST_DATABASE_NAME, null, 6);
+        }
+
+        @Override
+        public void onCreate(SQLiteDatabase db) {
+            db.execSQL("CREATE TABLE podcasts (" +
+                    "id INTEGER NOT NULL," +
+                    "name TEXT NOT NULL," +
+                    "description TEXT," +
+                    "length INTEGER NOT NULL," +
+                    "seen INTEGER NOT NULL DEFAULT 0," +
+                    "icon_url TEXT," +
+                    "icon_rgb INTEGER NOT NULL DEFAULT 0," +
+                    "icon_rgb2 INTEGER NOT NULL DEFAULT 0," +
+                    "splash_url TEXT," +
+                    "splash_rgb INTEGER NOT NULL DEFAULT 0," +
+                    "splash_rgb2 INTEGER NOT NULL DEFAULT 0," +
+                    "ord INTEGER NOT NULL," +
+                    "rating INTEGER NOT NULL DEFAULT 0," +
+                    "PRIMARY KEY (id))");
+
+            db.execSQL("CREATE TABLE records (" +
+                    "podcast_id INTEGER NOT NULL," +
+                    "id INTEGER NOT NULL," +
+                    "name TEXT NOT NULL," +
+                    "url TEXT NOT NULL," +
+                    "description TEXT," +
+                    "date TEXT," +
+                    "duration TEXT," +
+                    "PRIMARY KEY (podcast_id, id))");
+
+            db.execSQL("CREATE TABLE players ("
+                    + "podcast_id INTEGER NOT NULL,"
+                    + "record_id INTEGER NOT NULL,"
+                    + "position INTEGER NOT NULL,"
+                    + "length INTEGER NOT NULL,"
                     + "PRIMARY KEY (podcast_id, record_id)"
                     + ")");
 

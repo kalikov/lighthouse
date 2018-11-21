@@ -343,11 +343,12 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
             return;
         }
         PodcastsOpenHelper helper = new PodcastsOpenHelper(this);
+        Record record = currentTrack.getRecord();
+        record.setPosition((int) position);
+        record.setLength((int) duration);
         try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
-            database.storeRecordPosition(currentTrack.getPodcast().getId(), currentTrack.getRecord().getId(), position, duration);
+            database.storeRecord(currentTrack.getPodcast().getId(), record);
         }
-        currentTrack.getRecord().setPosition((int) position);
-        currentTrack.getRecord().setLength((int) duration);
         Intent intent = new Intent(LighthouseActivity.ACTION_POSITION);
         intent.putExtra(LighthouseActivity.EXTRA_PODCAST, currentTrack.getPodcast().getId());
         intent.putExtra(LighthouseActivity.EXTRA_RECORD, currentTrack.getRecord().getId());

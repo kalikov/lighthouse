@@ -22,12 +22,13 @@ import java.util.List;
 import java.util.Objects;
 
 import ru.radiomayak.LighthouseActivity;
+import ru.radiomayak.LighthouseFragment;
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.R;
 import ru.radiomayak.graphics.BitmapInfo;
 
 class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
-    private final PodcastsFragment fragment;
+    private final LighthouseFragment fragment;
     private final List<Podcast> podcasts;
     private final RoundedBitmapDrawable micDrawable;
     private final LongSparseArray<Drawable> icons = new LongSparseArray<>();
@@ -53,7 +54,7 @@ class PodcastsAdapter extends RecyclerView.Adapter<PodcastsAdapter.ViewHolder> {
     private View.OnClickListener favoriteClickListener;
     private View.OnClickListener itemClickListener;
 
-    PodcastsAdapter(PodcastsFragment fragment, List<Podcast> podcasts) {
+    PodcastsAdapter(LighthouseFragment fragment, List<Podcast> podcasts) {
         this.fragment = fragment;
         this.podcasts = podcasts;
 

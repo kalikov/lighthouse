@@ -497,6 +497,8 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         }
     }
 
+    public abstract boolean isNavigateBackSupported();
+
     public abstract void openPodcast(Podcast podcast);
 
     private class MediaControllerCallback extends MediaControllerCompat.Callback {

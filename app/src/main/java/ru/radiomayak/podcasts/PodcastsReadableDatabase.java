@@ -5,7 +5,11 @@ import android.database.sqlite.SQLiteDatabase;
 import android.support.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
+import ru.radiomayak.LighthouseTrack;
+import ru.radiomayak.LighthouseTracks;
 import ru.radiomayak.StringUtils;
 
 public class PodcastsReadableDatabase implements AutoCloseable {
@@ -13,15 +17,18 @@ public class PodcastsReadableDatabase implements AutoCloseable {
     private static final ThreadLocal<String[]> DOUBLE_LEN_ARRAY = new ThreadLocal<>();
 
     static final String DATABASE_NAME = "podcasts";
-    static final int VERSION = 6;
+    static final int VERSION = 7;
 
     protected static final String SELECT = "SELECT ";
     protected static final String FROM = " FROM ";
     protected static final String WHERE = " WHERE ";
     protected static final String AND = " AND ";
+    protected static final String JOIN = " JOIN ";
+    protected static final String ON = " ON ";
     protected static final String ORDER_BY = " ORDER BY ";
     protected static final String DESC = " DESC";
     protected static final String COMMA = ",";
+    protected static final String DOT = ".";
 
     interface TableField {
         String key();
@@ -37,7 +44,7 @@ public class PodcastsReadableDatabase implements AutoCloseable {
                 + ")";
 
         static final String CREATE_RATING_ORD_INDEX_SQL = "CREATE INDEX idx_podcasts__rating_ord"
-                + " ON " + NAME + " (" + Field.RATING.key() + DESC + COMMA + Field.ORD.key() + DESC + ")";
+                + ON + NAME + " (" + Field.RATING.key() + DESC + COMMA + Field.ORD.key() + DESC + ")";
 
         static final String SELECT_SQL = SELECT + join(Field.values()) + FROM + NAME;
 
@@ -121,11 +128,15 @@ public class PodcastsReadableDatabase implements AutoCloseable {
 
         static final String SELECT_SQL = SELECT + join(Field.values()) + FROM + NAME;
 
+        static final String CREATE_PLAYED_ORD_INDEX_SQL = "CREATE INDEX idx_players__played_ord"
+                + ON + NAME + " (" + Field.PLAYED.key() + DESC + COMMA + Field.PODCAST_ID.key() + COMMA + Field.RECORD_ID + ")";
+
         enum Field implements TableField {
             PODCAST_ID("podcast_id", "INTEGER NOT NULL"),
             RECORD_ID("record_id", "INTEGER NOT NULL"),
             POSITION("position", "INTEGER NOT NULL"),
-            LENGTH("length", "INTEGER NOT NULL");
+            LENGTH("length", "INTEGER NOT NULL"),
+            PLAYED("played", "INTEGER NOT NULL");
 
             private final String key;
             private final String type;
@@ -179,8 +190,16 @@ public class PodcastsReadableDatabase implements AutoCloseable {
     }
 
     public Podcasts loadPodcasts() {
-        try (Cursor cursor = db.rawQuery(PodcastsTable.SELECT_SQL + WHERE + PodcastsTable.Field.ORD.key() + " > 0" +
-                ORDER_BY + PodcastsTable.Field.RATING.key() + DESC + COMMA + PodcastsTable.Field.ORD.key() + DESC, null)) {
+        return loadPodcasts(PodcastsTable.Field.ORD.key() + " > 0", null);
+    }
+
+    public Podcasts loadArchivePodcasts() {
+        return loadPodcasts(PodcastsTable.Field.ORD.key() + " < 0", null);
+    }
+
+    private Podcasts loadPodcasts(String whereClause, String[] args) {
+        try (Cursor cursor = db.rawQuery(PodcastsTable.SELECT_SQL + WHERE + whereClause +
+                ORDER_BY + PodcastsTable.Field.RATING.key() + DESC + COMMA + PodcastsTable.Field.ORD.key() + DESC, args)) {
             Podcasts podcasts = new Podcasts(cursor.getCount());
             while (cursor.moveToNext()) {
                 long id = cursor.getLong(PodcastsTable.Field.ID.ordinal());
@@ -243,7 +262,7 @@ public class PodcastsReadableDatabase implements AutoCloseable {
         queryBuilder.append(WHERE).append(PlayersTable.Field.PODCAST_ID.key()).append(" = ?");
         args[0] = String.valueOf(podcast);
 
-        queryBuilder.append(AND).append(PlayersTable.Field.RECORD_ID.key()).append(" in (");
+        queryBuilder.append(AND).append(PlayersTable.Field.RECORD_ID.key()).append(" IN (");
         buildArgs(queryBuilder, args, 1, records.list());
         queryBuilder.append(')');
 
@@ -261,14 +280,58 @@ public class PodcastsReadableDatabase implements AutoCloseable {
         }
     }
 
-    private static void buildArgs(StringBuilder builder, String[] args, int offset, Collection<Record> records) {
+    public LighthouseTracks loadHistory() {
+        LighthouseTracks tracks;
+        Map<Long, Podcast> podcastsMap = new LinkedHashMap<>();
+        try (Cursor cursor = db.rawQuery(SELECT + join(RecordsTable.NAME, RecordsTable.Field.values()) + COMMA + PlayersTable.Field.POSITION + COMMA + PlayersTable.Field.LENGTH
+                + FROM + RecordsTable.NAME
+                + JOIN + PlayersTable.NAME + ON + RecordsTable.NAME + DOT + RecordsTable.Field.PODCAST_ID + " = " + PlayersTable.NAME + DOT + PlayersTable.Field.PODCAST_ID +
+                AND + RecordsTable.Field.ID + " = " + PlayersTable.NAME + DOT + PlayersTable.Field.RECORD_ID +
+                ORDER_BY + PlayersTable.Field.PLAYED + DESC + COMMA + PlayersTable.NAME + DOT + PlayersTable.Field.PODCAST_ID +
+                COMMA + PlayersTable.NAME + DOT + PlayersTable.Field.RECORD_ID, null)) {
+            tracks = new LighthouseTracks(cursor.getCount());
+            while (cursor.moveToNext()) {
+                long podcastId = cursor.getLong(RecordsTable.Field.PODCAST_ID.ordinal());
+                long recordId = cursor.getLong(RecordsTable.Field.ID.ordinal());
+                String name = cursor.getString(RecordsTable.Field.NAME.ordinal());
+                String url = cursor.getString(RecordsTable.Field.URL.ordinal());
+                Record record = new Record(recordId, name, url);
+                record.setDescription(cursor.getString(RecordsTable.Field.DESC.ordinal()));
+                record.setDate(cursor.getString(RecordsTable.Field.DATE.ordinal()));
+                record.setDuration(cursor.getString(RecordsTable.Field.DURATION.ordinal()));
+                record.setPosition(cursor.getInt(RecordsTable.Field.values().length));
+                record.setLength(cursor.getInt(RecordsTable.Field.values().length + 1));
+
+                Podcast podcast = podcastsMap.get(podcastId);
+                if (podcast == null) {
+                    podcast = new Podcast(podcastId, String.valueOf(podcastId));
+                    podcastsMap.put(podcastId, podcast);
+                }
+                tracks.add(new LighthouseTrack(podcast, record));
+            }
+        }
+
+        String[] args = new String[podcastsMap.size()];
+
+        StringBuilder whereBuilder = new StringBuilder(PodcastsTable.Field.ID.key());
+        whereBuilder.append(" IN (");
+        buildArgs(whereBuilder, args, 0, podcastsMap.values());
+        whereBuilder.append(")");
+        Podcasts podcasts = loadPodcasts(whereBuilder.toString(), args);
+        for (Podcast podcast : podcasts.list()) {
+            podcastsMap.get(podcast.getId()).update(podcast);
+        }
+        return tracks;
+    }
+
+    private static <T extends Identifiable> void buildArgs(StringBuilder builder, String[] args, int offset, Collection<T> items) {
         int index = 0;
-        for (Record record : records) {
+        for (Identifiable item : items) {
             if (index > 0) {
                 builder.append(COMMA);
             }
             builder.append('?');
-            args[index + offset] = String.valueOf(record.getId());
+            args[index + offset] = String.valueOf(item.getId());
             index++;
         }
     }
@@ -285,10 +348,17 @@ public class PodcastsReadableDatabase implements AutoCloseable {
     }
 
     protected static String join(TableField[] fields) {
+        return join("", fields);
+    }
+
+    protected static String join(String prefix, TableField[] fields) {
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < fields.length; i++) {
             if (i > 0) {
                 builder.append(COMMA);
+            }
+            if (!StringUtils.isEmpty(prefix)) {
+                builder.append(prefix).append('.');
             }
             builder.append(fields[i].key());
         }
