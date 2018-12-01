@@ -23,7 +23,7 @@ public class Podcast implements Parcelable, Identifiable {
     };
 
     private final long id;
-    private final String name;
+    private String name;
     private String description;
     private int length;
     private int seen;
@@ -169,6 +169,10 @@ public class Podcast implements Parcelable, Identifiable {
 
     public boolean update(Podcast podcast) {
         boolean updated = false;
+        if (!StringUtils.equals(podcast.getName(), name)) {
+            updated = true;
+            name = podcast.getName();
+        }
         if (podcast.getLength() > length) {
             updated = true;
             length = podcast.getLength();

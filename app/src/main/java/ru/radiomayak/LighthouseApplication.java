@@ -19,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import ru.radiomayak.content.LoaderManager;
 import ru.radiomayak.graphics.BitmapInfo;
 import ru.radiomayak.media.MediaPlayerService;
+import ru.radiomayak.podcasts.PodcastsUtils;
 
 public class LighthouseApplication extends Application {
     private static final ThreadFactory threadFactory = new ThreadFactory() {
@@ -70,6 +71,8 @@ public class LighthouseApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        PodcastsUtils.initialize(this);
 
         module = createModule();
 

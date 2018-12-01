@@ -14,25 +14,21 @@ import android.widget.TextView;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.Locale;
 
 import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.LighthouseTrack;
-import ru.radiomayak.LighthouseTracks;
 import ru.radiomayak.R;
 
 class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
     static final int ITEM_VIEW_TYPE = 0;
+    static final int HEADER_VIEW_TYPE = 1;
     static final int FOOTER_VIEW_TYPE = 2;
 
     private final HistoryFragment fragment;
-    private final LighthouseTracks tracks;
+    private final HistoryTracks tracks;
     private final AnimatedVectorDrawableCompat equalizerDrawable;
-
-    private final String[] months;
 
     private FooterMode footerMode;
 
@@ -43,13 +39,11 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
         ERROR
     }
 
-    HistoryAdapter(HistoryFragment fragment, LighthouseTracks tracks) {
+    HistoryAdapter(HistoryFragment fragment, HistoryTracks tracks) {
         this.fragment = fragment;
         this.tracks = tracks;
         footerMode = FooterMode.HIDDEN;
         setHasStableIds(true);
-
-        months = this.fragment.getString(R.string.months).split(",");
 
         equalizerDrawable = AnimatedVectorDrawableCompat.create(this.fragment.requireContext(), R.drawable.record_equalizer_animated);
     }
@@ -62,7 +56,7 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
 
     @Override
     public int getItemCount() {
-        return tracks.list().size() + (footerMode != FooterMode.HIDDEN ? 1 : 0);
+        return (tracks.isEmpty() ? 0 : 1) + tracks.list().size() + (footerMode != FooterMode.HIDDEN ? 1 : 0);
     }
 
     public boolean isEmpty() {
@@ -71,7 +65,14 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
 
     @Override
     public int getItemViewType(int position) {
-        return position < tracks.list().size() ? ITEM_VIEW_TYPE : FOOTER_VIEW_TYPE;
+        int index = position;
+        if (!tracks.isEmpty()) {
+            if (position == 0) {
+                return HEADER_VIEW_TYPE;
+            }
+            index--;
+        }
+        return index < tracks.list().size() ? ITEM_VIEW_TYPE : FOOTER_VIEW_TYPE;
     }
 
     FooterMode getFooterMode() {
@@ -99,8 +100,12 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         if (viewType == ITEM_VIEW_TYPE) {
-            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.podcast_record, parent, false);
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.history_record, parent, false);
             return new ItemViewHolder(view);
+        }
+        if (viewType == HEADER_VIEW_TYPE) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.history_header, parent, false);
+            return new HeaderViewHolder(view);
         }
         View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.podcast_footer, parent, false);
         return new FooterViewHolder(view);
@@ -109,23 +114,37 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         if (holder instanceof ItemViewHolder) {
-            ((ItemViewHolder) holder).bind(tracks.list().get(position));
+            ((ItemViewHolder) holder).bind(tracks.list().get(position - 1));
         } else if (holder instanceof FooterViewHolder) {
             ((FooterViewHolder) holder).bind(footerMode);
         }
     }
 
     @Nullable
-    LighthouseTrack getItem(int position) {
-        return position >= 0 && position < tracks.list().size() ? tracks.list().get(position) : null;
+    HistoryTrack getItem(int position) {
+        int index = position;
+        if (!tracks.isEmpty()) {
+            if (position == 0) {
+                return null;
+            }
+            index--;
+        }
+        return index >= 0 && index < tracks.list().size() ? tracks.list().get(index) : null;
     }
 
     @Override
     public long getItemId(int position) {
-        if (position >= 0 && position < tracks.list().size()) {
-            return tracks.list().get(position).getId().asLong();
+        int index = position;
+        if (!tracks.isEmpty()) {
+            if (position == 0) {
+                return 0;
+            }
+            index--;
         }
-        return position == tracks.list().size() && footerMode != FooterMode.HIDDEN ? Long.MAX_VALUE : RecyclerView.NO_ID;
+        if (index >= 0 && index < tracks.list().size()) {
+            return tracks.list().get(index).getId().asLong();
+        }
+        return index == tracks.list().size() && footerMode != FooterMode.HIDDEN ? Long.MAX_VALUE : RecyclerView.NO_ID;
     }
 
     static abstract class ViewHolder extends RecyclerView.ViewHolder {
@@ -139,7 +158,7 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
             super(itemView);
         }
 
-        void bind(final LighthouseTrack track) {
+        void bind(final HistoryTrack track) {
             LighthouseApplication application = fragment.requireLighthouseActivity().getLighthouseApplication();
 
             final Record record = track.getRecord();
@@ -158,30 +177,39 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
             descriptionView.setTypeface(application.getFontNormal());
 
             TextView dateView = getDateView(itemView);
+            StringBuilder builder = new StringBuilder();
             if (record.getDate() != null) {
-                dateView.setVisibility(View.VISIBLE);
                 try {
                     Date date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(record.getDate());
-                    Calendar calendar = new GregorianCalendar();
-                    calendar.setTime(date);
-                    String text = calendar.get(Calendar.DAY_OF_MONTH) + " " + months[calendar.get(Calendar.MONTH)] + " " + calendar.get(Calendar.YEAR);
-                    dateView.setText(text);
+                    builder.append(PodcastsUtils.formatDate(date.getTime()));
                 } catch (ParseException e) {
-                    dateView.setText(record.getDate());
+                    builder.append(record.getDate());
                 }
-            } else {
-                dateView.setVisibility(View.GONE);
+                builder.append(' ').append(application.getResources().getString(R.string.history_podcast_separator)).append(' ');
             }
+            builder.append(track.getPodcast().getName());
+            dateView.setText(builder.toString());
             dateView.setTypeface(application.getFontLight());
 
             TextView durationView = getDurationView(itemView);
-            if (record.getDuration() != null) {
+            if (record.getDuration() != null || record.getLength() > 0) {
+                String duration = record.getLength() > 0 ? PodcastsUtils.formatTime(record.getLength()) : record.getDuration();
                 durationView.setVisibility(View.VISIBLE);
-                durationView.setText(fragment.getResources().getString(R.string.record_duration, record.getDuration()));
+                durationView.setText(fragment.getResources().getString(R.string.record_duration, duration));
             } else {
                 durationView.setVisibility(View.GONE);
             }
             durationView.setTypeface(application.getFontLight());
+
+            TextView playTimeView = getPlayTimeView(itemView);
+            if (track.getPlayTime() > 0) {
+                String playDate = PodcastsUtils.formatDate(track.getPlayTime());
+                playTimeView.setVisibility(View.VISIBLE);
+                playTimeView.setText(playDate);
+            } else {
+                playTimeView.setVisibility(View.GONE);
+            }
+            playTimeView.setTypeface(application.getFontLight());
 
             updatePlayPauseState(track);
 
@@ -219,13 +247,13 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
             }
         }
 
-        void updatePlayPauseState(LighthouseTrack track) {
+        void updatePlayPauseState(HistoryTrack track) {
             if (equalizerDrawable == null) {
                 return;
             }
             LighthouseTrack currentTrack = fragment.requireLighthouseActivity().getTrack();
             ImageView iconView = getIconView(itemView);
-            if (currentTrack == null || currentTrack.getPodcast().getId() != track.getPodcast().getId() || currentTrack.getRecord().getId() != track.getRecord().getId()) {
+            if (currentTrack == null || !currentTrack.getId().equals(track.getId())) {
                 iconView.setImageResource(R.drawable.record_play);
             } else if (fragment.requireLighthouseActivity().isPlaying()) {
                 iconView.setImageDrawable(equalizerDrawable);
@@ -234,7 +262,6 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
                 iconView.setImageResource(R.drawable.record_equalizer);
                 equalizerDrawable.stop();
             }
-            getDoneIconView(itemView).setVisibility(track.getRecord().getPosition() == Record.POSITION_UNDEFINED ? View.INVISIBLE : View.VISIBLE);
         }
 
         private TextView getNameView(View view) {
@@ -253,12 +280,12 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
             return view.findViewById(R.id.duration);
         }
 
-        private ImageView getIconView(View view) {
-            return view.findViewById(android.R.id.icon);
+        private TextView getPlayTimeView(View view) {
+            return view.findViewById(R.id.playtime);
         }
 
-        private ImageView getDoneIconView(View view) {
-            return view.findViewById(android.R.id.icon1);
+        private ImageView getIconView(View view) {
+            return view.findViewById(android.R.id.icon);
         }
 
         private ImageView getMenuView(View view) {
@@ -267,6 +294,12 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
 
         private ProgressBar getProgressBar(View view) {
             return view.findViewById(android.R.id.progress);
+        }
+    }
+
+    class HeaderViewHolder extends ViewHolder {
+        HeaderViewHolder(View itemView) {
+            super(itemView);
         }
     }
 
@@ -284,7 +317,7 @@ class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
             moreView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-//                    fragment.loadMore();
+                    fragment.loadMore();
                 }
             });
 

@@ -24,7 +24,6 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -37,7 +36,6 @@ import java.util.concurrent.Future;
 import ru.radiomayak.LighthouseActivity;
 import ru.radiomayak.LighthouseFragment;
 import ru.radiomayak.LighthouseTrack;
-import ru.radiomayak.LighthouseTracks;
 import ru.radiomayak.R;
 import ru.radiomayak.StringUtils;
 import ru.radiomayak.TrackId;
@@ -49,43 +47,54 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
     public static final String TAG = HistoryFragment.class.getName() + "$";
 
     private static final String STATE_CONTENT_VIEW = HistoryFragment.class.getName() + "$contentView";
-//    private static final String STATE_PAGE_FAILED = HistoryFragment.class.getName() + "$pageFailed";
+    private static final String STATE_PAGE_FAILED = HistoryFragment.class.getName() + "$pageFailed";
 
     private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 501;
 
     @VisibleForTesting
-    final Loader.Listener<LighthouseTracks> tracksListener = new Loader.Listener<LighthouseTracks>() {
+    final Loader.Listener<HistoryPage> tracksListener = new Loader.Listener<HistoryPage>() {
         @Override
-        public void onComplete(Loader<LighthouseTracks> loader, LighthouseTracks data) {
+        public void onComplete(Loader<HistoryPage> loader, HistoryPage data) {
             onTracksLoaded(data);
         }
 
         @Override
-        public void onException(Loader<LighthouseTracks> loader, Throwable exception) {
+        public void onException(Loader<HistoryPage> loader, Throwable exception) {
             onTracksLoaded(null);
         }
     };
 
     @VisibleForTesting
-    LoaderManager<LighthouseTracks> loaderManager;
+    final Loader.Listener<HistoryPage> pageListener = new Loader.Listener<HistoryPage>() {
+        @Override
+        public void onComplete(Loader<HistoryPage> loader, HistoryPage data) {
+            onPageLoaded(data);
+        }
+
+        @Override
+        public void onException(Loader<HistoryPage> loader, Throwable exception) {
+            onPageLoaded(null);
+        }
+    };
 
     @VisibleForTesting
-    Future<LighthouseTracks> tracksFuture;
+    LoaderManager<HistoryPage> loaderManager;
+
+    @VisibleForTesting
+    Future<HistoryPage> tracksFuture;
 
     @VisibleForTesting
     HistoryAdapter adapter;
 
-    private LighthouseTracks tracks;
+    private HistoryTracks tracks;
 
-//    private PageAsyncTask pageAsyncTask;
+    private Future<HistoryPage> pageFuture;
 
-//    private RecordsPaginator paginator;
-//    private boolean pageFailed;
+    private int cursor;
+    private boolean pageFailed;
 
-    private LighthouseTrack contextTrack;
-    private LighthouseTrack permissionRecord;
-
-    private float toolbarTextSize;
+    private HistoryTrack contextTrack;
+    private HistoryTrack permissionRecord;
 
     @Override
     public void onCreate(@Nullable Bundle state) {
@@ -104,10 +113,10 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         if (state != null) {
             boolean isContentView = state.getBoolean(STATE_CONTENT_VIEW, true);
             requestList = !isContentView;
-//            pageFailed = state.getBoolean(STATE_PAGE_FAILED, false);
+            pageFailed = state.getBoolean(STATE_PAGE_FAILED, false);
         }
         if (tracks == null) {
-            tracks = new LighthouseTracks();
+            tracks = new HistoryTracks();
         }
 
         if (adapter == null) {
@@ -150,7 +159,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         }
     }
 
-    private void download(LighthouseTrack track) {
+    private void download(HistoryTrack track) {
         Record record = track.getRecord();
         Uri uri = Uri.parse(record.getUrl());
         String filename = StringUtils.toFilename(record.getName()) + ".mp3";
@@ -170,9 +179,9 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
 
     @Override
     public void onDestroy() {
-//        if (pageAsyncTask != null && !pageAsyncTask.isCancelled()) {
-//            pageAsyncTask.cancel(true);
-//        }
+        if (pageFuture != null && !pageFuture.isCancelled()) {
+            pageFuture.cancel(true);
+        }
         if (tracksFuture != null && !tracksFuture.isCancelled()) {
             tracksFuture.cancel(true);
         }
@@ -188,7 +197,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         initializeToolbar();
 
         initializeLoadingView();
-        initializeErrorView();
+        initializeEmptyView();
         initializeRecyclerView();
 
         initializeRefreshView();
@@ -200,7 +209,6 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
 
         LighthouseActivity activity = requireLighthouseActivity();
         ToolbarCompat.setTitleTypeface(toolbar, activity.getLighthouseApplication().getFontNormal());
-        toolbarTextSize = ToolbarCompat.getTitleTextSize(toolbar);
         activity.setSupportActionBar(toolbar);
 
         if (activity.isNavigateBackSupported()) {
@@ -216,25 +224,14 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         text.setTypeface(requireLighthouseActivity().getLighthouseApplication().getFontNormal());
     }
 
-    private void initializeErrorView() {
-        View errorView = getErrorView();
-        TextView text = errorView.findViewById(android.R.id.text1);
-        text.setText(R.string.records_error);
+    private void initializeEmptyView() {
+        TextView text = getEmptyView();
+        text.setText(R.string.history_empty);
         text.setTypeface(requireLighthouseActivity().getLighthouseApplication().getFontNormal());
-
-        Button retryButton = errorView.findViewById(R.id.retry);
-        retryButton.setTypeface(requireLighthouseActivity().getLighthouseApplication().getFontNormal());
-        retryButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                refreshTracks();
-            }
-        });
     }
 
     private void initializeRecyclerView() {
         final RecyclerView view = getRecyclerView();
-        view.setNestedScrollingEnabled(false);
         view.setLayoutManager(new LinearLayoutManager(getContext()));
         view.setAdapter(adapter);
         view.addOnScrollListener(new RecyclerView.OnScrollListener() {
@@ -244,9 +241,9 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
 
             @Override
             public void onScrolled(@NonNull RecyclerView view, int dx, int dy) {
-//                if (pageAsyncTask == null && adapter.getFooterMode() == HistoryAdapter.FooterMode.LOADING && isFooterVisible(view)) {
-//                    requestNextPage();
-//                }
+                if (pageFuture == null && adapter.getFooterMode() == HistoryAdapter.FooterMode.LOADING && isFooterVisible(view)) {
+                    requestNextPage();
+                }
             }
 
             private boolean isFooterVisible(RecyclerView view) {
@@ -268,19 +265,10 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
             if (tracksFuture != null) {
                 showLoadingView();
             } else {
-                showErrorView();
+                showEmptyView();
             }
         } else {
             showRecyclerView();
-            if (tracksFuture != null) {
-                getToolbar().setTitle(R.string.refreshing);
-                if (toolbarTextSize > 3) {
-                    ToolbarCompat.setTitleTextSize(getToolbar(), toolbarTextSize - 3);
-                }
-            } else {
-                getToolbar().setTitle(R.string.history);
-                ToolbarCompat.setTitleTextSize(getToolbar(), toolbarTextSize);
-            }
         }
     }
 
@@ -310,8 +298,8 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
     }
 
     @VisibleForTesting
-    View getErrorView() {
-        return requireActivity().findViewById(R.id.error);
+    TextView getEmptyView() {
+        return requireActivity().findViewById(R.id.empty);
     }
 
     @VisibleForTesting
@@ -322,10 +310,10 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
     @Override
     public void onSaveInstanceState(@NonNull Bundle state) {
         if (tracks.isEmpty()) {
-            state.putBoolean(STATE_CONTENT_VIEW, getErrorView().getVisibility() == View.VISIBLE);
+            state.putBoolean(STATE_CONTENT_VIEW, getEmptyView().getVisibility() == View.VISIBLE);
         } else {
             state.putBoolean(STATE_CONTENT_VIEW, true);
-//            state.putBoolean(STATE_PAGE_FAILED, pageFailed);
+            state.putBoolean(STATE_PAGE_FAILED, pageFailed);
         }
         super.onSaveInstanceState(state);
     }
@@ -338,25 +326,25 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         tracksFuture = loaderManager.execute(context, new HistoryLoader(), tracksListener);
     }
 
-//    private void requestNextPage() {
-//        if (paginator == null || pageAsyncTask != null) {
-//            return;
-//        }
-//        pageAsyncTask = new PageAsyncTask(requireLighthouseActivity().getLighthouseApplication(), this);
-//        pageAsyncTask.executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, paginator);
-//    }
+    private void requestNextPage() {
+        if (cursor == 0 || pageFuture != null) {
+            return;
+        }
+        Context context = requireContext();
+        pageFuture = loaderManager.execute(context, new HistoryLoader(cursor), pageListener);
+    }
 
     private void showLoadingView() {
         getLoadingView().setVisibility(View.VISIBLE);
-        getErrorView().setVisibility(View.GONE);
+        getEmptyView().setVisibility(View.GONE);
         getRecyclerView().setVisibility(View.GONE);
         getRefreshView().setEnabled(false);
         getRefreshView().setRefreshing(false);
     }
 
-    private void showErrorView() {
+    private void showEmptyView() {
         getLoadingView().setVisibility(View.GONE);
-        getErrorView().setVisibility(View.VISIBLE);
+        getEmptyView().setVisibility(View.VISIBLE);
         getRecyclerView().setVisibility(View.GONE);
         getRefreshView().setEnabled(true);
         getRefreshView().setRefreshing(false);
@@ -364,7 +352,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
 
     private void showRecyclerView() {
         getLoadingView().setVisibility(View.GONE);
-        getErrorView().setVisibility(View.GONE);
+        getEmptyView().setVisibility(View.GONE);
         getRecyclerView().setVisibility(View.VISIBLE);
 
         if (tracksFuture != null) {
@@ -374,26 +362,26 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
                 getRefreshView().setRefreshing(false);
             }
         } else {
-//            if (pageAsyncTask == null) {
-//                getRefreshView().setRefreshing(false);
-//            }
-//            if (paginator != null && paginator.hasNext()) {
-//                if (pageAsyncTask != null || !pageFailed) {
-//                    adapter.setFooterMode(HistoryAdapter.FooterMode.LOADING);
-//                } else {
-//                    adapter.setFooterMode(HistoryAdapter.FooterMode.MORE);
-//                }
-//            } else {
+            if (pageFuture == null) {
+                getRefreshView().setRefreshing(false);
+            }
+            if (cursor > 0) {
+                if (pageFuture != null || !pageFailed) {
+                    adapter.setFooterMode(HistoryAdapter.FooterMode.LOADING);
+                } else {
+                    adapter.setFooterMode(HistoryAdapter.FooterMode.MORE);
+                }
+            } else {
                 if (!tracks.isEmpty()) {
                     adapter.setFooterMode(HistoryAdapter.FooterMode.HIDDEN);
                 } else {
                     adapter.setFooterMode(HistoryAdapter.FooterMode.ERROR);
                 }
-//            }
+            }
         }
     }
 
-    public void onTracksLoaded(LighthouseTracks response) {
+    public void onTracksLoaded(HistoryPage response) {
         tracksFuture = null;
         if (getView() != null) {
             updateFirstPageTracks(response);
@@ -402,82 +390,70 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         }
     }
 
-    private void updateFirstPageTracks(LighthouseTracks response) {
+    private void updateFirstPageTracks(HistoryPage response) {
         boolean notifyDataSetChanged = tracks.isEmpty();
         if (response != null) {
-            Collection<LighthouseTrack> remainingTracks = new HashSet<>(tracks.list());
+            Collection<HistoryTrack> remainingTracks = new HashSet<>(tracks.list());
 
             int index = 0;
-            for (LighthouseTrack item : response.list()) {
-                LighthouseTrack track = tracks.get(item.getId());
+            for (HistoryTrack item : response.getTracks().list()) {
+                HistoryTrack track = tracks.get(item.getId());
                 if (track == null) {
                     tracks.add(index, item);
                     notifyDataSetChanged = true;
-                    index++;
                 } else {
                     remainingTracks.remove(track);
                     boolean updated = track.update(item);
                     if (updated && !notifyDataSetChanged) {
                         updateTrackRow(track);
                     }
-                    index = tracks.list().indexOf(track);
+                    if (index != tracks.list().indexOf(track)) {
+                        tracks.remove(track);
+                        tracks.add(index, track);
+                        notifyDataSetChanged = true;
+                    }
                 }
+                index++;
             }
             if (!remainingTracks.isEmpty()) {
                 notifyDataSetChanged = true;
-                for (LighthouseTrack track : remainingTracks) {
-                    tracks.remove(track);
-                }
+                tracks.removeAll(remainingTracks);
+            }
+            this.cursor = response.getCursor();
+        }
+        if (notifyDataSetChanged) {
+            adapter.notifyDataSetChanged();
+        }
+    }
+
+    public void onPageLoaded(HistoryPage response) {
+        pageFuture = null;
+        pageFailed = response == null;
+        if (getView() != null) {
+            if (response != null) {
+                updatePageRecords(response);
+            }
+            updateView();
+        }
+    }
+
+    private void updatePageRecords(HistoryPage response) {
+        boolean notifyDataSetChanged = tracks.isEmpty();
+
+        for (HistoryTrack item : response.getTracks().list()) {
+            HistoryTrack track = tracks.get(item.getId());
+            if (track == null) {
+                tracks.add(item);
+                notifyDataSetChanged = true;
             }
         }
         if (notifyDataSetChanged) {
             adapter.notifyDataSetChanged();
         }
-//        this.paginator = paginator;
+        this.cursor = response.getCursor();
     }
 
-//    @Override
-//    public void onPageLoaded(RecordsPaginator response, boolean isCancelled) {
-//        pageAsyncTask = null;
-//        pageFailed = response == null;
-//        if (getView() != null) {
-//            if (!isCancelled) {
-//                if (response == null) {
-//                    Toast.makeText(getContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
-//                } else {
-//                    updatePageRecords(response);
-//                }
-//            }
-//            updateView();
-//        }
-//    }
-
-//    private void updatePageRecords(RecordsPaginator paginator) {
-//        boolean notifyDataSetChanged = tracks.isEmpty();
-//
-//        for (Record item : paginator.current()) {
-//            Record record = tracks.get(item.getId());
-//            if (record == null) {
-//                tracks.add(item);
-//                notifyDataSetChanged = true;
-//            } else {
-//                boolean update = false;
-//                if (item.getDescription() != null) {
-//                    update = !StringUtils.equals(item.getDescription(), record.getDescription());
-//                    record.setDescription(item.getDescription());
-//                }
-//                if (update && !notifyDataSetChanged) {
-//                    updateTrackRow(record);
-//                }
-//            }
-//        }
-//        if (notifyDataSetChanged) {
-//            adapter.notifyDataSetChanged();
-//        }
-//        this.paginator = paginator;
-//    }
-
-    private void updateTrackRow(LighthouseTrack track) {
+    private void updateTrackRow(HistoryTrack track) {
         RecyclerView view = getRecyclerView();
         RecyclerView.ViewHolder viewHolder = view.findViewHolderForItemId(track.getId().asLong());
         if (viewHolder instanceof HistoryAdapter.ItemViewHolder) {
@@ -485,7 +461,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         }
     }
 
-    void playRecord(LighthouseTrack track) {
+    void playRecord(HistoryTrack track) {
         LighthouseActivity activity = requireLighthouseActivity();
         LighthouseTrack currentTrack = activity.getTrack();
         if (currentTrack != null && currentTrack.getId().equals(track.getId())) {
@@ -498,16 +474,16 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         }
 
         try {
-            activity.setTrack(track);
+            activity.setTrack(new LighthouseTrack(track.getPodcast(), track.getRecord()));
         } catch (Exception e) {
             Toast.makeText(activity, R.string.player_failed, Toast.LENGTH_SHORT).show();
         }
     }
 
-//    void loadMore() {
-//        requestNextPage();
-//        updateView();
-//    }
+    void loadMore() {
+        requestNextPage();
+        updateView();
+    }
 
     void refreshTracks() {
         requestList();
@@ -520,7 +496,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
             View view = recyclerView.getChildAt(i);
             RecyclerView.ViewHolder holder = recyclerView.getChildViewHolder(view);
             if (holder != null && holder.getItemViewType() == HistoryAdapter.ITEM_VIEW_TYPE) {
-                LighthouseTrack track = adapter.getItem(holder.getAdapterPosition());
+                HistoryTrack track = adapter.getItem(holder.getAdapterPosition());
                 if (track != null) {
                     ((HistoryAdapter.ItemViewHolder) holder).updatePlayPauseState(track);
                 }
@@ -542,7 +518,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         menu.setHeaderTitle(contextTrack.getRecord().getName());
     }
 
-    public void onCreatePopupMenu(LighthouseTrack track, View view) {
+    public void onCreatePopupMenu(HistoryTrack track, View view) {
         contextTrack = track;
         PopupMenu popup = new PopupMenu(getContext(), view);
         MenuInflater inflater = popup.getMenuInflater();
@@ -569,7 +545,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
     }
 
     void updateTrackPlaybackAttributes(int state, long podcast, long record, long position, long duration) {
-        LighthouseTrack track = tracks.get(new TrackId(podcast, record));
+        HistoryTrack track = tracks.get(new TrackId(podcast, record));
         if (track != null) {
             Record trackRecord = track.getRecord();
             trackRecord.setPosition((int) position);

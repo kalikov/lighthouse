@@ -6,9 +6,9 @@ import ru.radiomayak.podcasts.Podcast;
 import ru.radiomayak.podcasts.Record;
 
 public class LighthouseTrack {
-    private final TrackId id;
     private final Podcast podcast;
     private final Record record;
+    private final TrackId id;
 
     public LighthouseTrack(@NonNull Podcast podcast, @NonNull Record record) {
         this.podcast = podcast;
@@ -26,10 +26,5 @@ public class LighthouseTrack {
 
     public Record getRecord() {
         return record;
-    }
-
-    public boolean update(LighthouseTrack track) {
-        boolean updated = podcast.update(track.podcast);
-        return record.update(track.record) || updated;
     }
 }

@@ -11,6 +11,8 @@
 
     <color name="colorForegroundAccent">#F7F7F7</color>
 
+    <color name="colorForegroundBorder">#D7D3D3</color>
+
     <color name="titleTextColor">#FFFFFF</color>
     <color name="titleTextColorInverse">#000000</color>
 

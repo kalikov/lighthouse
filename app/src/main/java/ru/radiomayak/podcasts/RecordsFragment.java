@@ -246,7 +246,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     }
 
     @Nullable
-    private Podcast getPodcast() {
+    public Podcast getPodcast() {
         Bundle arguments = getArguments();
         return arguments != null ? (Podcast) arguments.getParcelable(EXTRA_PODCAST) : null;
     }
@@ -648,6 +648,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     private void updatePodcast(Podcast podcast) {
         boolean hasNoLength = this.podcast.getLength() <= 0;
         podcast.setFavorite(this.podcast.getFavorite());
+        podcast.setArchived(this.podcast.isArchived());
         boolean updated = this.podcast.update(podcast);
         if (updated) {
             if (hasNoLength) {

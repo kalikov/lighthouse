@@ -6,10 +6,10 @@
     android:layout_width="match_parent"
     android:layout_height="?attr/actionBarSize"
     android:background="@color/colorPrimary"
+    android:theme="@style/AppTheme.ActionBar"
     app:contentInsetStart="@dimen/toolbar_content_inset"
     app:contentInsetStartWithNavigation="0dp"
     app:layout_collapseMode="pin"
-    app:theme="@style/AppTheme.ActionBar"
     app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
     app:title="@string/lorem_ipsum"
     app:titleTextAppearance="@style/AppTheme.ToolBar.Title">

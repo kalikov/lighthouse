@@ -1,4 +1,4 @@
-package ru.radiomayak;
+package ru.radiomayak.podcasts;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -7,15 +7,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class LighthouseTracks {
-    private final List<LighthouseTrack> tracks;
-    private final List<LighthouseTrack> unmodifiableTracks;
+import ru.radiomayak.TrackId;
 
-    private final Map<TrackId, LighthouseTrack> tracksMap;
+public class HistoryTracks {
+    private final List<HistoryTrack> tracks;
+    private final List<HistoryTrack> unmodifiableTracks;
 
-    public LighthouseTracks(Collection<LighthouseTrack> collection) {
+    private final Map<TrackId, HistoryTrack> tracksMap;
+
+    public HistoryTracks(Collection<HistoryTrack> collection) {
         this(collection.size());
-        for (LighthouseTrack track : collection) {
+        for (HistoryTrack track : collection) {
             if (tracksMap.get(track.getId()) == null) {
                 tracks.add(track);
                 tracksMap.put(track.getId(), track);
@@ -23,13 +25,13 @@ public class LighthouseTracks {
         }
     }
 
-    public LighthouseTracks() {
+    public HistoryTracks() {
         tracks = new ArrayList<>();
         unmodifiableTracks = Collections.unmodifiableList(tracks);
         tracksMap = new HashMap<>();
     }
 
-    public LighthouseTracks(int capacity) {
+    public HistoryTracks(int capacity) {
         tracks = new ArrayList<>(capacity);
         unmodifiableTracks = Collections.unmodifiableList(tracks);
         tracksMap = new HashMap<>(capacity);
@@ -39,11 +41,11 @@ public class LighthouseTracks {
         return tracks.isEmpty();
     }
 
-    public List<LighthouseTrack> list() {
+    public List<HistoryTrack> list() {
         return unmodifiableTracks;
     }
 
-    public void add(LighthouseTrack track) {
+    public void add(HistoryTrack track) {
         if (tracksMap.containsKey(track.getId())) {
             throw new IllegalArgumentException();
         }
@@ -51,7 +53,7 @@ public class LighthouseTracks {
         tracksMap.put(track.getId(), track);
     }
 
-    public void add(int index, LighthouseTrack track) {
+    public void add(int index, HistoryTrack track) {
         if (tracksMap.containsKey(track.getId())) {
             throw new IllegalArgumentException();
         }
@@ -59,12 +61,19 @@ public class LighthouseTracks {
         tracksMap.put(track.getId(), track);
     }
 
-    public void remove(LighthouseTrack track) {
+    public void remove(HistoryTrack track) {
         tracks.remove(track);
         tracksMap.remove(track.getId());
     }
 
-    public LighthouseTrack get(TrackId id) {
+    public void removeAll(Collection<HistoryTrack> collection) {
+        tracks.removeAll(collection);
+        for (HistoryTrack item : collection) {
+            tracksMap.remove(item.getId());
+        }
+    }
+
+    public HistoryTrack get(TrackId id) {
         return tracksMap.get(id);
     }
 }

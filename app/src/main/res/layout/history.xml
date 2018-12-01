@@ -23,8 +23,8 @@
                 layout="@layout/loading" />
 
             <include
-                android:id="@+id/error"
-                layout="@layout/error" />
+                android:id="@+id/empty"
+                layout="@layout/history_empty" />
 
             <android.support.v7.widget.RecyclerView
                 android:id="@android:id/list"

@@ -2,9 +2,11 @@ package ru.radiomayak.media;
 
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
@@ -63,6 +65,8 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
             }
         }
     };
+
+    private AudioFocusRequest audioFocusRequest;
 
     private ExoPlayer mediaPlayer;
 
@@ -158,7 +162,12 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
         });
         AudioManager audioManager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
         Objects.requireNonNull(audioManager, "Failed to obtain AudioManager");
-        audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN).setOnAudioFocusChangeListener(this).build();
+            audioManager.requestAudioFocus(audioFocusRequest);
+        } else {
+            audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
+        }
 
         WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         Objects.requireNonNull(wifiManager, "Failed to obtain WifiManager");
@@ -228,6 +237,16 @@ public class MediaPlayerService extends MediaBrowserServiceCompat implements Aud
             mediaPlayer.release();
             mediaPlayer = null;
         }
+
+        AudioManager audioManager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+        if (audioManager != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                audioManager.abandonAudioFocusRequest(audioFocusRequest);
+            } else {
+                audioManager.abandonAudioFocus(this);
+            }
+        }
+
         releaseWifiLockIfHeld();
         notificationManager.stopNotification();
         super.onDestroy();

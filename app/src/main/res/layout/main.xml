@@ -41,6 +41,7 @@
 
     <android.support.design.widget.BottomNavigationView
         android:id="@+id/bottom_bar"
+        style="@style/AppTheme.BottomNavigationView"
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:layout_alignParentBottom="true"

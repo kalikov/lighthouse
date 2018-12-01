@@ -55,7 +55,11 @@ class ArchiveLoader extends AbstractHttpLoader<Podcasts> {
                 return null;
             }
             try (InputStream input = HttpUtils.getContent(response.getEntity())) {
-                return parser.parse(IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
+                Podcasts podcasts = parser.parse(IOUtils.buffer(input), HttpUtils.getCharset(response), url.toString());
+                for (Podcast podcast : podcasts.list()) {
+                    podcast.setArchived(true);
+                }
+                return podcasts;
             }
         }
     }

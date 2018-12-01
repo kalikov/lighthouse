@@ -48,4 +48,6 @@
     <string name="archive">Архив</string>
 
     <string name="history">История</string>
+    <string name="history_empty">Здесь пока ничего нет</string>
+    <string name="history_podcast_separator">&#xB7;</string>
 </resources>

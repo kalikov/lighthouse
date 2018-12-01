@@ -44,6 +44,12 @@
         <item name="colorControlNormal">#FFFFFF</item>
     </style>
 
+    <style name="AppTheme.BottomNavigationView" parent="Widget.Design.BottomNavigationView">
+        <item name="itemBackground">@drawable/bottombar_backround</item>
+        <item name="itemIconTint">@color/bottombar_item_color</item>
+        <item name="itemTextColor">@color/bottombar_item_color</item>
+    </style>
+
     <style name="PopupOverlay" parent="ThemeOverlay.AppCompat.Light"/>
 
 </resources>

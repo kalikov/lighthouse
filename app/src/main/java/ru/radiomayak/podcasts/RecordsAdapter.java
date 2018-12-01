@@ -34,8 +34,6 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
     private final List<Record> records;
     private final AnimatedVectorDrawableCompat equalizerDrawable;
 
-    private final String[] months;
-
     private FooterMode footerMode;
 
     enum FooterMode {
@@ -51,8 +49,6 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         this.records = records;
         footerMode = FooterMode.HIDDEN;
         setHasStableIds(true);
-
-        months = this.fragment.getString(R.string.months).split(",");
 
         equalizerDrawable = AnimatedVectorDrawableCompat.create(this.fragment.requireContext(), R.drawable.record_equalizer_animated);
     }
@@ -191,10 +187,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                 dateView.setVisibility(View.VISIBLE);
                 try {
                     Date date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(record.getDate());
-                    Calendar calendar = new GregorianCalendar();
-                    calendar.setTime(date);
-                    String text = calendar.get(Calendar.DAY_OF_MONTH) + " " + months[calendar.get(Calendar.MONTH)] + " " + calendar.get(Calendar.YEAR);
-                    dateView.setText(text);
+                    dateView.setText(PodcastsUtils.formatDate(date.getTime()));
                 } catch (ParseException e) {
                     dateView.setText(record.getDate());
                 }
@@ -204,9 +197,11 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             dateView.setTypeface(application.getFontLight());
 
             TextView durationView = getDurationView(itemView);
-            if (record.getDuration() != null) {
+            if (record.getDuration() != null || record.getLength() > 0) {
+                String duration = record.getLength() > 0 ? PodcastsUtils.formatTime(record.getLength()) : record.getDuration();
                 durationView.setVisibility(View.VISIBLE);
-                durationView.setText(fragment.getResources().getString(R.string.record_duration, record.getDuration()));
+                durationView.setText(fragment.getResources().getString(R.string.record_duration, duration));
+                durationView.setTag(record.getLength() > 0);
             } else {
                 durationView.setVisibility(View.GONE);
             }
@@ -264,6 +259,14 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
                 equalizerDrawable.stop();
             }
             getDoneIconView(itemView).setVisibility(record.getPosition() == Record.POSITION_UNDEFINED ? View.INVISIBLE : View.VISIBLE);
+
+            TextView durationView = getDurationView(itemView);
+            if (durationView.getTag() != Boolean.TRUE && record.getLength() > 0) {
+                String duration = PodcastsUtils.formatTime(record.getLength());
+                durationView.setVisibility(View.VISIBLE);
+                durationView.setText(fragment.getResources().getString(R.string.record_duration, duration));
+                durationView.setTag(Boolean.TRUE);
+            }
         }
 
         private TextView getNameView(View view) {

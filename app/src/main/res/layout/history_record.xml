@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/row_background_selector">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="@dimen/podcast_padding"
+            android:paddingEnd="0dp">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="@dimen/podcast_padding">
+
+                <TextView
+                    android:id="@+id/name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_centerInParent="true"
+                    android:layout_toEndOf="@android:id/icon"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:paddingStart="@dimen/record_title_padding"
+                    android:paddingTop="@dimen/podcast_title_padding"
+                    android:paddingEnd="34dp"
+                    android:paddingBottom="@dimen/podcast_title_padding"
+                    android:text="@string/lorem_ipsum_large"
+                    android:textAppearance="@style/AppTheme.Title" />
+
+                <ImageView
+                    android:id="@android:id/icon"
+                    android:layout_width="@dimen/record_icon_size"
+                    android:layout_height="@dimen/record_icon_size"
+                    android:layout_centerVertical="true"
+                    android:src="@drawable/record_play"
+                    android:tint="#000"
+                    tools:ignore="ContentDescription" />
+
+            </RelativeLayout>
+
+            <TextView
+                android:id="@+id/date"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/record_icon_size"
+                android:ellipsize="end"
+                android:lines="1"
+                android:paddingStart="@dimen/record_title_padding"
+                android:paddingEnd="@dimen/record_icon_size"
+                android:text="@string/lorem_ipsum_large"
+                android:textAppearance="@style/AppTheme.Text.Small" />
+
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/menu"
+            android:layout_width="38dp"
+            android:layout_height="42dp"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:paddingStart="@dimen/podcast_title_padding"
+            android:paddingEnd="@dimen/podcast_padding"
+            android:scaleType="center"
+            android:src="@drawable/menu"
+            android:tint="@color/colorAccent"
+            tools:ignore="ContentDescription" />
+
+    </RelativeLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/row_background_selector"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/podcast_padding"
+        android:paddingEnd="@dimen/podcast_padding"
+        android:paddingBottom="@dimen/podcast_padding">
+
+        <TextView
+            android:id="@+id/description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:lineSpacingMultiplier="1.2"
+            android:paddingTop="@dimen/podcast_padding"
+            android:text="@string/lorem_ipsum_large"
+            android:textAppearance="@style/AppTheme.Text.Small"
+            android:textColor="@color/textColor" />
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/podcast_padding">
+
+            <TextView
+                android:id="@+id/playtime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_centerInParent="true"
+                android:lines="1"
+                android:drawableStart="@drawable/record_played"
+                android:text="@string/lorem_ipsum"
+                android:textAlignment="textEnd"
+                android:textColor="@color/colorPrimary"
+                android:textAppearance="@style/AppTheme.Text.Small" />
+
+            <TextView
+                android:id="@+id/duration"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toEndOf="@id/playtime"
+                android:layout_alignParentEnd="true"
+                android:layout_centerInParent="true"
+                android:lines="1"
+                android:text="@string/lorem_ipsum"
+                android:textAlignment="textEnd"
+                android:textAppearance="@style/AppTheme.Text.Small" />
+
+        </RelativeLayout>
+
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@android:id/progress"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:max="1000"
+        android:padding="0dp"
+        android:progress="0"
+        android:progressDrawable="@drawable/record_progressbar"
+        android:secondaryProgress="0" />
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorBackground"
+        android:src="@drawable/record_divider"
+        tools:ignore="contentDescription" />
+
+</LinearLayout>

@@ -57,13 +57,14 @@ public class MainActivity extends LighthouseActivity {
             transaction.add(android.R.id.tabcontent, podcastsFragment, PodcastsFragment.TAG);
             transaction.commit();
         }
+        getBottomBar().getMenu().findItem(R.id.podcasts).setChecked(true);
 
         Podcast podcast = getIntent().getParcelableExtra(MainActivity.EXTRA_PODCAST);
         if (podcast != null) {
+            fragmentManager.executePendingTransactions();
             openPodcast(podcast);
         }
 
-        getBottomBar().getMenu().findItem(R.id.podcasts).setChecked(true);
         getBottomBar().setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
@@ -134,14 +135,14 @@ public class MainActivity extends LighthouseActivity {
             public RecordsFragment create() {
                 return createRecordsFragment(podcast);
             }
-        });
+        }, podcast.isArchived() ? R.id.archive : R.id.podcasts);
     }
 
     private void openPodcasts() {
         showPodcasts();
         fragmentStack.remove(PodcastsFragment.TAG);
         fragmentStack.add(PodcastsFragment.TAG);
-        updateBottomBar();
+        getBottomBar().getMenu().findItem(R.id.podcasts).setChecked(true);
     }
 
     private void showPodcasts() {
@@ -150,11 +151,11 @@ public class MainActivity extends LighthouseActivity {
     }
 
     private void openArchive() {
-        openFragment(ArchiveFragment.TAG, archiveFactory);
+        openFragment(ArchiveFragment.TAG, archiveFactory, R.id.archive);
     }
 
     private void openHistory() {
-        openFragment(HistoryFragment.TAG, historyFactory);
+        openFragment(HistoryFragment.TAG, historyFactory, R.id.history);
     }
 
     private RecordsFragment createRecordsFragment(Podcast podcast) {
@@ -167,7 +168,7 @@ public class MainActivity extends LighthouseActivity {
     }
 
     @SuppressWarnings("StringEquality")
-    private void openFragment(String tag, FragmentFactory<?> fragmentFactory) {
+    private void openFragment(String tag, FragmentFactory<?> fragmentFactory, int navigationItem) {
         FragmentManager fragmentManager = getSupportFragmentManager();
         Fragment fragment = fragmentManager.findFragmentByTag(tag);
         if (fragment == null) {
@@ -200,7 +201,7 @@ public class MainActivity extends LighthouseActivity {
                 }
             }
         }
-        updateBottomBar();
+        getBottomBar().getMenu().findItem(navigationItem).setChecked(true);
     }
 
     private static void attach(FragmentManager fragmentManager, Fragment fragment) {
@@ -328,18 +329,23 @@ public class MainActivity extends LighthouseActivity {
     private void updateBottomBar() {
         String tag = null;
         Iterator<String> iterator = fragmentStack.descendingIterator();
-        while (iterator.hasNext()) {
+        if (iterator.hasNext()) {
             tag = iterator.next();
-            if (tag == PodcastsFragment.TAG || tag == HistoryFragment.TAG || tag == ArchiveFragment.TAG) {
-                break;
-            }
         }
         if (tag == ArchiveFragment.TAG) {
             getBottomBar().getMenu().findItem(R.id.archive).setChecked(true);
         } else if (tag == HistoryFragment.TAG) {
             getBottomBar().getMenu().findItem(R.id.history).setChecked(true);
-        } else {
+        } else if (tag == null || tag == PodcastsFragment.TAG) {
             getBottomBar().getMenu().findItem(R.id.podcasts).setChecked(true);
+        } else {
+            int item = R.id.podcasts;
+            RecordsFragment fragment = (RecordsFragment) getSupportFragmentManager().findFragmentByTag(tag);
+            if (fragment != null) {
+                Podcast podcast = fragment.getPodcast();
+                item = podcast != null && podcast.isArchived() ? R.id.archive : R.id.podcasts;
+            }
+            getBottomBar().getMenu().findItem(item).setChecked(true);
         }
     }
 

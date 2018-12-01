@@ -93,6 +93,7 @@
         android:paddingEnd="@dimen/player_seekbar_padding"
         android:paddingBottom="@dimen/podcast_padding"
         android:progressDrawable="@drawable/seekbar"
+        android:splitTrack="false"
         android:thumb="@drawable/seekbar_thumb_selector" />
 
 </LinearLayout>
