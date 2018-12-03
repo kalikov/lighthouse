@@ -14,7 +14,6 @@ import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
-import android.support.v4.app.TaskStackBuilder;
 import android.util.Log;
 import android.view.View;
 import android.widget.RemoteViews;
@@ -36,6 +35,9 @@ public class MediaNotificationManager extends BroadcastReceiver {
     private static final int NOTIFICATION_ID = 412;
     private static final int REQUEST_CODE = 100;
 
+    private static final String CHANNEL_ID = "radiomayak_playback";
+    private static final String CHANNEL_NAME = "Radio Mayak Playback";
+
     public static final String ACTION_PAUSE = MediaNotificationManager.class.getPackage().getName() + ".pause";
     public static final String ACTION_PLAY = MediaNotificationManager.class.getPackage().getName() + ".play";
     public static final String ACTION_STOP = MediaNotificationManager.class.getPackage().getName() + ".stop";
@@ -56,10 +58,19 @@ public class MediaNotificationManager extends BroadcastReceiver {
 
         notificationManager = NotificationManagerCompat.from(service);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            channelId = createNotificationChannel(service, "my_service", "My Background Service");
-        } else {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             channelId = "default";
+        } else {
+            channelId = CHANNEL_ID;
+            NotificationManager notificationManager = Objects.requireNonNull((NotificationManager) service.getSystemService(Context.NOTIFICATION_SERVICE));
+            NotificationChannel channel = notificationManager.getNotificationChannel("my_service");
+            if (channel != null) {
+                notificationManager.deleteNotificationChannel("my_service");
+            }
+            channel = notificationManager.getNotificationChannel(CHANNEL_ID);
+            if (channel == null) {
+                createNotificationChannel(notificationManager);
+            }
         }
 
         String pkg = service.getPackageName();
@@ -70,15 +81,14 @@ public class MediaNotificationManager extends BroadcastReceiver {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    private String createNotificationChannel(Context context, String channelId, String channelName) {
-        NotificationChannel chan = new NotificationChannel(channelId, channelName, NotificationManagerCompat.IMPORTANCE_NONE);
-        chan.setLightColor(Color.BLUE);
-        chan.setLockscreenVisibility( Notification.VISIBILITY_PRIVATE);
-        NotificationManager service = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        Objects.requireNonNull(service);
-        service.createNotificationChannel(chan);
-
-        return channelId;
+    private void createNotificationChannel(NotificationManager notificationManager) {
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_LOW);
+        channel.setLightColor(Color.BLUE);
+        channel.enableLights(false);
+        channel.enableVibration(false);
+        channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+        channel.setSound(null, null);
+        notificationManager.createNotificationChannel(channel);
     }
 
     public boolean startNotification() {

@@ -40,6 +40,8 @@ public class LighthouseApplication extends Application {
 
     public static final Executor NETWORK_SERIAL_EXECUTOR = Executors.newSingleThreadExecutor();
 
+    public static final Executor DATABASE_SERIAL_EXECUTOR = Executors.newSingleThreadExecutor();
+
     private final MediaBrowserCompat.ConnectionCallback connectionCallbacks = new MediaBrowserCompat.ConnectionCallback() {
         @Override
         public void onConnected() {

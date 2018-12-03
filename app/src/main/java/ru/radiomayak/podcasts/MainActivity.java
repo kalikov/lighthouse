@@ -10,9 +10,11 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.view.MenuItem;
 
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 import ru.radiomayak.LighthouseActivity;
 import ru.radiomayak.LighthouseFragment;
@@ -20,6 +22,8 @@ import ru.radiomayak.R;
 
 public class MainActivity extends LighthouseActivity {
     private static final int MAX_OPEN_PODCASTS = 10;
+
+    private static final String STATE_FRAGMENT_STACK = MainActivity.class.getName() + "fragmentStack";
 
     @VisibleForTesting
     PodcastsFragment podcastsFragment;
@@ -47,6 +51,13 @@ public class MainActivity extends LighthouseActivity {
         super.onCreate(state);
 
         setContentView(R.layout.main);
+
+        if (state != null) {
+            List<String> strings = state.getStringArrayList(STATE_FRAGMENT_STACK);
+            if (strings != null) {
+                fragmentStack.addAll(strings);
+            }
+        }
 
         FragmentManager fragmentManager = getSupportFragmentManager();
         podcastsFragment = (PodcastsFragment) fragmentManager.findFragmentByTag(PodcastsFragment.TAG);
@@ -124,6 +135,7 @@ public class MainActivity extends LighthouseActivity {
 
     @Override
     public void onSaveInstanceState(Bundle state) {
+        state.putStringArrayList(STATE_FRAGMENT_STACK, new ArrayList<>(fragmentStack));
         super.onSaveInstanceState(state);
     }
 
@@ -136,6 +148,29 @@ public class MainActivity extends LighthouseActivity {
                 return createRecordsFragment(podcast);
             }
         }, podcast.isArchived() ? R.id.archive : R.id.podcasts);
+    }
+
+    @Override
+    public void onPodcastSeen(long podcast, int seen) {
+        onPodcastSeen(podcastsFragment, podcast, seen);
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        ArchiveFragment archiveFragment = (ArchiveFragment) fragmentManager.findFragmentByTag(ArchiveFragment.TAG);
+        if (archiveFragment != null) {
+            onPodcastSeen(archiveFragment, podcast, seen);
+        }
+    }
+
+    @Override
+    public void onHistoryTrackRemoved(long podcast, long record) {
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        RecordsFragment podcastFragment = (RecordsFragment) fragmentManager.findFragmentByTag(RecordsFragment.TAG + podcast);
+        if (podcastFragment != null) {
+            podcastFragment.updateRecordPosition(record, -1);
+        }
+    }
+
+    private void onPodcastSeen(AbstractPodcastsFragment fragment, long podcast, int seen) {
+        fragment.onPodcastSeen(podcast, seen);
     }
 
     private void openPodcasts() {

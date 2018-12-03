@@ -1,9 +1,6 @@
 package ru.radiomayak.podcasts;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -67,21 +64,6 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
 
     private final LongSparseArray<Future<BitmapInfo>> futures = new LongSparseArray<>(DEFAULT_IMAGES_CAPACITY);
 
-    private final BroadcastReceiver viewReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            long id = intent.getLongExtra(RecordsFragment.EXTRA_PODCAST_ID, 0);
-            Podcast podcast = podcasts.get(id);
-            if (podcast != null) {
-                int seen = intent.getIntExtra(RecordsFragment.EXTRA_SEEN, 0);
-                if (seen > 0) {
-                    podcast.setSeen(seen);
-                    updatePodcastRow(podcast);
-                }
-            }
-        }
-    };
-
     @VisibleForTesting
     final Loader.Listener<Podcasts> podcastsLoopbackListener = new Loader.Listener<Podcasts>() {
         @Override
@@ -135,6 +117,7 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
 
         @Override
         public void onException(Loader<BitmapInfo> loader, Throwable exception) {
+            // do nothing
         }
 
         private long getPodcastId(Loader<BitmapInfo> loader) {
@@ -148,15 +131,16 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
     }
 
     @Override
+    public void onAttach(Context context) {
+        super.onAttach(context);
+    }
+
+    @Override
     public void onCreate(Bundle state) {
         super.onCreate(state);
         setRetainInstance(true);
 
         LighthouseActivity activity = requireLighthouseActivity();
-
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(RecordsFragment.ACTION_VIEW);
-        activity.registerReceiver(viewReceiver, filter);
 
         podcastsLoaderManager = activity.getLighthouseApplication().getModule().createLoaderManager();
     }
@@ -192,8 +176,8 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
 
     @Override
     public void onSaveInstanceState(@NonNull Bundle state) {
-        if (podcasts.list().isEmpty()) {
-            state.putBoolean(STATE_CONTENT_VIEW, getErrorView().getVisibility() == View.VISIBLE);
+        if (podcasts == null || podcasts.list().isEmpty()) {
+            state.putBoolean(STATE_CONTENT_VIEW, podcasts != null && podcastsFuture == null);
         } else {
             state.putBoolean(STATE_CONTENT_VIEW, true);
         }
@@ -219,10 +203,12 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
 //    }
 
     @Override
-    public void onDestroy() {
-        LighthouseActivity activity = requireLighthouseActivity();
-        activity.unregisterReceiver(viewReceiver);
+    public void onDetach() {
+        super.onDetach();
+    }
 
+    @Override
+    public void onDestroy() {
         if (podcastsFuture != null && !podcastsFuture.isDone()) {
             podcastsFuture.cancel(true);
             podcastsFuture = null;
@@ -454,6 +440,7 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
         if (getView() != null) {
             toast(messageId, Toast.LENGTH_SHORT);
             getRefreshView().setRefreshing(false);
+            updateView();
         }
     }
 
@@ -519,7 +506,7 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
                 remainingPodcasts.remove(podcast);
                 item.setFavorite(podcast.getFavorite());
                 boolean updated = podcast.update(item);
-                if (updated && !notifyDataSetChanged) {
+                if (updated && !notifyDataSetChanged && getView() != null) {
                     updatePodcastRow(podcast);
                 }
                 int targetIndex = index;
@@ -620,8 +607,6 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
             }
             if (getView() != null) {
                 updatePodcastRow(podcast);
-            } else {
-                int i = 0;
             }
         }
     }
@@ -660,8 +645,6 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
         RecyclerView.ViewHolder viewHolder = recyclerView.findViewHolderForItemId(podcast.getId());
         if (viewHolder instanceof PodcastsAdapter.ViewHolder) {
             ((PodcastsAdapter.ViewHolder) viewHolder).update(podcast);
-        } else {
-            int i = 0;
         }
     }
 
@@ -708,6 +691,16 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
         adapter.updateEqualizerAnimation(requireLighthouseActivity().isPlaying());
 
         updatePodcastRows();
+    }
+
+    public void onPodcastSeen(long id, int seen) {
+        Podcast podcast = podcasts.get(id);
+        if (podcast != null && seen > 0) {
+            podcast.setSeen(seen);
+            if (getView() != null) {
+                updatePodcastRow(podcast);
+            }
+        }
     }
 
 //    private void openSettings() {

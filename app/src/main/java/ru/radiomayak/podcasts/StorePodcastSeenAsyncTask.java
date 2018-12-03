@@ -1,15 +1,14 @@
 package ru.radiomayak.podcasts;
 
 import android.content.Context;
-import android.content.Intent;
 import android.os.AsyncTask;
 
 import java.lang.ref.WeakReference;
 
-class PodcastViewAsyncTask extends AsyncTask<Podcast, Void, Void> {
+class StorePodcastSeenAsyncTask extends AsyncTask<Podcast, Void, Void> {
     private final WeakReference<Context> contextRef;
 
-    PodcastViewAsyncTask(Context context) {
+    StorePodcastSeenAsyncTask(Context context) {
         contextRef = new WeakReference<>(context);
     }
 
@@ -23,11 +22,6 @@ class PodcastViewAsyncTask extends AsyncTask<Podcast, Void, Void> {
                 try (PodcastsWritableDatabase database = PodcastsWritableDatabase.get(helper)) {
                     database.storePodcastSeen(podcast.getId(), podcast.getLength());
                 }
-                Intent intent = new Intent(RecordsFragment.ACTION_VIEW)
-                        .setPackage(context.getPackageName())
-                        .putExtra(RecordsFragment.EXTRA_PODCAST_ID, podcast.getId())
-                        .putExtra(RecordsFragment.EXTRA_SEEN, podcast.getLength());
-                context.sendBroadcast(intent);
             }
         }
         return null;

@@ -501,6 +501,10 @@ public abstract class LighthouseActivity extends AppCompatActivity {
 
     public abstract void openPodcast(Podcast podcast);
 
+    public abstract void onPodcastSeen(long podcast, int seen);
+
+    public abstract void onHistoryTrackRemoved(long podcast, long record);
+
     private class MediaControllerCallback extends MediaControllerCompat.Callback {
         @Override
         public void onMetadataChanged(MediaMetadataCompat metadata) {

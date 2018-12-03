@@ -62,14 +62,9 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
         PopupMenu.OnDismissListener, PopupMenu.OnMenuItemClickListener {
     public static final String TAG = RecordsFragment.class.getName() + "$";
 
-    public static final String ACTION_VIEW = RecordsFragment.class.getPackage().getName() + ".view";
-
     public static final String EXTRA_PODCAST = RecordsFragment.class.getPackage().getName() + ".PODCAST";
-    public static final String EXTRA_PODCAST_ID = RecordsFragment.class.getPackage().getName() + ".PODCAST_ID";
-    public static final String EXTRA_SEEN = RecordsFragment.class.getPackage().getName() + ".SEEN";
 
     private static final String STATE_CONTENT_VIEW = RecordsFragment.class.getName() + "$contentView";
-    private static final String STATE_PAGE_FAILED = RecordsFragment.class.getName() + "$pageFailed";
 
     private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 501;
 
@@ -145,7 +140,6 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
         if (state != null) {
             boolean isContentView = state.getBoolean(STATE_CONTENT_VIEW, true);
             requestList = !isContentView;
-            pageFailed = state.getBoolean(STATE_PAGE_FAILED, false);
             getAppBarLayout().setExpanded(false);
         }
         if (podcast == null) {
@@ -228,10 +222,16 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     }
 
     @Override
-    public void onDestroy() {
+    public void onDetach() {
         if (alphaAnimator != null) {
+            alphaAnimator.removeAllUpdateListeners();
             alphaAnimator.cancel();
         }
+        super.onDetach();
+    }
+
+    @Override
+    public void onDestroy() {
         if (pageAsyncTask != null && !pageAsyncTask.isCancelled()) {
             pageAsyncTask.cancel(true);
         }
@@ -548,11 +548,10 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
 
     @Override
     public void onSaveInstanceState(@NonNull Bundle state) {
-        if (records.list().isEmpty()) {
-            state.putBoolean(STATE_CONTENT_VIEW, getErrorView().getVisibility() == View.VISIBLE);
+        if (records == null || records.list().isEmpty()) {
+            state.putBoolean(STATE_CONTENT_VIEW, records != null && podcastFuture == null);
         } else {
             state.putBoolean(STATE_CONTENT_VIEW, true);
-            state.putBoolean(STATE_PAGE_FAILED, pageFailed);
         }
         super.onSaveInstanceState(state);
     }
@@ -687,7 +686,8 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
                     records.remove(record);
                 }
             }
-            new PodcastViewAsyncTask(getContext()).executeOnExecutor(LighthouseApplication.NETWORK_SERIAL_EXECUTOR, podcast);
+            new StorePodcastSeenAsyncTask(getContext()).executeOnExecutor(LighthouseApplication.DATABASE_SERIAL_EXECUTOR, podcast);
+            requireLighthouseActivity().onPodcastSeen(podcast.getId(), podcast.getLength());
         }
         if (notifyDataSetChanged) {
             adapter.notifyDataSetChanged();
@@ -916,7 +916,17 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
         if (podcastRecord != null) {
             podcastRecord.setPosition((int) position);
             podcastRecord.setLength((int) duration);
-            if (state == PlaybackStateCompat.STATE_STOPPED || state == PlaybackStateCompat.STATE_ERROR || state == PlaybackStateCompat.STATE_NONE) {
+            if (getView() != null && (state == PlaybackStateCompat.STATE_STOPPED || state == PlaybackStateCompat.STATE_ERROR || state == PlaybackStateCompat.STATE_NONE)) {
+                updateRecordRow(podcastRecord);
+            }
+        }
+    }
+
+    void updateRecordPosition(long record, long position) {
+        Record podcastRecord = records.get(record);
+        if (podcastRecord != null) {
+            podcastRecord.setPosition((int) position);
+            if (getView() != null) {
                 updateRecordRow(podcastRecord);
             }
         }

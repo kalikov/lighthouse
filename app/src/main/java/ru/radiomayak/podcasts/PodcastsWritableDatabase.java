@@ -161,6 +161,18 @@ public class PodcastsWritableDatabase extends PodcastsReadableDatabase {
         }
     }
 
+    public void removeHistoryRecord(long podcast, long record) {
+        beginTransaction();
+        try {
+            String[] args = args(podcast, record);
+            db.delete(RecordsTable.NAME, RecordsTable.Field.PODCAST_ID.key() + " = ?" + AND + RecordsTable.Field.ID.key() + " = ?", args);
+            db.delete(PlayersTable.NAME, PlayersTable.Field.PODCAST_ID.key() + " = ?" + AND + PlayersTable.Field.RECORD_ID.key() + " = ?", args);
+            commit();
+        } finally {
+            endTransaction();
+        }
+    }
+
     public void create() {
         db.execSQL(PodcastsTable.CREATE_SQL);
         db.execSQL(PodcastsTable.CREATE_RATING_ORD_INDEX_SQL);

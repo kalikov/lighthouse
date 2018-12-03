@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.concurrent.Future;
 
 import ru.radiomayak.LighthouseActivity;
+import ru.radiomayak.LighthouseApplication;
 import ru.radiomayak.LighthouseFragment;
 import ru.radiomayak.LighthouseTrack;
 import ru.radiomayak.R;
@@ -47,7 +48,6 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
     public static final String TAG = HistoryFragment.class.getName() + "$";
 
     private static final String STATE_CONTENT_VIEW = HistoryFragment.class.getName() + "$contentView";
-    private static final String STATE_PAGE_FAILED = HistoryFragment.class.getName() + "$pageFailed";
 
     private static final int MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE = 501;
 
@@ -113,7 +113,6 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         if (state != null) {
             boolean isContentView = state.getBoolean(STATE_CONTENT_VIEW, true);
             requestList = !isContentView;
-            pageFailed = state.getBoolean(STATE_PAGE_FAILED, false);
         }
         if (tracks == null) {
             tracks = new HistoryTracks();
@@ -134,6 +133,9 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
     @Override
     public boolean onContextItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+            case R.id.remove:
+                remove(contextTrack);
+                return true;
             case R.id.download:
                 LighthouseActivity activity = requireLighthouseActivity();
                 if (ContextCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
@@ -174,6 +176,18 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
             Toast.makeText(getContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
         } else {
             downloadManager.enqueue(request);
+        }
+    }
+
+    private void remove(HistoryTrack track) {
+        tracks.remove(track);
+        adapter.notifyDataSetChanged();
+
+        new RemoveHistoryTrackAsyncTask(getContext()).executeOnExecutor(LighthouseApplication.DATABASE_SERIAL_EXECUTOR, track);
+        requireLighthouseActivity().onHistoryTrackRemoved(track.getPodcast().getId(), track.getRecord().getId());
+
+        if (tracks.isEmpty()) {
+            updateView();
         }
     }
 
@@ -309,11 +323,10 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
 
     @Override
     public void onSaveInstanceState(@NonNull Bundle state) {
-        if (tracks.isEmpty()) {
-            state.putBoolean(STATE_CONTENT_VIEW, getEmptyView().getVisibility() == View.VISIBLE);
+        if (tracks == null || tracks.isEmpty()) {
+            state.putBoolean(STATE_CONTENT_VIEW, tracks != null && tracksFuture == null);
         } else {
             state.putBoolean(STATE_CONTENT_VIEW, true);
-            state.putBoolean(STATE_PAGE_FAILED, pageFailed);
         }
         super.onSaveInstanceState(state);
     }
@@ -514,7 +527,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         if (contextTrack == null) {
             return;
         }
-        requireActivity().getMenuInflater().inflate(R.menu.record_menu, menu);
+        requireActivity().getMenuInflater().inflate(R.menu.history_track_menu, menu);
         menu.setHeaderTitle(contextTrack.getRecord().getName());
     }
 
@@ -522,7 +535,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         contextTrack = track;
         PopupMenu popup = new PopupMenu(getContext(), view);
         MenuInflater inflater = popup.getMenuInflater();
-        inflater.inflate(R.menu.record_menu, popup.getMenu());
+        inflater.inflate(R.menu.history_track_menu, popup.getMenu());
         popup.setOnMenuItemClickListener(this);
         popup.setOnDismissListener(this);
         popup.show();
@@ -550,7 +563,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
             Record trackRecord = track.getRecord();
             trackRecord.setPosition((int) position);
             trackRecord.setLength((int) duration);
-            if (state == PlaybackStateCompat.STATE_STOPPED || state == PlaybackStateCompat.STATE_ERROR || state == PlaybackStateCompat.STATE_NONE) {
+            if (getView() != null && (state == PlaybackStateCompat.STATE_STOPPED || state == PlaybackStateCompat.STATE_ERROR || state == PlaybackStateCompat.STATE_NONE)) {
                 updateTrackRow(track);
             }
         }
