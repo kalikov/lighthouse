@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/player"
@@ -10,58 +10,30 @@
     android:focusable="true"
     android:orientation="vertical">
 
-    <LinearLayout
+    <RelativeLayout
+        android:id="@android:id/title"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:layout_height="44dp"
+        android:paddingLeft="44dp"
+        android:paddingRight="44dp">
 
-        <ImageView
-            android:id="@android:id/toggle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:clickable="true"
-            android:focusable="true"
-            android:padding="@dimen/player_padding"
-            android:scaleType="center"
-            android:src="@drawable/play_selector"
-            tools:ignore="ContentDescription" />
-
-        <RelativeLayout
+        <TextView
+            android:id="@+id/name"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:text="@string/lorem_ipsum_large"
+            android:textAppearance="@style/AppTheme.Title" />
 
-            <TextView
-                android:id="@+id/name"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_centerVertical="true"
-                android:layout_toStartOf="@android:id/closeButton"
-                android:ellipsize="end"
-                android:maxLines="2"
-                android:text="@string/lorem_ipsum_large"
-                android:textAppearance="@style/AppTheme.Title" />
-
-            <ImageView
-                android:id="@android:id/closeButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:clickable="true"
-                android:contentDescription="@string/stop"
-                android:focusable="true"
-                android:padding="@dimen/player_padding"
-                android:scaleType="center"
-                android:src="@drawable/close_selector"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintTop_toTopOf="parent" />
-
-        </RelativeLayout>
-
-    </LinearLayout>
+    </RelativeLayout>
 
     <FrameLayout
+        android:id="@android:id/custom"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_below="@android:id/title"
         android:paddingStart="@dimen/player_text_padding"
         android:paddingEnd="@dimen/player_text_padding">
 
@@ -82,10 +54,45 @@
 
     </FrameLayout>
 
+    <RelativeLayout
+        android:id="@+id/overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CCAAAAAA"
+        android:visibility="invisible">
+
+    </RelativeLayout>
+
+    <ImageView
+        android:id="@android:id/toggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="@dimen/player_padding"
+        android:scaleType="center"
+        android:src="@drawable/play_selector"
+        tools:ignore="ContentDescription" />
+
+    <ImageView
+        android:id="@android:id/closeButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:clickable="true"
+        android:contentDescription="@string/stop"
+        android:focusable="true"
+        android:padding="@dimen/player_padding"
+        android:scaleType="center"
+        android:src="@drawable/close_selector"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
     <SeekBar
         android:id="@+id/seekbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_below="@android:id/custom"
         android:filterTouchesWhenObscured="false"
         android:keepScreenOn="false"
         android:paddingStart="@dimen/player_seekbar_padding"
@@ -93,6 +100,8 @@
         android:paddingEnd="@dimen/player_seekbar_padding"
         android:paddingBottom="@dimen/podcast_padding"
         android:progressDrawable="@drawable/seekbar"
-        android:thumb="@drawable/seekbar_thumb_selector" />
+        android:splitTrack="false"
+        android:thumb="@drawable/seekbar_thumb"
+        tools:ignore="UnusedAttribute" />
 
-</LinearLayout>
+</RelativeLayout>

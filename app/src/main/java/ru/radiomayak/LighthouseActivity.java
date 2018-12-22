@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.ColorStateList;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.RemoteException;
@@ -15,6 +16,7 @@ import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.support.v4.widget.ImageViewCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -45,6 +47,7 @@ public abstract class LighthouseActivity extends AppCompatActivity {
     private static final String ZERO_TIME_TEXT = "00:00";
 
     private static final long ANIMATION_DURATION = 300;
+    private static final long SEEK_INTERVAL = 2000;
 
     protected final String TAG = getClass().getSimpleName();
 
@@ -74,6 +77,31 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         }
     };
 
+    private final ValueAnimator.AnimatorUpdateListener seekUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
+        @Override
+        public void onAnimationUpdate(ValueAnimator animation) {
+            seekAlpha = (int) animation.getAnimatedValue();
+            updateSeekAlphaView();
+        }
+    };
+
+    private final Runnable seekTimeout = new Runnable() {
+        @Override
+        public void run() {
+            if (seekable) {
+                if (isTracking) {
+                    delaySeekTimeout();
+                }
+                long now = System.currentTimeMillis();
+                if (now >= seekTimeoutMillis) {
+                    setPlayerSeekable(false);
+                } else {
+                    getSeekBar().postDelayed(seekTimeout, seekTimeoutMillis - now);
+                }
+            }
+        }
+    };
+
     private MediaControllerCompat.Callback controllerCallback;
 
     private boolean isTracking;
@@ -82,6 +110,11 @@ public abstract class LighthouseActivity extends AppCompatActivity {
     private int playerMaxHeight;
     private int playerHeight;
     private ValueAnimator valueAnimator;
+
+    private ValueAnimator seekAnimator;
+    private int seekAlpha = 0;
+    private boolean seekable = false;
+    private long seekTimeoutMillis;
 
     private PlaybackStateCompat playbackState;
     private Bundle extras;
@@ -136,11 +169,13 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     protected void initializePlayerView() {
         getPlayPauseButton().setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                togglePlayer();
+                delaySeekTimeout();
+                togglePlay();
             }
         });
         getCloseButton().setOnClickListener(new View.OnClickListener() {
@@ -156,6 +191,7 @@ public abstract class LighthouseActivity extends AppCompatActivity {
                 if (!fromUser) {
                     return;
                 }
+                delaySeekTimeout();
                 int duration = getDuration();
                 int position = (int) ((long) progress * duration / 1000);
                 getSongPositionView().setText(PodcastsUtils.formatTime(position));
@@ -165,19 +201,41 @@ public abstract class LighthouseActivity extends AppCompatActivity {
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
                 isTracking = true;
+                updateThumb();
             }
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 isTracking = false;
+                updateThumb();
+            }
+        });
+        getSeekBar().setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent event) {
+                if (!seekable) {
+                    switch (event.getAction()) {
+                        case MotionEvent.ACTION_UP:
+                            getPlayerView().performClick();
+                            break;
+                    }
+                    return true;
+                }
+                return false;
             }
         });
 
         getPlayerView().setOnTouchListener(new View.OnTouchListener() {
             @Override
-            @SuppressLint("ClickableViewAccessibility")
             public boolean onTouch(View view, MotionEvent event) {
+                view.performClick();
                 return true;
+            }
+        });
+        getPlayerView().setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                setPlayerSeekable(true);
             }
         });
 
@@ -186,6 +244,70 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         getSongDurationView().setTypeface(getLighthouseApplication().getFontLight());
 
         updatePlayerView(false);
+    }
+
+    private void delaySeekTimeout() {
+        seekTimeoutMillis = Math.max(seekTimeoutMillis, System.currentTimeMillis() + SEEK_INTERVAL);
+    }
+
+    private void resetPlayerSeekable() {
+        if (seekAnimator != null) {
+            seekAnimator.cancel();
+            seekAnimator = null;
+        }
+        isTracking = false;
+        seekAlpha = 0;
+        seekable = false;
+        seekTimeoutMillis = 0;
+        updateSeekAlphaView();
+    }
+
+    private void setPlayerSeekable(boolean seekable) {
+        if (seekable) {
+            delaySeekTimeout();
+        }
+        if (this.seekable == seekable) {
+            return;
+        }
+        this.seekable = seekable;
+        if (seekAnimator != null) {
+            seekAnimator.cancel();
+            seekAnimator = null;
+        }
+        if (!seekable) {
+            if (seekAlpha == 0) {
+                return;
+            }
+            seekAnimator = ValueAnimator.ofInt(seekAlpha, 0);
+        } else {
+            getSeekBar().postDelayed(seekTimeout, SEEK_INTERVAL + ANIMATION_DURATION);
+            if (seekAlpha == 100) {
+                return;
+            }
+            seekAnimator = ValueAnimator.ofInt(seekAlpha, 100);
+        }
+        seekAnimator.setInterpolator(Interpolators.ACCELERATE);
+        seekAnimator.addUpdateListener(seekUpdateListener);
+        seekAnimator.setDuration(ANIMATION_DURATION);
+        seekAnimator.start();
+    }
+
+    private void updateSeekAlphaView() {
+        View overlayView = getOverlayView();
+        overlayView.setAlpha(seekAlpha / 100f);
+        overlayView.setVisibility(seekAlpha > 0 ? View.VISIBLE : View.INVISIBLE);
+
+        int component = 255 * seekAlpha / 100;
+        int color = 0xFF000000 | component | component << 8 | component << 16;
+        ColorStateList colorStateList = ColorStateList.valueOf(color);
+        ImageViewCompat.setImageTintList(getPlayPauseButton(), colorStateList);
+        ImageViewCompat.setImageTintList(getCloseButton(), colorStateList);
+
+        updateThumb();
+    }
+
+    private void updateThumb() {
+        getSeekBar().getThumb().setLevel(isTracking ? 10000 : Math.max(1, seekAlpha * 70));
     }
 
     protected void updatePlayerView(boolean animate) {
@@ -219,21 +341,22 @@ public abstract class LighthouseActivity extends AppCompatActivity {
 
         getSongNameView().setText(record.getName());
         if (isError()) {
+            isTracking = false;
             getSeekBar().setEnabled(false);
             getSeekBar().setProgress(0);
             getSeekBar().setSecondaryProgress(0);
             getSongPositionView().setText(ZERO_TIME_TEXT);
             getSongDurationView().setText(ZERO_TIME_TEXT);
+            updateThumb();
         } else {
             int position = getCurrentPosition();
             int duration = getDuration();
+            isTracking = isTracking && duration > 0;
             getSeekBar().setEnabled(duration > 0);
             getSongPositionView().setText(position <= duration ? PodcastsUtils.formatTime(position) : ZERO_TIME_TEXT);
             getSongDurationView().setText(PodcastsUtils.formatTime(duration));
             updateProgress();
-//            if (duration > 0) {
-//                updateRecordPlaybackAttributes(track.getPodcast().getId(), record.getId(), position, duration);
-//            }
+            updateThumb();
         }
         if (valueAnimator != null) {
             valueAnimator.cancel();
@@ -274,18 +397,17 @@ public abstract class LighthouseActivity extends AppCompatActivity {
     }
 
     private void updateTrackFromExtras() {
-        if (extras == null) {
-            track = null;
-        } else {
+        if (extras != null) {
             extras.setClassLoader(Record.class.getClassLoader());
             Record record = extras.getParcelable(Record.class.getName());
             Podcast podcast = extras.getParcelable(Podcast.class.getName());
-            if (record == null || podcast == null) {
-                track = null;
-            } else {
+            if (record != null && podcast != null) {
                 track = new LighthouseTrack(podcast, record);
+                return;
             }
         }
+        track = null;
+        resetPlayerSeekable();
     }
 
     public LighthouseTrack getTrack() {
@@ -393,7 +515,11 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         return (ImageView) getPlayerView().findViewById(android.R.id.closeButton);
     }
 
-    private void togglePlayer() {
+    public View getOverlayView() {
+        return getPlayerView().findViewById(R.id.overlay);
+    }
+
+    private void togglePlay() {
         if (isPlaying()) {
             pause();
         } else if (isError()) {
@@ -531,5 +657,5 @@ public abstract class LighthouseActivity extends AppCompatActivity {
                 updatePlayerView(true);
             }
         }
-    };
+    }
 }

@@ -519,7 +519,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     }
 
     private TextView getToolbarTitle() {
-        return requireActivity().findViewById(android.R.id.title);
+        return getAppBarLayout().findViewById(android.R.id.title);
     }
 
     private ImageView getToolbarImage() {

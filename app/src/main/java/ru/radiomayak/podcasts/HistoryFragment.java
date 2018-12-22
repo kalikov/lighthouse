@@ -18,6 +18,7 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.support.v7.widget.helper.ItemTouchHelper;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
@@ -85,6 +86,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
 
     @VisibleForTesting
     HistoryAdapter adapter;
+    private ItemTouchHelper touchHelper;
 
     private HistoryTracks tracks;
 
@@ -121,6 +123,15 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         if (adapter == null) {
             adapter = new HistoryAdapter(this, tracks);
         }
+        if (touchHelper == null) {
+            touchHelper = new ItemTouchHelper(new HistorySwipeCallback(requireLighthouseActivity().getLighthouseApplication()) {
+                @Override
+                public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
+                    HistoryTrack track = adapter.getItem(viewHolder.getAdapterPosition());
+                    remove(track);
+                }
+            });
+        }
 
         initializeView();
 
@@ -128,6 +139,13 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
             requestList();
         }
         updateView();
+    }
+
+    @Override
+    public void onDetach() {
+        touchHelper.attachToRecyclerView(null);
+
+        super.onDetach();
     }
 
     @Override
@@ -356,6 +374,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
     }
 
     private void showEmptyView() {
+        touchHelper.attachToRecyclerView(null);
         getLoadingView().setVisibility(View.GONE);
         getEmptyView().setVisibility(View.VISIBLE);
         getRecyclerView().setVisibility(View.GONE);
@@ -367,6 +386,7 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
         getLoadingView().setVisibility(View.GONE);
         getEmptyView().setVisibility(View.GONE);
         getRecyclerView().setVisibility(View.VISIBLE);
+        touchHelper.attachToRecyclerView(getRecyclerView());
 
         if (tracksFuture != null) {
             if (tracks.isEmpty()) {

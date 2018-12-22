@@ -1,8 +1,24 @@
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-       android:shape="oval">
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    xmlns:tools="http://schemas.android.com/tools">
+    <item>
+        <scale
+            android:level="1"
+            android:scaleWidth="78%"
+            android:scaleHeight="78%"
+            android:scaleGravity="center"
+            tools:ignore="UnusedAttribute">
 
-    <size android:height="20dp" android:width="20dp"/>
-    <stroke android:width="6dp" android:color="@android:color/transparent"/>
-    <solid android:color="@color/colorPrimary" />
+            <aapt:attr name="android:drawable">
+                <shape android:shape="oval">
+                    <size
+                        android:width="20dp"
+                        android:height="20dp" />
 
-</shape>
+                    <solid android:color="@color/colorPrimary" />
+                </shape>
+            </aapt:attr>
+        </scale>
+    </item>
+</layer-list>
