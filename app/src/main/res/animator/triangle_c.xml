@@ -1,0 +1,13 @@
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:ordering="sequentially">
+
+    <objectAnimator
+        android:duration="300"
+        android:interpolator="@android:anim/linear_interpolator"
+        android:propertyName="fillAlpha"
+        android:repeatCount="1"
+        android:repeatMode="reverse"
+        android:startOffset="600"
+        android:valueFrom="0"
+        android:valueTo="1" />
+</set>

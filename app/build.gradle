@@ -7,7 +7,7 @@ android {
         applicationId "ru.radiomayak"
         minSdkVersion 19
         targetSdkVersion 28
-        versionCode 28
+        versionCode 29
         versionName "1.3"
         testInstrumentationRunner "ru.radiomayak.LighthouseJUnitRunner"
     }

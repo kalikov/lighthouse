@@ -1,0 +1,17 @@
+<animated-vector
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@xml/rewinding">
+
+    <target
+        android:name="a"
+        android:animation="@animator/triangle_a"/>
+
+    <target
+        android:name="b"
+        android:animation="@animator/triangle_b"/>
+
+    <target
+        android:name="c"
+        android:animation="@animator/triangle_c"/>
+
+</animated-vector>

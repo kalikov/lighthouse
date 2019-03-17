@@ -6,19 +6,19 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.res.ColorStateList;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.support.annotation.Nullable;
+import android.support.graphics.drawable.AnimatedVectorDrawableCompat;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
-import android.support.v4.widget.ImageViewCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.Animation;
@@ -104,6 +104,9 @@ public abstract class LighthouseActivity extends AppCompatActivity {
 
     private MediaControllerCompat.Callback controllerCallback;
 
+    private AnimatedVectorDrawableCompat forwardingDrawable;
+    private AnimatedVectorDrawableCompat rewindingDrawable;
+
     private boolean isTracking;
     private boolean isSeeking;
 
@@ -130,6 +133,9 @@ public abstract class LighthouseActivity extends AppCompatActivity {
     @Override
     protected void onCreate(@Nullable Bundle state) {
         super.onCreate(state);
+
+        forwardingDrawable = AnimatedVectorDrawableCompat.create(getApplicationContext(), R.drawable.forwarding_animated);
+        rewindingDrawable = AnimatedVectorDrawableCompat.create(getApplicationContext(), R.drawable.rewinding_animated);
 
         playerMaxHeight = getResources().getDimensionPixelSize(R.dimen.player_height);
 
@@ -216,7 +222,7 @@ public abstract class LighthouseActivity extends AppCompatActivity {
                 if (!seekable) {
                     switch (event.getAction()) {
                         case MotionEvent.ACTION_UP:
-                            getPlayerView().performClick();
+                            setPlayerSeekable(true);
                             break;
                     }
                     return true;
@@ -225,19 +231,35 @@ public abstract class LighthouseActivity extends AppCompatActivity {
             }
         });
 
-        getPlayerView().setOnTouchListener(new View.OnTouchListener() {
+        final GestureDetector gestureDetector = new GestureDetector(getApplicationContext(), new GestureDetector.SimpleOnGestureListener() {
             @Override
-            public boolean onTouch(View view, MotionEvent event) {
-                view.performClick();
+            public boolean onDown(MotionEvent e) {
+                setPlayerSeekable(true);
+                return true;
+            }
+
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                int width = getPlayerView().getWidth();
+                delaySeekTimeout();
+                if (e.getX() > 2 * width / 3) {
+                    fastForward();
+                } else if (e.getX() < width / 3) {
+                    rewindBack();
+                }
                 return true;
             }
         });
-        getPlayerView().setOnClickListener(new View.OnClickListener() {
+
+        getPlayerView().setOnTouchListener(new View.OnTouchListener() {
             @Override
-            public void onClick(View view) {
-                setPlayerSeekable(true);
+            public boolean onTouch(View view, MotionEvent event) {
+                return gestureDetector.onTouchEvent(event);
             }
         });
+
+        ((ImageView) getPlayerView().findViewById(R.id.forwarding)).setImageDrawable(forwardingDrawable);
+        ((ImageView) getPlayerView().findViewById(R.id.rewinding)).setImageDrawable(rewindingDrawable);
 
         getSongNameView().setTypeface(getLighthouseApplication().getFontBold());
         getSongPositionView().setTypeface(getLighthouseApplication().getFontLight());
@@ -294,14 +316,14 @@ public abstract class LighthouseActivity extends AppCompatActivity {
 
     private void updateSeekAlphaView() {
         View overlayView = getOverlayView();
-        overlayView.setAlpha(seekAlpha / 100f);
+//        overlayView.setAlpha(seekAlpha / 100f);
         overlayView.setVisibility(seekAlpha > 0 ? View.VISIBLE : View.INVISIBLE);
 
-        int component = 255 * seekAlpha / 100;
-        int color = 0xFF000000 | component | component << 8 | component << 16;
-        ColorStateList colorStateList = ColorStateList.valueOf(color);
-        ImageViewCompat.setImageTintList(getPlayPauseButton(), colorStateList);
-        ImageViewCompat.setImageTintList(getCloseButton(), colorStateList);
+//        int component = 255 * seekAlpha / 100;
+//        int color = 0xFF000000 | component | component << 8 | component << 16;
+//        ColorStateList colorStateList = ColorStateList.valueOf(color);
+//        ImageViewCompat.setImageTintList(getPlayPauseButton(), colorStateList);
+//        ImageViewCompat.setImageTintList(getCloseButton(), colorStateList);
 
         updateThumb();
     }
@@ -517,6 +539,23 @@ public abstract class LighthouseActivity extends AppCompatActivity {
 
     public View getOverlayView() {
         return getPlayerView().findViewById(R.id.overlay);
+    }
+
+    private void fastForward() {
+        int duration = getDuration();
+        if (duration > 0) {
+            seekTo(Math.min(duration, getCurrentPosition() + 10000));
+            rewindingDrawable.stop();
+            forwardingDrawable.start();
+        }
+    }
+
+    private void rewindBack() {
+        if (getDuration() > 0) {
+            seekTo(Math.max(0, getCurrentPosition() - 10000));
+            forwardingDrawable.stop();
+            rewindingDrawable.start();
+        }
     }
 
     private void togglePlay() {

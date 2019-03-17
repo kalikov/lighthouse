@@ -688,17 +688,21 @@ public abstract class AbstractPodcastsFragment extends LighthouseFragment implem
 
     @Override
     public void updatePlayerState() {
-        adapter.updateEqualizerAnimation(requireLighthouseActivity().isPlaying());
+        if (adapter != null) {
+            adapter.updateEqualizerAnimation(requireLighthouseActivity().isPlaying());
 
-        updatePodcastRows();
+            updatePodcastRows();
+        }
     }
 
     public void onPodcastSeen(long id, int seen) {
-        Podcast podcast = podcasts.get(id);
-        if (podcast != null && seen > 0) {
-            podcast.setSeen(seen);
-            if (getView() != null) {
-                updatePodcastRow(podcast);
+        if (podcasts != null) {
+            Podcast podcast = podcasts.get(id);
+            if (podcast != null && seen > 0) {
+                podcast.setSeen(seen);
+                if (getView() != null) {
+                    updatePodcastRow(podcast);
+                }
             }
         }
     }
