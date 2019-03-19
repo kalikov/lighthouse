@@ -12,9 +12,12 @@ import android.view.MenuItem;
 
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 import ru.radiomayak.LighthouseActivity;
 import ru.radiomayak.LighthouseFragment;
@@ -95,21 +98,20 @@ public class MainActivity extends LighthouseActivity {
         });
         getBottomBar().setOnNavigationItemReselectedListener(new BottomNavigationView.OnNavigationItemReselectedListener() {
             @Override
+            @SuppressWarnings("StringEquality")
             public void onNavigationItemReselected(@NonNull MenuItem menuItem) {
                 switch (menuItem.getItemId()) {
                     case R.id.podcasts:
-                        if (PodcastsFragment.TAG.equals(fragmentStack.peek())) {
-
-                        } else {
+                        if (!fragmentStack.isEmpty() && PodcastsFragment.TAG != fragmentStack.getLast()) {
                             openPodcasts();
                         }
                         break;
                     case R.id.archive:
-                        if (ArchiveFragment.TAG.equals(fragmentStack.peek())) {
-
-                        } else {
+                        if (fragmentStack.isEmpty() || ArchiveFragment.TAG != fragmentStack.getLast()) {
                             openArchive();
                         }
+                        break;
+                    case R.id.history:
                         break;
                 }
             }
@@ -174,15 +176,23 @@ public class MainActivity extends LighthouseActivity {
     }
 
     private void openPodcasts() {
-        showPodcasts();
-        fragmentStack.remove(PodcastsFragment.TAG);
-        fragmentStack.add(PodcastsFragment.TAG);
-        getBottomBar().getMenu().findItem(R.id.podcasts).setChecked(true);
-    }
-
-    private void showPodcasts() {
         FragmentManager fragmentManager = getSupportFragmentManager();
-        attach(fragmentManager, podcastsFragment);
+        FragmentTransaction transaction = fragmentManager.beginTransaction();
+        for (Fragment item : fragmentManager.getFragments()) {
+            if (item != podcastsFragment) {
+                transaction.detach(item);
+            }
+        }
+
+        fragmentStack.remove(PodcastsFragment.TAG);
+        if (!fragmentStack.isEmpty()) {
+            fragmentStack.add(PodcastsFragment.TAG);
+        }
+
+        transaction.attach(podcastsFragment);
+        transaction.commitNow();
+
+        getBottomBar().getMenu().findItem(R.id.podcasts).setChecked(true);
     }
 
     private void openArchive() {
@@ -203,69 +213,56 @@ public class MainActivity extends LighthouseActivity {
     }
 
     @SuppressWarnings("StringEquality")
-    private void openFragment(String tag, FragmentFactory<?> fragmentFactory, int navigationItem) {
+    private void openFragment(final String tag, FragmentFactory<?> fragmentFactory, final int navigationItem) {
         FragmentManager fragmentManager = getSupportFragmentManager();
+
         Fragment fragment = fragmentManager.findFragmentByTag(tag);
-        if (fragment == null) {
-            add(fragmentManager, fragmentFactory.create(), tag);
-            fragmentStack.add(tag);
-        } else {
-            attach(fragmentManager, fragment);
-            fragmentStack.remove(tag);
-            fragmentStack.add(tag);
-            if (fragmentStack.getFirst() == PodcastsFragment.TAG) {
-                fragmentStack.removeFirst();
-            }
-        }
+
+        Fragment removedFragment = null;
         if (isPodcastTag(tag) && fragmentStack.size() >= MAX_OPEN_PODCASTS) {
-            int openPodcasts = 0;
-            for (Fragment item : fragmentManager.getFragments()) {
-                if (item instanceof RecordsFragment) {
-                    openPodcasts++;
-                }
-            }
-            if (openPodcasts > MAX_OPEN_PODCASTS) {
-                Iterator<String> iterator = fragmentStack.iterator();
-                while (iterator.hasNext()) {
-                    String item = iterator.next();
-                    if (isPodcastTag(item)) {
-                        iterator.remove();
-                        remove(fragmentManager, item);
-                        break;
+            final LinkedHashSet<String> openedPodcasts = new LinkedHashSet<>(MAX_OPEN_PODCASTS);
+            for (String item : fragmentStack) {
+                if (isPodcastTag(item)) {
+                    Fragment itemFragment = fragmentManager.findFragmentByTag(item);
+                    if (itemFragment != null && itemFragment != fragment) {
+                        openedPodcasts.add(item);
+                        removedFragment = removedFragment == null ? itemFragment : removedFragment;
                     }
                 }
             }
+            if (openedPodcasts.size() < MAX_OPEN_PODCASTS) {
+                removedFragment = null;
+            }
         }
-        getBottomBar().getMenu().findItem(navigationItem).setChecked(true);
-    }
 
-    private static void attach(FragmentManager fragmentManager, Fragment fragment) {
         FragmentTransaction transaction = fragmentManager.beginTransaction();
+        if (removedFragment != null) {
+            transaction.remove(removedFragment);
+        }
         for (Fragment item : fragmentManager.getFragments()) {
-            if (item != fragment) {
+            if (item != fragment && item != removedFragment) {
                 transaction.detach(item);
             }
         }
-        transaction.attach(fragment);
-        transaction.commit();
-    }
 
-    private static void add(FragmentManager fragmentManager, Fragment fragment, String tag) {
-        FragmentTransaction transaction = fragmentManager.beginTransaction();
-        for (Fragment item : fragmentManager.getFragments()) {
-            transaction.detach(item);
+        if (removedFragment != null) {
+            fragmentStack.remove(removedFragment.getTag());
         }
-        transaction.add(android.R.id.tabcontent, fragment, tag);
-        transaction.commit();
-    }
+        fragmentStack.remove(tag);
+        if (!fragmentStack.isEmpty() && PodcastsFragment.TAG == fragmentStack.getFirst()) {
+            fragmentStack.remove(PodcastsFragment.TAG);
+        }
+        fragmentStack.add(tag);
 
-    private static void remove(FragmentManager fragmentManager, String tag) {
-        Fragment fragment = fragmentManager.findFragmentByTag(tag);
-        if (fragment != null) {
-            FragmentTransaction transaction = fragmentManager.beginTransaction();
-            transaction.remove(fragment);
-            transaction.commit();
+        if (fragment == null) {
+            transaction.add(android.R.id.tabcontent, fragmentFactory.create(), tag);
+        } else {
+            transaction.attach(fragment);
         }
+
+        transaction.commitNow();
+
+        getBottomBar().getMenu().findItem(navigationItem).setChecked(true);
     }
 
     @Override
@@ -274,13 +271,6 @@ public class MainActivity extends LighthouseActivity {
             popFragmentStack();
             return;
         }
-//        if (lastBackPressToast == null || lastBackPressToast.getView() == null || !lastBackPressToast.getView().isShown()) {
-//            if (lastBackPressToast == null || lastBackPressToast.getView() == null) {
-//                lastBackPressToast = Toast.makeText(this, "Press again to exit", Toast.LENGTH_SHORT);
-//            }
-//            lastBackPressToast.show();
-//            return;
-//        }
         super.onBackPressed();
     }
 
@@ -301,32 +291,59 @@ public class MainActivity extends LighthouseActivity {
         return true;
     }
 
+    @SuppressWarnings("StringEquality")
     private boolean popFragmentStack() {
         FragmentManager fragmentManager = getSupportFragmentManager();
-        if (fragmentStack.size() == 1) {
-            String tag = fragmentStack.pop();
-            if (isPodcastTag(tag)) {
-                remove(fragmentManager, tag);
-            }
-            showPodcasts();
-        } else {
-            Fragment tagFragment;
-            do {
-                String removed = fragmentStack.removeLast();
-                if (isPodcastTag(removed)) {
-                    remove(fragmentManager, removed);
-                }
-                String tag = fragmentStack.getLast();
-                tagFragment = fragmentManager.findFragmentByTag(tag);
-            } while (tagFragment == null && !fragmentStack.isEmpty());
 
-            if (tagFragment == null) {
-                showPodcasts();
-            } else {
-                attach(fragmentManager, tagFragment);
+        Iterator<String> iterator = fragmentStack.descendingIterator();
+        String tag = iterator.next();
+
+        final Set<String> removed = new HashSet<>();
+        removed.add(tag);
+
+        Fragment removeFragment = null;
+        if (isPodcastTag(tag)) {
+            removeFragment = fragmentManager.findFragmentByTag(tag);
+        }
+
+        Fragment fragment = null;
+        while (iterator.hasNext() && fragment == null) {
+            tag = iterator.next();
+            if (!removed.contains(tag)) {
+                fragment = fragmentManager.findFragmentByTag(tag);
+            }
+            if (fragment == null) {
+                removed.add(tag);
             }
         }
-        updateBottomBar();
+
+        final String targetTag = fragment == null ? PodcastsFragment.TAG : tag;
+        final Fragment targetFragment = fragment == null ? podcastsFragment : fragment;
+
+        FragmentTransaction transaction = fragmentManager.beginTransaction();
+        for (Fragment item : fragmentManager.getFragments()) {
+            if (item != targetFragment) {
+                if (item == removeFragment) {
+                    transaction.remove(item);
+                } else {
+                    transaction.detach(item);
+                }
+            }
+        }
+
+        fragmentStack.removeAll(removed);
+        fragmentStack.remove(targetTag);
+        if (!fragmentStack.isEmpty() && PodcastsFragment.TAG == fragmentStack.getFirst()) {
+            fragmentStack.remove(PodcastsFragment.TAG);
+        }
+        if (PodcastsFragment.TAG != targetTag || !fragmentStack.isEmpty()) {
+            fragmentStack.add(targetTag);
+        }
+        getBottomBar().getMenu().findItem(getNavigationItem(targetTag, targetFragment)).setChecked(true);
+
+        transaction.attach(targetFragment);
+        transaction.commitNow();
+
         return true;
     }
 
@@ -361,27 +378,22 @@ public class MainActivity extends LighthouseActivity {
     }
 
     @SuppressWarnings("StringEquality")
-    private void updateBottomBar() {
-        String tag = null;
-        Iterator<String> iterator = fragmentStack.descendingIterator();
-        if (iterator.hasNext()) {
-            tag = iterator.next();
-        }
+    private int getNavigationItem(String tag, Fragment fragment) {
         if (tag == ArchiveFragment.TAG) {
-            getBottomBar().getMenu().findItem(R.id.archive).setChecked(true);
-        } else if (tag == HistoryFragment.TAG) {
-            getBottomBar().getMenu().findItem(R.id.history).setChecked(true);
-        } else if (tag == null || tag == PodcastsFragment.TAG) {
-            getBottomBar().getMenu().findItem(R.id.podcasts).setChecked(true);
-        } else {
-            int item = R.id.podcasts;
-            RecordsFragment fragment = (RecordsFragment) getSupportFragmentManager().findFragmentByTag(tag);
-            if (fragment != null) {
-                Podcast podcast = fragment.getPodcast();
-                item = podcast != null && podcast.isArchived() ? R.id.archive : R.id.podcasts;
-            }
-            getBottomBar().getMenu().findItem(item).setChecked(true);
+            return R.id.archive;
         }
+        if (tag == HistoryFragment.TAG) {
+            return R.id.history;
+        }
+        if (tag == null || tag == PodcastsFragment.TAG) {
+            return R.id.podcasts;
+        }
+        int item = R.id.podcasts;
+        if (fragment instanceof RecordsFragment) {
+            Podcast podcast = ((RecordsFragment) fragment).getPodcast();
+            item = podcast != null && podcast.isArchived() ? R.id.archive : R.id.podcasts;
+        }
+        return item;
     }
 
     private BottomNavigationView getBottomBar() {

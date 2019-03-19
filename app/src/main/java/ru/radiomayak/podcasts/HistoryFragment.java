@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.DownloadManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.graphics.Canvas;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -46,7 +47,7 @@ import ru.radiomayak.content.LoaderManager;
 import ru.radiomayak.widget.ToolbarCompat;
 
 public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnMenuItemClickListener, PopupMenu.OnDismissListener {
-    public static final String TAG = HistoryFragment.class.getName() + "$";
+    public static final String TAG = HistoryFragment.class.getName();
 
     private static final String STATE_CONTENT_VIEW = HistoryFragment.class.getName() + "$contentView";
 
@@ -129,6 +130,14 @@ public class HistoryFragment extends LighthouseFragment implements PopupMenu.OnM
                 public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
                     HistoryTrack track = adapter.getItem(viewHolder.getAdapterPosition());
                     remove(track);
+                }
+
+                @Override
+                public void onChildDraw(@NonNull Canvas canvas, @NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, float dx, float dy, int actionState, boolean isCurrentlyActive) {
+                    super.onChildDraw(canvas, recyclerView, viewHolder, dx, dy, actionState, isCurrentlyActive);
+                    if (!getRefreshView().isRefreshing()) {
+                        getRefreshView().setEnabled(dx == 0);
+                    }
                 }
             });
         }

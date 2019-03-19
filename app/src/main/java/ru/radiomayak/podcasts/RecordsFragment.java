@@ -111,7 +111,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     Future<BitmapInfo> splashFuture;
 
     @VisibleForTesting
-    Bitmap splash;
+    boolean splashSet;
     private float maxAlpha = -1.0f;
     private ValueAnimator alphaAnimator;
 
@@ -149,7 +149,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
             requireFragmentManager().popBackStack();
             return;
         }
-        BitmapInfo splashInfo = PodcastImageCache.getInstance().getSplash(podcast.getId());
+
         if (records == null) {
             records = new Records();
         }
@@ -163,9 +163,11 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
         if (requestList) {
             requestPodcast();
         }
+        BitmapInfo splashInfo = PodcastImageCache.getInstance().getSplash(podcast.getId());
         if (splashInfo != null) {
             setPodcastSplash(splashInfo);
         } else {
+            splashSet = false;
             requestPodcastSplash();
         }
         updateView();
@@ -222,11 +224,16 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     }
 
     @Override
-    public void onDetach() {
+    public void onPause() {
         if (alphaAnimator != null) {
             alphaAnimator.removeAllUpdateListeners();
             alphaAnimator.cancel();
         }
+        super.onPause();
+    }
+
+    @Override
+    public void onDetach() {
         super.onDetach();
     }
 
@@ -326,7 +333,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
             if (alphaAnimator != null) {
                 alphaAnimator.cancel();
             }
-        } else if (splash == null) {
+        } else if (!splashSet) {
             toolbarImage.setVisibility(View.GONE);
             toolbarTitle.setVisibility(View.VISIBLE);
             toolbarTitle.setAlpha(1.0f);
@@ -483,7 +490,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
         if (getView() == null) {
             return;
         }
-        if (splash == null && records.isEmpty()) {
+        if (!splashSet && records.isEmpty()) {
             if (podcastFuture != null) {
                 showLoadingView();
             } else {
@@ -776,7 +783,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     private void requestPodcastSplash() {
         Image icon = podcast.getIcon();
         Image splash = podcast.getSplash();
-        if (splash == null && (icon == null || !PictureUrlUtils.isPictureUrl(icon.getUrl())) || splashFuture != null || this.splash != null) {
+        if (splash == null && (icon == null || !PictureUrlUtils.isPictureUrl(icon.getUrl())) || splashFuture != null || splashSet) {
             return;
         }
         PodcastSplashLoader loader = new PodcastSplashLoader(podcast);
@@ -808,7 +815,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     }
 
     private void setPodcastSplash(Bitmap bitmap) {
-        splash = bitmap;
+        splashSet = true;
         getToolbarImage().setImageBitmap(bitmap);
         if (podcastFuture != null) {
             maxAlpha = 1.0f;

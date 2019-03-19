@@ -258,8 +258,8 @@ public abstract class LighthouseActivity extends AppCompatActivity {
             }
         });
 
-        ((ImageView) getPlayerView().findViewById(R.id.forwarding)).setImageDrawable(forwardingDrawable);
-        ((ImageView) getPlayerView().findViewById(R.id.rewinding)).setImageDrawable(rewindingDrawable);
+        getForwardingView().setImageDrawable(forwardingDrawable);
+        getRewindingView().setImageDrawable(rewindingDrawable);
 
         getSongNameView().setTypeface(getLighthouseApplication().getFontBold());
         getSongPositionView().setTypeface(getLighthouseApplication().getFontLight());
@@ -505,6 +505,14 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         }
     }
 
+    public ImageView getForwardingView() {
+        return getPlayerView().findViewById(R.id.forwarding);
+    }
+
+    public ImageView getRewindingView() {
+        return getPlayerView().findViewById(R.id.rewinding);
+    }
+
     public View getPlayerView() {
         return findViewById(R.id.player);
     }
@@ -546,7 +554,10 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         if (duration > 0) {
             seekTo(Math.min(duration, getCurrentPosition() + 10000));
             rewindingDrawable.stop();
+            getRewindingView().setVisibility(View.GONE);
+            forwardingDrawable.stop();
             forwardingDrawable.start();
+            getForwardingView().setVisibility(View.VISIBLE);
         }
     }
 
@@ -554,7 +565,10 @@ public abstract class LighthouseActivity extends AppCompatActivity {
         if (getDuration() > 0) {
             seekTo(Math.max(0, getCurrentPosition() - 10000));
             forwardingDrawable.stop();
+            getForwardingView().setVisibility(View.GONE);
+            rewindingDrawable.stop();
             rewindingDrawable.start();
+            getRewindingView().setVisibility(View.VISIBLE);
         }
     }
 

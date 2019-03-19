@@ -63,6 +63,7 @@
 
         <ImageView
             android:id="@+id/rewinding"
+            android:visibility="gone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentStart="true"
@@ -74,6 +75,7 @@
 
         <ImageView
             android:id="@+id/forwarding"
+            android:visibility="gone"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"

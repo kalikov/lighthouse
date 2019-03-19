@@ -68,7 +68,7 @@ public class RecordsFragmentTest {
         assertRecyclerLoadingView();
 
         Assert.assertNull(fragment.splashFuture);
-        Assert.assertSame(bitmap, fragment.splash);
+        Assert.assertTrue(fragment.splashSet);
     }
 
     @Test
@@ -83,7 +83,7 @@ public class RecordsFragmentTest {
         assertLoadingView();
 
         Assert.assertNull(fragment.splashFuture);
-        Assert.assertNull(fragment.splash);
+        Assert.assertFalse(fragment.splashSet);
     }
 
     @Test
@@ -104,7 +104,7 @@ public class RecordsFragmentTest {
         assertRecyclerView();
 
         Assert.assertNotNull(fragment.splashFuture);
-        Assert.assertNull(fragment.splash);
+        Assert.assertFalse(fragment.splashSet);
     }
 
     @Test
@@ -119,7 +119,7 @@ public class RecordsFragmentTest {
         assertErrorView();
 
         Assert.assertNotNull(fragment.splashFuture);
-        Assert.assertNull(fragment.splash);
+        Assert.assertFalse(fragment.splashSet);
     }
 
     @Test
@@ -136,7 +136,7 @@ public class RecordsFragmentTest {
         assertRecyclerErrorView();
 
         Assert.assertNull(fragment.splashFuture);
-        Assert.assertSame(bitmap, fragment.splash);
+        Assert.assertTrue(fragment.splashSet);
     }
 
     private void assertLoadingView() {

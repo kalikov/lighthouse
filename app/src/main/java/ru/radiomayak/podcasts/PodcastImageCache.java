@@ -11,7 +11,7 @@ import ru.radiomayak.graphics.BitmapInfo;
 public class PodcastImageCache {
     private static final int ICONS_INITIAL_CAPACITY = 100;
 
-    private static final int SPLASH_CACHE_SIZE = 4;
+    private static final int SPLASH_CACHE_SIZE = 5;
 
     private static final PodcastImageCache instance = new PodcastImageCache();
 

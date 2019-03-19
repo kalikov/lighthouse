@@ -8,6 +8,14 @@
 
     <target
         android:name="b"
+        android:animation="@animator/triangle_reset"/>
+
+    <target
+        android:name="c"
+        android:animation="@animator/triangle_reset"/>
+
+    <target
+        android:name="b"
         android:animation="@animator/triangle_b"/>
 
     <target
