@@ -641,7 +641,7 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
                 Toast.makeText(requireContext(), R.string.toast_loading_error, Toast.LENGTH_SHORT).show();
             } else {
                 if (response.getPodcast() != null) {
-                    updatePodcast(response.getPodcast());
+                    updatePodcast(response.getPodcast(), response.isArchived());
                 }
                 updateFirstPageRecords(response.getPaginator());
             }
@@ -651,13 +651,13 @@ public class RecordsFragment extends LighthouseFragment implements PageAsyncTask
     }
 
 
-    private void updatePodcast(Podcast podcast) {
+    private void updatePodcast(Podcast podcast, Boolean isArchived) {
         boolean hasNoLength = this.podcast.getLength() <= 0;
         podcast.setFavorite(this.podcast.getFavorite());
-        podcast.setArchived(this.podcast.isArchived());
         boolean updated = this.podcast.update(podcast);
+        adapter.setIsArchived(isArchived);
         if (updated) {
-            if (hasNoLength) {
+            if (hasNoLength && isArchived == null) {
                 adapter.notifyItemInserted(0);
             } else {
                 adapter.notifyItemChanged(0);

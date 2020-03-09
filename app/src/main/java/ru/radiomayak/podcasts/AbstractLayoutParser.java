@@ -12,7 +12,8 @@ import java.util.regex.Pattern;
 import ru.radiomayak.StringUtils;
 
 abstract class AbstractLayoutParser {
-    private static final Pattern PODCAST_HREF_PATTERN = Pattern.compile("/podcasts/podcast/id/(\\d+)/");
+    private static final Pattern PODCAST_HREF_PATTERN = Pattern.compile("/podcasts/podcast/id/(\\d+)");
+    private static final Pattern PODCAST_COUNT_PATTERN = Pattern.compile("(\\d+)\\s+.*$");
 
     static int lenientNext(XmlPullParser xpp) throws IOException, XmlPullParserException {
         try {
@@ -30,11 +31,11 @@ abstract class AbstractLayoutParser {
         }
     }
 
-    static void push(LayoutUtils.Stack stack, XmlPullParser xpp) {
+    static void push(LayoutUtils.ElementStack stack, XmlPullParser xpp) {
         stack.push(xpp.getName(), getClass(xpp));
     }
 
-    static void pop(LayoutUtils.Stack stack, XmlPullParser xpp) {
+    static void pop(LayoutUtils.ElementStack stack, XmlPullParser xpp) {
         stack.pop(xpp.getName());
     }
 
@@ -73,14 +74,15 @@ abstract class AbstractLayoutParser {
         return StringUtils.parseLong(matcher.group(1), 0);
     }
 
-    static int parsePodcastLength(XmlPullParser xpp) throws IOException, XmlPullParserException {
-        int eventType = lenientNext(xpp);
-        if (eventType == XmlPullParser.TEXT) {
-            String text = StringUtils.nonEmptyTrimmed(xpp.getText());
-            int length = StringUtils.parseInt(text, 0);
-            lenientNext(xpp);
-            return length;
+    static int parsePodcastLength(String input) {
+        String text = StringUtils.nonEmptyTrimmed(input);
+        Matcher matcher = PODCAST_COUNT_PATTERN.matcher(text);
+        int length;
+        if (!matcher.find()) {
+            length = 0;
+        } else {
+            length = StringUtils.parseInt(matcher.group(1), 0);
         }
-        return 0;
+        return length;
     }
 }

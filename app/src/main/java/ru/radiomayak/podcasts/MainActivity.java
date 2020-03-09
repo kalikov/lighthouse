@@ -33,13 +33,6 @@ public class MainActivity extends LighthouseActivity {
 
     private final Deque<String> fragmentStack = new LinkedList<>();
 
-    private final FragmentFactory<ArchiveFragment> archiveFactory = new FragmentFactory<ArchiveFragment>() {
-        @Override
-        public ArchiveFragment create() {
-            return new ArchiveFragment();
-        }
-    };
-
     private final FragmentFactory<HistoryFragment> historyFactory = new FragmentFactory<HistoryFragment>() {
         @Override
         public HistoryFragment create() {
@@ -86,9 +79,9 @@ public class MainActivity extends LighthouseActivity {
                     case R.id.podcasts:
                         openPodcasts();
                         break;
-                    case R.id.archive:
-                        openArchive();
-                        break;
+//                    case R.id.archive:
+//                        openArchive();
+//                        break;
                     case R.id.history:
                         openHistory();
                         break;
@@ -106,11 +99,11 @@ public class MainActivity extends LighthouseActivity {
                             openPodcasts();
                         }
                         break;
-                    case R.id.archive:
-                        if (fragmentStack.isEmpty() || ArchiveFragment.TAG != fragmentStack.getLast()) {
-                            openArchive();
-                        }
-                        break;
+//                    case R.id.archive:
+//                        if (fragmentStack.isEmpty() || ArchiveFragment.TAG != fragmentStack.getLast()) {
+//                            openArchive();
+//                        }
+//                        break;
                     case R.id.history:
                         break;
                 }
@@ -149,17 +142,12 @@ public class MainActivity extends LighthouseActivity {
             public RecordsFragment create() {
                 return createRecordsFragment(podcast);
             }
-        }, podcast.isArchived() ? R.id.archive : R.id.podcasts);
+        }, /*podcast.isArchived() ? R.id.archive :*/ R.id.podcasts);
     }
 
     @Override
     public void onPodcastSeen(long podcast, int seen) {
         onPodcastSeen(podcastsFragment, podcast, seen);
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        ArchiveFragment archiveFragment = (ArchiveFragment) fragmentManager.findFragmentByTag(ArchiveFragment.TAG);
-        if (archiveFragment != null) {
-            onPodcastSeen(archiveFragment, podcast, seen);
-        }
     }
 
     @Override
@@ -196,7 +184,7 @@ public class MainActivity extends LighthouseActivity {
     }
 
     private void openArchive() {
-        openFragment(ArchiveFragment.TAG, archiveFactory, R.id.archive);
+//        openFragment(ArchiveFragment.TAG, archiveFactory, R.id.archive);
     }
 
     private void openHistory() {
@@ -379,9 +367,9 @@ public class MainActivity extends LighthouseActivity {
 
     @SuppressWarnings("StringEquality")
     private int getNavigationItem(String tag, Fragment fragment) {
-        if (tag == ArchiveFragment.TAG) {
-            return R.id.archive;
-        }
+//        if (tag == ArchiveFragment.TAG) {
+//            return R.id.archive;
+//        }
         if (tag == HistoryFragment.TAG) {
             return R.id.history;
         }
@@ -391,7 +379,7 @@ public class MainActivity extends LighthouseActivity {
         int item = R.id.podcasts;
         if (fragment instanceof RecordsFragment) {
             Podcast podcast = ((RecordsFragment) fragment).getPodcast();
-            item = podcast != null && podcast.isArchived() ? R.id.archive : R.id.podcasts;
+            item = /*podcast != null && podcast.isArchived() ? R.id.archive :*/ R.id.podcasts;
         }
         return item;
     }

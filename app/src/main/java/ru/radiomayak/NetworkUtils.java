@@ -14,7 +14,7 @@ public final class NetworkUtils {
     }
 
     public static int getRequestTimeout() {
-        return 10000;
+        return 40000;
     }
 
     public static boolean isConnected(Context context) {

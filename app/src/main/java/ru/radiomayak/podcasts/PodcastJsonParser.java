@@ -20,6 +20,7 @@ class PodcastJsonParser {
     private static final String SOURCES_PROPERTY = "sources";
     private static final String URL_PROPERTY = "listen";
     private static final String ID_PROPERTY = "id";
+    private static final String ARCHIVE_PROPERTY = "inSeason";
     private static final String NAME_PROPERTY = "title";
     private static final String DESCRIPTION_PROPERTY = "anons";
     private static final String DATE_PROPERTY = "datePub";
@@ -43,6 +44,8 @@ class PodcastJsonParser {
 
         Records records = null;
 
+        boolean isArchived = false;
+
         parser.beginObject();
         while (parser.hasNext()) {
             String prop = parser.nextName();
@@ -58,6 +61,12 @@ class PodcastJsonParser {
                 }
             } else if (RECORDS_PROPERTY.equals(prop)) {
                 records = parseRecords(parser, uri);
+            } else if (ARCHIVE_PROPERTY.equals(prop)) {
+                if (parser.peek() == JsonToken.BOOLEAN) {
+                    isArchived = !parser.nextBoolean();
+                } else {
+                    isArchived = !Boolean.parseBoolean(parser.nextString());
+                }
             } else {
                 parser.skipValue();
             }
@@ -68,7 +77,7 @@ class PodcastJsonParser {
         if (id != 0 && name != null) {
             podcast = new Podcast(id, name);
         }
-        return new PodcastLayoutContent(podcast, records == null ? new Records() : records, nextPage);
+        return new PodcastLayoutContent(podcast, isArchived, records == null ? new Records() : records, nextPage);
     }
 
     private static Records parseRecords(JsonReader parser, @Nullable URI uri) throws IOException {

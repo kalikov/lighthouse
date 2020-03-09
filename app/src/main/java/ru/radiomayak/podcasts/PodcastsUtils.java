@@ -29,6 +29,15 @@ public final class PodcastsUtils {
         return calendar.get(Calendar.DAY_OF_MONTH) + " " + months[calendar.get(Calendar.MONTH)] + " " + calendar.get(Calendar.YEAR);
     }
 
+    public static int parseMonth(String month) {
+        for (int i = 0; i < months.length; i++) {
+            if (months[i].equalsIgnoreCase(month)) {
+                return i + 1;
+            }
+        }
+        return 1;
+    }
+
     public static String formatTime(long msecs) {
         if (msecs <= 0) {
             return ZERO_TIME_TEXT;

@@ -24,7 +24,7 @@ import ru.radiomayak.http.message.BasicHttpRequest;
 class PodcastsLoader extends AbstractHttpLoader<Podcasts> {
     private static final String LOG_TAG = PodcastsLoader.class.getSimpleName();
 
-    private static final String PODCASTS_URL = "http://radiomayak.ru/podcasts/";
+    private static final String PODCASTS_URL = "https://radiomayak.ru/podcasts/";
 
     private final PodcastsLayoutParser parser = new PodcastsLayoutParser();
 

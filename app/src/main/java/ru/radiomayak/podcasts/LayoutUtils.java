@@ -12,6 +12,8 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Stack;
+import java.util.Vector;
 import java.util.regex.Pattern;
 
 import ru.radiomayak.StringUtils;
@@ -94,6 +96,14 @@ final class LayoutUtils {
         }
     }
 
+    static boolean isHeader(String tag) {
+        return "h1".equalsIgnoreCase(tag) || "h2".equalsIgnoreCase(tag) || "h3".equalsIgnoreCase(tag) || "h4".equalsIgnoreCase(tag) || "header".equalsIgnoreCase(tag);
+    }
+
+    static boolean isSection(String tag) {
+        return "section".equalsIgnoreCase(tag);
+    }
+
     static boolean isDiv(String tag) {
         return "div".equalsIgnoreCase(tag);
     }
@@ -102,8 +112,16 @@ final class LayoutUtils {
         return "span".equalsIgnoreCase(tag);
     }
 
+    static boolean isUl(String tag) {
+        return "ul".equalsIgnoreCase(tag);
+    }
+
+    static boolean isLi(String tag) {
+        return "li".equalsIgnoreCase(tag);
+    }
+
     static boolean isBlock(String tag) {
-        return isDiv(tag) || isSpan(tag);
+        return isDiv(tag) || isSpan(tag) || isUl(tag) || isLi(tag) || isHeader(tag) || isSection(tag);
     }
 
     static boolean isAnchor(String tag) {
@@ -140,26 +158,34 @@ final class LayoutUtils {
         return false;
     }
 
-    static class Stack {
-        private final Deque<StackElement> elements;
+    static class ElementStack {
+        private final Vector<StackElement> elements;
 
-        Stack(int numElements) {
-            elements = new ArrayDeque<>(numElements);
+        ElementStack(int numElements) {
+            elements = new Vector<>(numElements);
         }
 
         void push(String tag, String classAttribute) {
-            elements.push(new StackElement(tag, classAttribute));
+            elements.addElement(new StackElement(tag, classAttribute));
         }
 
         void pop(String tag) {
             StackElement element;
             do {
-                element = elements.pop();
+                element = pop();
             } while (!element.tag.equalsIgnoreCase(tag) && !elements.isEmpty());
         }
 
+        StackElement peek() {
+            int len = elements.size();
+            return elements.elementAt(len - 1);
+        }
+
         StackElement pop() {
-            return elements.pop();
+            int len = elements.size();
+            StackElement element = elements.elementAt(len - 1);
+            elements.removeElementAt(len - 1);
+            return element;
         }
 
         boolean isEmpty() {

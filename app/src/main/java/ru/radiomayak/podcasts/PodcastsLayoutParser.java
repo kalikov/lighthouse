@@ -14,12 +14,12 @@ import ru.radiomayak.NetworkUtils;
 import ru.radiomayak.StringUtils;
 
 class PodcastsLayoutParser extends AbstractLayoutParser {
-    private static final String PODCAST_LIST_CLASS = "b-podcast__list";
-    private static final String PODCAST_ITEM_CLASS = "b-podcast__item--listed";
-    private static final String PODCAST_ANCHOR_CLASS = "b-podcast__block-link";
-    private static final String PODCAST_DESCRIPTION_CLASS = "b-podcast__description";
-    private static final String PODCAST_IMAGE_CLASS = "b-podcast__pic";
-    private static final String PODCAST_LENGTH_CLASS = "b-podcast__number";
+    private static final String PODCAST_LIST_CLASS = "podcast-list";
+    private static final String PODCAST_ITEM_CLASS = "podcast-list__item";
+    private static final String PODCAST_ANCHOR_CLASS = "podcast-list__link";
+    private static final String PODCAST_DESCRIPTION_CLASS = "podcast-list__info";
+    private static final String PODCAST_IMAGE_CLASS = "podcast-list__picture";
+    private static final String PODCAST_LENGTH_CLASS = "podcast-list__count";
 
     Podcasts parse(InputStream input, @Nullable String charset, String baseUri) throws IOException {
         try {
@@ -34,7 +34,7 @@ class PodcastsLayoutParser extends AbstractLayoutParser {
             while (eventType != XmlPullParser.END_DOCUMENT) {
                 if (eventType == XmlPullParser.START_TAG) {
                     String tag = xpp.getName();
-                    if (LayoutUtils.isDiv(tag) && hasClass(xpp, PODCAST_LIST_CLASS)) {
+                    if (LayoutUtils.isBlock(tag) && hasClass(xpp, PODCAST_LIST_CLASS)) {
                         return parsePodcasts(xpp, NetworkUtils.toOptURI(baseUri));
                     }
                 }
@@ -49,7 +49,7 @@ class PodcastsLayoutParser extends AbstractLayoutParser {
     private static Podcasts parsePodcasts(XmlPullParser xpp, @Nullable URI uri) throws IOException, XmlPullParserException {
         Podcasts podcasts = new Podcasts();
 
-        LayoutUtils.Stack path = new LayoutUtils.Stack(3);
+        LayoutUtils.ElementStack path = new LayoutUtils.ElementStack(3);
         push(path, xpp);
 
         int eventType = lenientNext(xpp);
@@ -77,10 +77,12 @@ class PodcastsLayoutParser extends AbstractLayoutParser {
 
     @Nullable
     private static Podcast parsePodcast(XmlPullParser xpp, @Nullable URI uri) throws IOException, XmlPullParserException {
-        LayoutUtils.Stack path = new LayoutUtils.Stack(6);
+        LayoutUtils.ElementStack path = new LayoutUtils.ElementStack(6);
         push(path, xpp);
 
         boolean isUnderDescription = false;
+        boolean isUnderPicture = false;
+        boolean isUnderCount = false;
         int nameNesting = 0;
         int descriptionNesting = 0;
 
@@ -90,7 +92,7 @@ class PodcastsLayoutParser extends AbstractLayoutParser {
         String name = null;
         String description = null;
         String image = null;
-        int length = 0;
+        String length = null;
 
         int eventType = lenientNext(xpp);
         while (eventType != XmlPullParser.END_DOCUMENT) {
@@ -105,23 +107,25 @@ class PodcastsLayoutParser extends AbstractLayoutParser {
                         } else {
                             anchorName = StringUtils.nonEmpty(xpp.getAttributeValue(null, "title"));
                         }
-                    } else if (image == null && LayoutUtils.isImage(tag) && hasClass(xpp, PODCAST_IMAGE_CLASS)) {
+                    } else if (image == null && LayoutUtils.isImage(tag) && isUnderPicture) {
                         image = xpp.getAttributeValue(null, "src");
+                    } else if (!isUnderPicture && hasClass(xpp, PODCAST_IMAGE_CLASS)) {
+                        isUnderPicture = true;
                     } else if (!isUnderDescription && isDescriptionBlock(tag, getClass(xpp))) {
                         isUnderDescription = true;
                     } else if (isUnderDescription && isNameTag(tag)) {
                         nameNesting++;
                     } else if (isUnderDescription && isDescriptionTag(tag)) {
                         descriptionNesting++;
-                    } else if (length == 0 && LayoutUtils.isBlock(tag) && hasClass(xpp, PODCAST_LENGTH_CLASS)) {
-                        length = parsePodcastLength(xpp);
-                        eventType = xpp.getEventType();
-                        continue;
+                    } else if (length == null && LayoutUtils.isBlock(tag) && hasClass(xpp, PODCAST_LENGTH_CLASS)) {
+                        isUnderCount = true;
                     }
                 }
             } else if (!failure && isUnderDescription && (eventType == XmlPullParser.TEXT || eventType == XmlPullParser.ENTITY_REF)) {
                 if (nameNesting > 0) {
                     name = appendText(name, xpp);
+                } else if (isUnderCount) {
+                    length = appendText(length, xpp);
                 } else if (descriptionNesting > 0) {
                     description = appendText(description, xpp);
                 }
@@ -129,12 +133,16 @@ class PodcastsLayoutParser extends AbstractLayoutParser {
                 LayoutUtils.StackElement element;
                 do {
                     element = path.pop();
-                    if (isUnderDescription && isDescriptionBlock(element.getTag(), element.getClassAttribute())) {
+                    if (isUnderCount && LayoutUtils.isBlock(element.getTag()) && LayoutUtils.hasClass(element.getClassAttribute(), PODCAST_LENGTH_CLASS)) {
+                        isUnderCount = false;
+                    } if (isUnderDescription && isDescriptionBlock(element.getTag(), element.getClassAttribute())) {
                         isUnderDescription = false;
                     } else if (isUnderDescription && isNameTag(element.getTag())) {
                         nameNesting--;
                     } else if (isUnderDescription && isDescriptionTag(element.getTag())) {
                         descriptionNesting--;
+                    } else if (isUnderPicture && LayoutUtils.hasClass(element.getClassAttribute(), PODCAST_IMAGE_CLASS)) {
+                        isUnderPicture = false;
                     }
                 } while (!element.getTag().equalsIgnoreCase(xpp.getName()) && !path.isEmpty());
                 if (path.isEmpty()) {
@@ -156,7 +164,7 @@ class PodcastsLayoutParser extends AbstractLayoutParser {
         }
         Podcast podcast = new Podcast(id, name == null ? anchorName : name);
         podcast.setDescription(StringUtils.nonEmptyNormalized(description));
-        podcast.setLength(length);
+        podcast.setLength(length == null ? 0 : parsePodcastLength(length));
         if (image != null && !image.isEmpty()) {
             podcast.setIcon(new Image(image, uri));
         }
@@ -168,7 +176,7 @@ class PodcastsLayoutParser extends AbstractLayoutParser {
     }
 
     private static boolean isNameTag(String tag) {
-        return "h5".equalsIgnoreCase(tag);
+        return "h5".equalsIgnoreCase(tag) || "h3".equalsIgnoreCase(tag);
     }
 
     private static boolean isDescriptionTag(String tag) {

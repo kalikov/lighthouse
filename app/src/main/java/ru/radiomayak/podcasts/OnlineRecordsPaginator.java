@@ -35,7 +35,7 @@ class OnlineRecordsPaginator implements RecordsPaginator {
         }
     };
 
-    private static final String PAGE_URL = "http://radiomayak.ru/podcasts/loadepisodes/podcast/%s/page/%s/";
+    private static final String PAGE_URL = "https://radiomayak.ru/podcasts/loadepisodes/podcast/%s/page/%s/";
 
     private static final PodcastJsonParser parser = new PodcastJsonParser();
 

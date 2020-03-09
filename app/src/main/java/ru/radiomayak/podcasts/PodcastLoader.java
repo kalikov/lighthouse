@@ -25,7 +25,7 @@ import ru.radiomayak.http.message.BasicHttpRequest;
 class PodcastLoader extends AbstractHttpLoader<PodcastResponse> {
     private static final String TAG = PodcastLoader.class.getSimpleName();
 
-    private static final String PODCAST_URL = "http://radiomayak.ru/podcasts/podcast/id/%s/";
+    private static final String PODCAST_URL = "https://radiomayak.ru/podcasts/podcast/id/%s/";
 
     private final PodcastLayoutParser parser = new PodcastLayoutParser();
 
@@ -47,7 +47,7 @@ class PodcastLoader extends AbstractHttpLoader<PodcastResponse> {
                             database.loadRecordsPositionAndLength(id, response.getRecords());
                         }
                         RecordsPaginator paginator = new OnlineRecordsPaginator(id, response.getRecords(), response.getNextPage());
-                        return new PodcastResponse(response.getPodcast(), paginator);
+                        return new PodcastResponse(response.getPodcast(), response.isArchived(), paginator);
                     }
                 } catch (IOException | HttpException ignored) {
                 }
@@ -55,7 +55,7 @@ class PodcastLoader extends AbstractHttpLoader<PodcastResponse> {
         } catch (Throwable e) {
             Log.e(TAG, e.getMessage(), e);
         }
-        return new PodcastResponse(null, null);
+        return new PodcastResponse(null, null, null);
     }
 
     @Nullable

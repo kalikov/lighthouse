@@ -35,6 +35,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
     private final AnimatedVectorDrawableCompat equalizerDrawable;
 
     private FooterMode footerMode;
+    private Boolean isArchived;
 
     enum FooterMode {
         HIDDEN,
@@ -61,17 +62,21 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
 
     @Override
     public int getItemCount() {
-        return (podcast.getLength() > 0 ? 1 : 0) + records.size() + (footerMode != FooterMode.HIDDEN ? 1 : 0);
+        return (hasHeader() ? 1 : 0) + records.size() + (footerMode != FooterMode.HIDDEN ? 1 : 0);
+    }
+
+    private boolean hasHeader() {
+        return podcast.getLength() > 0 || isArchived != null;
     }
 
     public boolean isEmpty() {
-        return records.isEmpty() && podcast.getLength() <= 0 && footerMode == FooterMode.HIDDEN;
+        return records.isEmpty() && !hasHeader() && footerMode == FooterMode.HIDDEN;
     }
 
     @Override
     public int getItemViewType(int position) {
         int index = position;
-        if (podcast.getLength() > 0) {
+        if (hasHeader()) {
             if (position == 0) {
                 return HEADER_VIEW_TYPE;
             }
@@ -88,7 +93,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         if (this.footerMode == footerMode) {
             return;
         }
-        int position = (podcast.getLength() > 0 ? 1 : 0) + records.size();
+        int position = (hasHeader() ? 1 : 0) + records.size();
         if (this.footerMode == FooterMode.HIDDEN) {
             this.footerMode = footerMode;
             notifyItemInserted(position);
@@ -98,6 +103,22 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
         } else {
             this.footerMode = footerMode;
             notifyItemChanged(position);
+        }
+    }
+
+    void setIsArchived(Boolean isArchived) {
+        if (this.isArchived == isArchived) {
+            return;
+        }
+        boolean hadHeader = hasHeader();
+        this.isArchived = isArchived;
+        boolean hasHeader = hasHeader();
+        if (hasHeader && hadHeader) {
+            notifyItemChanged(0);
+        } else if (!hasHeader && hadHeader) {
+            notifyItemRemoved(0);
+        } else {
+            notifyItemInserted(0);
         }
     }
 
@@ -122,7 +143,7 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             int index = podcast.getLength() > 0 ? position - 1 : position;
             ((ItemViewHolder) holder).bind(records.get(index));
         } else if (holder instanceof HeaderViewHolder) {
-            ((HeaderViewHolder) holder).bind(podcast);
+            ((HeaderViewHolder) holder).bind(podcast, isArchived);
         } else if (holder instanceof FooterViewHolder) {
             ((FooterViewHolder) holder).bind(footerMode);
         }
@@ -307,11 +328,33 @@ class RecordsAdapter extends RecyclerView.Adapter<RecordsAdapter.ViewHolder> {
             super(itemView);
         }
 
-        void bind(Podcast podcast) {
+        void bind(Podcast podcast, Boolean isArchived) {
             TextView lengthView = getLengthView(itemView);
             lengthView.setTypeface(fragment.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
             String format = fragment.getString(R.string.records_count);
             lengthView.setText(String.format(format, String.valueOf(podcast.getLength())));
+
+            TextView archiveView = getArchiveView(itemView);
+            archiveView.setTypeface(fragment.requireLighthouseActivity().getLighthouseApplication().getFontNormal());
+            if (isArchived == null) {
+                getArchiveContentView(itemView).setVisibility(View.GONE);
+            } else {
+                archiveView.setText(isArchived == Boolean.TRUE ? R.string.completed : R.string.updating);
+                getArchiveIconView(itemView).setImageResource(isArchived == Boolean.TRUE ? R.drawable.podcast_completed : R.drawable.podcast_updating);
+                getArchiveContentView(itemView).setVisibility(View.VISIBLE);
+            }
+        }
+
+        private TextView getArchiveView(View view) {
+            return view.findViewById(R.id.updating);
+        }
+
+        private ImageView getArchiveIconView(View view) {
+            return view.findViewById(android.R.id.icon2);
+        }
+
+        private View getArchiveContentView(View view) {
+            return view.findViewById(android.R.id.text2);
         }
 
         private TextView getLengthView(View view) {

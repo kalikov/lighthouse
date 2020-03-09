@@ -17,29 +17,31 @@ import ru.radiomayak.StringUtils;
 
 class PodcastLayoutParser extends AbstractLayoutParser {
     private static final String PODCAST_ID = "podcast-id";
-    private static final String PODCAST_ITEM_CLASS = "b-podcast__item";
-    private static final String PODCAST_ANCHOR_CLASS = "b-podcast__block-link";
-    private static final String PODCAST_LENGTH_CLASS = "b-podcast__number";
-    private static final String PODCAST_SPLASH_CLASS = "b-podcast__pic";
-    private static final String PODCAST_LOGO_CLASS = "b-podcast__logo";
-    private static final String PODCAST_NEXT_PAGE_CLASS = "b-podcast__records-show-more__btn";
+    private static final String PODCAST_HEADER_CLASS = "podcast-header";
+    private static final String PODCAST_TITLE_CLASS = "podcast-header__title";
+    private static final String PODCAST_COMPLETED_CLASS = "podcast-header__completed";
+    private static final String PODCAST_UPDATING_CLASS = "podcast-header__updating";
+    private static final String PODCAST_LENGTH_CLASS = "podcast-header__count";
+    private static final String PODCAST_LOGO_CLASS = "podcast-header__picture";
+    private static final String PODCAST_NEXT_PAGE_CLASS = "podcast-episodes--more";
 
-    private static final String RECORDS_LIST_CLASS = "b-podcast__records";
-    private static final String RECORD_ITEM_CLASS = "b-podcast__records-item";
-    private static final String RECORD_LISTEN_ANCHOR_CLASS = "b-podcast__records-listen";
-    private static final String RECORD_SCHEDULE_ANCHOR_CLASS = "b-schedule__list-item__url";
-    private static final String RECORD_NAME_CLASS = "b-podcast__records-name";
-    private static final String RECORD_DESCRIPTION_CLASS = "b-podcast__records-description__text";
-    private static final String RECORD_DATE_CLASS = "b-podcast__records-date";
-    private static final String RECORD_DURATION_CLASS = "b-podcast__records-time";
+    private static final String RECORDS_LIST_CLASS = "podcast-episodes__list";
+    private static final String RECORD_ITEM_CLASS = "podcast-episodes__item";
+    private static final String RECORD_LISTEN_ANCHOR_CLASS = "podcast-episodes__listen";
+    private static final String RECORD_DOWNLOAD_ANCHOR_CLASS = "podcast-episodes__download";
+    private static final String RECORD_NAME_CLASS = "podcast-episodes__title";
+    private static final String RECORD_DESCRIPTION_CLASS = "podcast-episodes__anons";
+    private static final String RECORD_DATE_CLASS = "podcast-episodes__date";
+    private static final String RECORD_DURATION_CLASS = "podcast-episodes__duration";
 
     private static final Pattern RECORD_URL_ID_PATTERN = Pattern.compile(".+(?:listen|download)\\?id=(\\d+).*");
 
     private static final Pattern JSON_DATE_PATTERN = Pattern.compile("(\\d{2})\\-(\\d{2})\\-(\\d{4})");
-    private static final Pattern HTML_DATE_PATTERN = Pattern.compile("\\:[\\u00A0\\s]*(\\d{2})\\.(\\d{2})\\.(\\d{4})");
+    private static final Pattern HTML_DATE_PATTERN = Pattern.compile("[\\u00A0\\s]*(\\d{2})\\.(\\d{2})\\.(\\d{4})");
+    private static final Pattern HTML_STRING_DATE_PATTERN = Pattern.compile("[\\u00A0\\s]*(\\d{2})[\\u00A0\\s]+(\\D+)[\\u00A0\\s]+(\\d{4})");
 
     private static final Pattern JSON_DURATION_PATTERN = Pattern.compile("((\\d{2}\\:)?\\d{2}\\:\\d{2})");
-    private static final Pattern HTML_DURATION_PATTERN = Pattern.compile("\\:[\\u00A0\\s]*((\\d{2}\\:)?\\d{2}\\:\\d{2})");
+    private static final Pattern HTML_DURATION_PATTERN = Pattern.compile("[\\u00A0\\s]*((\\d{2}\\:)?\\d{2}\\:\\d{2})");
 
     PodcastLayoutContent parse(long target, InputStream input, @Nullable String charset, String baseUri) throws IOException {
         try {
@@ -50,16 +52,19 @@ class PodcastLayoutParser extends AbstractLayoutParser {
             XmlPullParser xpp = factory.newPullParser();
             xpp.setInput(input, charset);
 
-            LayoutUtils.Stack stack = new LayoutUtils.Stack(15);
+            LayoutUtils.ElementStack stack = new LayoutUtils.ElementStack(15);
 
             boolean isUnderLogo = false;
-            boolean isUnderPodcast = false;
-            boolean isUnderSourcePodcast = false;
+            boolean isUnderHeader = false;
+            boolean isUnderTitle = false;
+            boolean isUnderCount = false;
+            boolean wasComment = false;
+            Boolean isArchived = null;
 
             long id = target;
             String name = null;
             String splash = null;
-            int length = 0;
+            String length = null;
 
             Records records = null;
             long nextPage = 0;
@@ -68,64 +73,80 @@ class PodcastLayoutParser extends AbstractLayoutParser {
 
             int eventType = xpp.getEventType();
             while (eventType != XmlPullParser.END_DOCUMENT) {
-                if (eventType == XmlPullParser.START_TAG) {
+                if (eventType == XmlPullParser.COMMENT) {
+                    wasComment = true;
+                } else if (eventType == XmlPullParser.START_TAG) {
+                    wasComment = false;
                     push(stack, xpp);
                     String tag = xpp.getName();
-                    if (records == null && LayoutUtils.isDiv(tag) && hasClass(xpp, RECORDS_LIST_CLASS)) {
+                    if (records == null && LayoutUtils.isBlock(tag) && hasClass(xpp, RECORDS_LIST_CLASS)) {
                         records = parseRecords(xpp, uri);
                     } else if (id == 0 && LayoutUtils.isInput(tag) && PODCAST_ID.equals(xpp.getAttributeValue(null, "id"))) {
                         id = StringUtils.parseLong(xpp.getAttributeValue(null, "value"), id);
-                    } else if (!isUnderLogo && isLogoTag(tag, getClass(xpp))) {
+                    } else if (!isUnderLogo && isUnderHeader && isLogoTag(tag, getClass(xpp))) {
                         isUnderLogo = true;
-                    } else if (isUnderLogo && LayoutUtils.isImage(tag) && hasClass(xpp, PODCAST_SPLASH_CLASS)) {
+                    } else if (isUnderLogo && LayoutUtils.isImage(tag)) {
                         splash = xpp.getAttributeValue(null, "src");
                         name = StringUtils.nonEmpty(xpp.getAttributeValue(null, "title"));
-                    } else if (nextPage == 0 && LayoutUtils.isAnchor(tag) && hasClass(xpp, PODCAST_NEXT_PAGE_CLASS)) {
+                    } else if (nextPage == 0 && (LayoutUtils.isAnchor(tag) || LayoutUtils.isBlock(tag)) && hasClass(xpp, PODCAST_NEXT_PAGE_CLASS)) {
                         nextPage = StringUtils.parseLong(xpp.getAttributeValue(null, "data-page"), 0);
-                        if (id == 0) {
-                            // no need to search for podcast length as target podcast is unknown
-                            break;
-                        }
-                    } else if (!isUnderPodcast && isPodcastTag(tag, getClass(xpp))) {
-                        isUnderPodcast = true;
-                    } else if (isUnderPodcast && LayoutUtils.isAnchor(tag) && hasClass(xpp, PODCAST_ANCHOR_CLASS)) {
-                        long item = parsePodcastIdentifier(xpp.getAttributeValue(null, "href"));
-                        if (item != 0 && item == id) {
-                            isUnderSourcePodcast = true;
-                        }
-                    } else if (isUnderSourcePodcast && LayoutUtils.isBlock(tag) && hasClass(xpp, PODCAST_LENGTH_CLASS)) {
-                        length = parsePodcastLength(xpp);
-                        // supposed to be the last task of parsing
-                        break;
+                    } else if (!isUnderHeader && isHeaderTag(tag, getClass(xpp))) {
+                        isUnderHeader = true;
+                    } else if (isUnderHeader && !isUnderCount && LayoutUtils.isBlock(tag) && hasClass(xpp, PODCAST_LENGTH_CLASS)) {
+                        isUnderCount = true;
+                    } else if (isUnderHeader && !isUnderTitle && LayoutUtils.isHeader(tag) && hasClass(xpp, PODCAST_TITLE_CLASS)) {
+                        isUnderTitle = true;
+                    } else if (isUnderHeader && isArchived == null && (hasClass(xpp, PODCAST_COMPLETED_CLASS) || hasClass(xpp, PODCAST_UPDATING_CLASS))) {
+                        isArchived = hasClass(xpp, PODCAST_COMPLETED_CLASS) ? Boolean.TRUE : Boolean.FALSE;
+                    }
+                } else if (isUnderHeader && (eventType == XmlPullParser.TEXT || eventType == XmlPullParser.ENTITY_REF)) {
+                    if (isUnderCount) {
+                        length = appendText(length, xpp.getText());
+                    } else if (isUnderTitle) {
+                        name = appendText(name, xpp.getText());
                     }
                 } else if (eventType == XmlPullParser.END_TAG) {
                     LayoutUtils.StackElement element;
                     do {
+                        if (wasComment) {
+                            element = stack.peek();
+                            if (!element.getTag().equalsIgnoreCase(xpp.getName())) {
+                                break;
+                            }
+                        }
                         element = stack.pop();
                         if (isUnderLogo && isLogoTag(element.getTag(), element.getClassAttribute())) {
                             isUnderLogo = false;
-                        } else if (isUnderPodcast && isPodcastTag(element.getTag(), element.getClassAttribute())) {
-                            isUnderPodcast = false;
-                            isUnderSourcePodcast = false;
+                        } else if (isUnderHeader && isHeaderTag(element.getTag(), element.getClassAttribute())) {
+                            isUnderHeader = false;
+                        } else if (isUnderCount && LayoutUtils.isBlock(element.getTag()) && LayoutUtils.hasClass(element.getClassAttribute(), PODCAST_LENGTH_CLASS)) {
+                            isUnderCount = false;
+                        } else if (isUnderTitle && LayoutUtils.isHeader(element.getTag()) && LayoutUtils.hasClass(element.getClassAttribute(), PODCAST_TITLE_CLASS)) {
+                            isUnderTitle = false;
                         }
                     } while (!element.getTag().equalsIgnoreCase(xpp.getName()) && !stack.isEmpty());
                     if (stack.isEmpty()) {
                         break;
                     }
                 }
-                eventType = lenientNext(xpp);
+                if (isUnderHeader) {
+                    eventType = lenientNextToken(xpp);
+                } else {
+                    eventType = lenientNext(xpp);
+                }
             }
 
             Podcast podcast = null;
+            name = StringUtils.nonEmptyTrimmed(name);
             if (id != 0 && name != null) {
                 podcast = new Podcast(id, name);
                 if (splash != null && !splash.isEmpty()) {
                     podcast.setSplash(new Image(splash, uri));
                 }
-                podcast.setLength(length);
+                podcast.setLength(length == null ? 0 : parsePodcastLength(length));
             }
 
-            return new PodcastLayoutContent(podcast, records == null ? new Records() : records, nextPage);
+            return new PodcastLayoutContent(podcast, isArchived == Boolean.TRUE, records == null ? new Records() : records, nextPage);
         } catch (XmlPullParserException e) {
             throw new IOException(e);
         }
@@ -134,14 +155,14 @@ class PodcastLayoutParser extends AbstractLayoutParser {
     private static Records parseRecords(XmlPullParser xpp, @Nullable URI uri) throws IOException, XmlPullParserException {
         Records records = new Records();
 
-        LayoutUtils.Stack path = new LayoutUtils.Stack(3);
+        LayoutUtils.ElementStack path = new LayoutUtils.ElementStack(3);
         push(path, xpp);
 
         int eventType = lenientNext(xpp);
         while (eventType != XmlPullParser.END_DOCUMENT) {
             if (eventType == XmlPullParser.START_TAG) {
                 String tag = xpp.getName();
-                if (LayoutUtils.isDiv(tag) && hasClass(xpp, RECORD_ITEM_CLASS)) {
+                if (LayoutUtils.isBlock(tag) && hasClass(xpp, RECORD_ITEM_CLASS)) {
                     Record record = parseRecord(xpp, uri);
                     if (record != null) {
                         records.add(record);
@@ -162,7 +183,7 @@ class PodcastLayoutParser extends AbstractLayoutParser {
 
     @Nullable
     private static Record parseRecord(XmlPullParser xpp, @Nullable URI uri) throws IOException, XmlPullParserException {
-        LayoutUtils.Stack path = new LayoutUtils.Stack(10);
+        LayoutUtils.ElementStack path = new LayoutUtils.ElementStack(10);
         push(path, xpp);
 
         int nameNesting = 0;
@@ -186,33 +207,36 @@ class PodcastLayoutParser extends AbstractLayoutParser {
                 push(path, xpp);
                 if (!failure) {
                     if (id == 0 && LayoutUtils.isAnchor(tag)) {
-                       if (hasClass(xpp, RECORD_LISTEN_ANCHOR_CLASS)) {
-                           url = xpp.getAttributeValue(null, "data-url");
-                           if (url == null || url.isEmpty()) {
-                               failure = true;
-                           } else {
-                               id = StringUtils.parseLong(xpp.getAttributeValue(null, "data-id"), 0);
-                               if (id == 0) {
-                                   id = parseIdentifier(url);
-                               }
-                               if (id == 0) {
-                                   failure = true;
-                               } else {
-                                   anchorName = StringUtils.nonEmpty(xpp.getAttributeValue(null, "data-title"));
-                               }
-                           }
-                       } else if (hasClass(xpp, RECORD_SCHEDULE_ANCHOR_CLASS) && url == null) {
-                           String href = xpp.getAttributeValue(null, "href");
-                           Matcher matcher = RECORD_URL_ID_PATTERN.matcher(href);
-                           if (matcher.find()) {
-                               id = StringUtils.parseLong(matcher.group(1), 0);
-                               if (id == 0) {
-                                   failure = true;
-                               } else {
-                                   url = href;
-                               }
-                           }
-                       }
+                        if (hasClass(xpp, RECORD_LISTEN_ANCHOR_CLASS)) {
+                            url = xpp.getAttributeValue(null, "data-url");
+                            if (url == null || url.isEmpty()) {
+                                url = xpp.getAttributeValue(null, "href");
+                            }
+                            if (url == null || url.isEmpty()) {
+                                failure = true;
+                            } else {
+                                id = StringUtils.parseLong(xpp.getAttributeValue(null, "data-id"), 0);
+                                if (id == 0) {
+                                    id = parseIdentifier(url);
+                                }
+                                if (id == 0) {
+                                    failure = true;
+                                } else {
+                                    anchorName = StringUtils.nonEmpty(xpp.getAttributeValue(null, "data-title"));
+                                }
+                            }
+                        } else if (hasClass(xpp, RECORD_DOWNLOAD_ANCHOR_CLASS) && url == null) {
+                            String href = xpp.getAttributeValue(null, "href");
+                            Matcher matcher = RECORD_URL_ID_PATTERN.matcher(href);
+                            if (matcher.find()) {
+                                id = StringUtils.parseLong(matcher.group(1), 0);
+                                if (id == 0) {
+                                    failure = true;
+                                } else {
+                                    url = href;
+                                }
+                            }
+                        }
                     } else if (isNameTag(tag, getClass(xpp))) {
                         nameNesting++;
                         nesting++;
@@ -283,8 +307,8 @@ class PodcastLayoutParser extends AbstractLayoutParser {
         return LayoutUtils.isDiv(tag) && LayoutUtils.hasClass(classAttribute, PODCAST_LOGO_CLASS);
     }
 
-    private static boolean isPodcastTag(String tag, String classAttribute) {
-        return LayoutUtils.isDiv(tag) && LayoutUtils.hasClass(classAttribute, PODCAST_ITEM_CLASS);
+    private static boolean isHeaderTag(String tag, String classAttribute) {
+        return LayoutUtils.isHeader(tag) && LayoutUtils.hasClass(classAttribute, PODCAST_HEADER_CLASS);
     }
 
     private static boolean isNameTag(String tag, String classAttribute) {
@@ -315,6 +339,13 @@ class PodcastLayoutParser extends AbstractLayoutParser {
     private static String parseDate(@Nullable String string) {
         if (string == null || string.isEmpty()) {
             return null;
+        }
+        Matcher stringMatcher = HTML_STRING_DATE_PATTERN.matcher(string);
+        if (stringMatcher.find()) {
+            String monthString = stringMatcher.group(2);
+            int month = PodcastsUtils.parseMonth(monthString);
+            String monthFormatted = month >= 10 ? String.valueOf(month) : '0' + String.valueOf(month);
+            return stringMatcher.group(3) + '-' + monthFormatted + '-' + stringMatcher.group(1);
         }
         Matcher htmlMatcher = HTML_DATE_PATTERN.matcher(string);
         if (htmlMatcher.find()) {

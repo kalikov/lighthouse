@@ -30,7 +30,6 @@ public class Podcast implements Parcelable, Identifiable {
     private Image icon;
     private Image splash;
     private int favorite;
-    private boolean archived;
 
     protected Podcast(Parcel in) {
         id = in.readLong();
@@ -40,7 +39,6 @@ public class Podcast implements Parcelable, Identifiable {
         }
         length = in.readInt();
         seen = in.readInt();
-        archived = in.readByte() == 1;
         icon = readImageFromParcel(in);
         splash = readImageFromParcel(in);
     }
@@ -62,7 +60,6 @@ public class Podcast implements Parcelable, Identifiable {
         writeStringToParcel(out, description);
         out.writeInt(length);
         out.writeInt(seen);
-        out.writeByte((byte) (archived ? 1 : 0));
         writeImageToParcel(out, icon, flags);
         writeImageToParcel(out, splash, flags);
     }
@@ -159,14 +156,6 @@ public class Podcast implements Parcelable, Identifiable {
         this.favorite = favorite;
     }
 
-    public boolean isArchived() {
-        return archived;
-    }
-
-    public void setArchived(boolean archived) {
-        this.archived = archived;
-    }
-
     public boolean update(Podcast podcast) {
         boolean updated = false;
         if (!StringUtils.equals(podcast.getName(), name)) {
@@ -188,10 +177,6 @@ public class Podcast implements Parcelable, Identifiable {
         if (podcast.getFavorite() != favorite) {
             updated = true;
             favorite = podcast.getFavorite();
-        }
-        if (podcast.isArchived() != archived) {
-            updated = true;
-            archived = podcast.archived;
         }
         updated = updateIcon(podcast.getIcon()) || updated;
         updated = updateSplash(podcast.getSplash()) || updated;
@@ -233,7 +218,6 @@ public class Podcast implements Parcelable, Identifiable {
                 ", icon: " + icon +
                 ", splash: " + splash +
                 ", favorite: " + favorite +
-                ", archived: " + archived +
                 '}';
     }
 }

@@ -17,7 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_centerInParent="true"
-            android:layout_toEndOf="@android:id/icon"
+            android:layout_toEndOf="@android:id/icon1"
             android:ellipsize="end"
             android:maxLines="2"
             android:paddingEnd="0dp"
@@ -26,11 +26,41 @@
             android:textAppearance="@style/AppTheme.Title"/>
 
         <ImageView
-            android:id="@android:id/icon"
+            android:id="@android:id/icon1"
             android:layout_width="@dimen/record_icon_size"
             android:layout_height="@dimen/record_icon_size"
             android:layout_centerVertical="true"
             android:src="@drawable/records"
+            tools:ignore="ContentDescription"/>
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@android:id/text2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/colorForeground"
+        android:paddingBottom="@dimen/podcast_padding"
+        android:paddingHorizontal="@dimen/podcast_padding">
+
+        <TextView
+            android:id="@+id/updating"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@android:id/icon2"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:paddingTop="2dp"
+            android:paddingEnd="0dp"
+            android:paddingStart="@dimen/record_title_padding"
+            android:text="@string/updating"
+            android:textAppearance="@style/AppTheme.Title"/>
+
+        <ImageView
+            android:id="@android:id/icon2"
+            android:layout_width="@dimen/record_icon_size"
+            android:layout_height="@dimen/record_icon_size"
+            android:src="@drawable/podcast_updating"
             tools:ignore="ContentDescription"/>
 
     </RelativeLayout>

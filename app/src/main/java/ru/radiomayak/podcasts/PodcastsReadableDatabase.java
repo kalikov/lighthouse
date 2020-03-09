@@ -212,8 +212,6 @@ public class PodcastsReadableDatabase implements AutoCloseable {
                 podcast.setLength(cursor.getInt(PodcastsTable.Field.LENGTH.ordinal()));
                 podcast.setSeen(cursor.getInt(PodcastsTable.Field.SEEN.ordinal()));
                 podcast.setFavorite(cursor.getInt(PodcastsTable.Field.RATING.ordinal()));
-                int ord = cursor.getInt(PodcastsTable.Field.ORD.ordinal());
-                podcast.setArchived(ord < 0);
 
                 String iconUrl = cursor.getString(PodcastsTable.Field.ICON_URL.ordinal());
                 if (iconUrl != null) {
